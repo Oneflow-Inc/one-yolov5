@@ -18,7 +18,7 @@ import logging
 from collections import abc
 from typing import Any
 
-from libai.config.lazy import _convert_target_to_string, locate
+from onedet.config.lazy import _convert_target_to_string, locate
 
 __all__ = ["dump_dataclass", "instantiate"]
 
