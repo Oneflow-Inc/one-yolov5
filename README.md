@@ -1,2 +1,2 @@
-# OneDet
-Detection Models Implement with OneFlow
+# one-yolo
+Yolo Models Implement with OneFlow.
