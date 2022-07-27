@@ -1,1 +1,0 @@
-from .shape_spec import ShapeSpec
