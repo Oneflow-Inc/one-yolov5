@@ -1,0 +1,6 @@
+Log file created at: 2022/07/29 07:32:13
+Running on machine: vs008
+Running duration (h:mm:ss): 0:00:00
+Log line format: [IWEF]yyyymmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I20220729 07:32:13.930827 1531061 env_global_objects_scope.cpp:146] Using rpc backend: local
+I20220729 07:32:14.103578 1531061 epoll_comm_network.cpp:63] CommNet:Epoll listening on 0.0.0.0:36597
