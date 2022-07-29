@@ -36,18 +36,18 @@ warnings.filterwarnings('ignore', message='User provided device_type of \'cuda\'
 
 def smart_DDP(model):
     # Model DDP creation with checks
-    return DDP(model, device_ids=[LOCAL_RANK], output_device=LOCAL_RANK)
+    return DDP(model)
 
 
-@contextmanager
-def flow_distributed_zero_first(local_rank: int):
-    # Decorator to make all processes in distributed training wait for each local_master to do something
-    # if local_rank not in [-1, 0]:
-    #     dist.barrier(device_ids=[local_rank])
-    # yield
-    # if local_rank == 0:
-    #     dist.barrier(device_ids=[0])
-    pass
+# @contextmanager
+# def flow_distributed_zero_first(local_rank: int):
+#     # Decorator to make all processes in distributed training wait for each local_master to do something
+#     # if local_rank not in [-1, 0]:
+#     #     dist.barrier(device_ids=[local_rank])
+#     # yield
+#     # if local_rank == 0:
+#     #     dist.barrier(device_ids=[0])
+#     pass
 
 
 def device_count():
@@ -157,7 +157,7 @@ def profile(input, ops, n=10, device=None):
 
 def is_parallel(model):
     # Returns True if model is of type DDP
-    return type(model) in (nn.parallel.DistributedDataParallel)
+    return type(model) in (nn.parallel.DistributedDataParallel, )
 
 
 def de_parallel(model):

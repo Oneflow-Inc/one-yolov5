@@ -505,9 +505,9 @@ def check_dataset(data, autodownload=True):
                 f = Path(s).name  # filename
                 LOGGER.info(f'Downloading {s} to {f}...')
                 # torch.hub.download_url_to_file(s, f)
-                Path(root).mkdir(parents=True, exist_ok=True)  # create root
-                ZipFile(f).extractall(path=root)  # unzip
-                Path(f).unlink()  # remove zip
+                # Path(root).mkdir(parents=True, exist_ok=True)  # create root
+                # ZipFile(f).extractall(path=root)  # unzip
+                # Path(f).unlink()  # remove zip
                 r = None  # success
             elif s.startswith('bash '):  # bash script
                 LOGGER.info(f'Running {s} ...')
