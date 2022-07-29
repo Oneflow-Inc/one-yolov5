@@ -131,3 +131,6 @@ dmypy.json
 # dataset
 
 datasets/
+
+# log
+log/
