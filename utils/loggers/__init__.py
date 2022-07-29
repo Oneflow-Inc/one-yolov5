@@ -8,7 +8,7 @@ import warnings
 
 import pkg_resources as pkg
 import oneflow as flow
-from oneflow.utils.tensorboard import SummaryWriter
+# from oneflow.utils.tensorboard import SummaryWriter
 
 from utils.general import colorstr, cv2, emojis
 from utils.loggers.wandb.wandb_utils import WandbLogger
@@ -72,7 +72,7 @@ class Loggers():
         if 'tb' in self.include and not self.opt.evolve:
             prefix = colorstr('TensorBoard: ')
             self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
-            self.tb = SummaryWriter(str(s))
+            # self.tb = SummaryWriter(str(s))
 
         # W&B
         if wandb and 'wandb' in self.include:
