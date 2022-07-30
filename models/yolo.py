@@ -209,6 +209,10 @@ class Model(nn.Module):
         m = self.model[-1]  # Detect() module
         for mi, s in zip(m.m, m.stride):  # from
             b = mi.bias.view(m.na, -1).detach()  # conv.bias(255) to (3,85)
+            print('='*100)
+            print(b.shape)
+            print(type(s))
+            print(s)
             b[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
             b[:, 5:] += math.log(0.6 / (m.nc - 0.999999)) if cf is None else flow.log(cf / cf.sum())  # cls
             mi.bias = flow.nn.Parameter(b.view(-1), requires_grad=True)
