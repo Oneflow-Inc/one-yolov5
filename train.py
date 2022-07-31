@@ -300,7 +300,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             callbacks.run('on_train_batch_start')
             ni = i + nb * epoch  # number integrated batches (since train start)
-            print(imgs.shape, targets.shape, device)
             imgs = imgs.to(device).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
 
             # Warmup
