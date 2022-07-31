@@ -211,7 +211,7 @@ def run(
             loss += compute_loss([x.float() for x in train_out], targets)[1]  # box, obj, cls
 
         # NMS
-        targets[:, 2:] *= flow.tensor((width, height, width, height), device=device)  # to pixels
+        targets[:, 2:] = targets[:, 2:] * flow.tensor((width, height, width, height), device=device)  # to pixels
         lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
         t3 = time_sync()
         out = non_max_suppression(out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
