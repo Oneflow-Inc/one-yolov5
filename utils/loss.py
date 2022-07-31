@@ -140,7 +140,7 @@ class ComputeLoss:
                 pwh = (pwh.sigmoid() * 2) ** 2 * anchors[i]
                 pbox = flow.cat((pxy, pwh), 1)  # predicted box
                 iou = bbox_iou(pbox, tbox[i], CIoU=True).squeeze()  # iou(prediction, target)
-                lbox += (1.0 - iou).mean()  # iou loss
+                lbox = lbox + (1.0 - iou).mean()  # iou loss
 
                 # Objectness
                 iou = iou.detach().clamp(0).type(tobj.dtype)
@@ -155,7 +155,7 @@ class ComputeLoss:
                 if self.nc > 1:  # cls loss (only if multiple classes)
                     t = flow.full_like(pcls, self.cn, device=self.device)  # targets
                     t[range(n), tcls[i]] = self.cp
-                    lcls += self.BCEcls(pcls, t)  # BCE
+                    lcls = lcls + self.BCEcls(pcls, t)  # BCE
 
                 # Append targets to text file
                 # with open('targets.txt', 'a') as file:
@@ -163,7 +163,7 @@ class ComputeLoss:
 
 
             obji = self.BCEobj(pi[..., 4], tobj)
-            lobj += obji * self.balance[i]  # obj loss
+            lobj = lobj + obji * self.balance[i]  # obj loss
             if self.autobalance:
                 self.balance[i] = self.balance[i] * 0.9999 + 0.0001 / obji.detach().item()
 
@@ -228,7 +228,7 @@ class ComputeLoss:
             gi, gj = gij.T  # grid indices
 
             # Append
-            indices.append((b, a, gj.clamp_(0, shape[2] - 1), gi.clamp_(0, shape[3] - 1)))  # image, anchor, grid
+            indices.append((b, a, gj.contiguous().clamp_(0, shape[2] - 1), gi.contiguous().clamp_(0, shape[3] - 1)))  # image, anchor, grid
             tbox.append(flow.cat((gxy - gij, gwh), 1))  # box
             anch.append(anchors[a])  # anchors
             tcls.append(c)  # class

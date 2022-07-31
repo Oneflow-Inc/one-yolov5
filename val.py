@@ -122,6 +122,7 @@ def run(
         callbacks=Callbacks(),
         compute_loss=None,
 ):
+    half = False
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
@@ -193,7 +194,7 @@ def run(
         callbacks.run('on_val_batch_start')
         t1 = time_sync()
         if cuda:
-            im = im.to(device, non_blocking=True)
+            im = im.to(device)
             targets = targets.to(device)
         im = im.half() if half else im.float()  # uint8 to fp16/32
         im /= 255  # 0 - 255 to 0.0 - 1.0
