@@ -5,6 +5,7 @@ Loss functions
 
 import oneflow as flow
 import oneflow.nn as nn
+from oneflow.nn.modules.loss import BCELoss
 
 from utils.metrics import bbox_iou
 from utils.flow_utils import de_parallel
@@ -159,6 +160,7 @@ class ComputeLoss:
                 # Append targets to text file
                 # with open('targets.txt', 'a') as file:
                 #     [file.write('%11.5g ' * 4 % tuple(x) + '\n') for x in flow.cat((txy[i], twh[i]), 1)]
+
 
             obji = self.BCEobj(pi[..., 4], tobj)
             lobj += obji * self.balance[i]  # obj loss
