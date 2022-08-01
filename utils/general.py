@@ -739,10 +739,14 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
-
-    coords[:, [0, 2]] -= pad[0]  # x padding
-    coords[:, [1, 3]] -= pad[1]  # y padding
-    coords[:, :4] /= gain
+    
+    print('='*100)
+    print(coords.shape)
+    print(coords[:, [0, 2]].shape)
+    print(pad[0])
+    coords[:, [0, 2]] = coords[:, [0, 2]] - pad[0]  # x padding
+    coords[:, [1, 3]] = coords[:, [1, 3]] - pad[1]  # y padding
+    coords[:, :4] = coords[:, :4] / gain
     clip_coords(coords, img0_shape)
     return coords
 
@@ -842,7 +846,7 @@ def non_max_suppression(prediction,
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = flowvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        i = flow.nms(boxes, scores, iou_thres)  # NMS
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
