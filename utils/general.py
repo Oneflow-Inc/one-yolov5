@@ -739,13 +739,10 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
-    
-    print('='*100)
-    print(coords.shape)
-    print(coords[:, [0, 2]].shape)
-    print(pad[0])
+
     coords[:, [0, 2]] = coords[:, [0, 2]] - pad[0]  # x padding
     coords[:, [1, 3]] = coords[:, [1, 3]] - pad[1]  # y padding
+    coords = coords.contiguous()
     coords[:, :4] = coords[:, :4] / gain
     clip_coords(coords, img0_shape)
     return coords
@@ -754,10 +751,10 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
 def clip_coords(boxes, shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
     if isinstance(boxes, flow.Tensor):  # faster individually
-        boxes[:, 0].clamp_(0, shape[1])  # x1
-        boxes[:, 1].clamp_(0, shape[0])  # y1
-        boxes[:, 2].clamp_(0, shape[1])  # x2
-        boxes[:, 3].clamp_(0, shape[0])  # y2
+        boxes[:, 0]=boxes[:, 0].clamp(0, shape[1])  # x1
+        boxes[:, 1]=boxes[:, 1].clamp(0, shape[0])  # y1
+        boxes[:, 2]=boxes[:, 2].clamp(0, shape[1])  # x2
+        boxes[:, 3]=boxes[:, 3].clamp(0, shape[0])  # y2
     else:  # np.array (faster grouped)
         boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(0, shape[1])  # x1, x2
         boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(0, shape[0])  # y1, y2
