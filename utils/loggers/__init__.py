@@ -7,13 +7,13 @@ import os
 import warnings
 
 import pkg_resources as pkg
-import oneflow as flow
-# from oneflow.utils.tensorboard import SummaryWriter
+import torch
+from torch.utils.tensorboard import SummaryWriter
 
+from utils.flow_utils import de_parallel
 from utils.general import colorstr, cv2, emojis
 from utils.loggers.wandb.wandb_utils import WandbLogger
 from utils.plots import plot_images, plot_results
-from utils.flow_utils import de_parallel
 
 LOGGERS = ('csv', 'tb', 'wandb')  # text-file, TensorBoard, Weights & Biases
 RANK = int(os.getenv('RANK', -1))
@@ -72,12 +72,12 @@ class Loggers():
         if 'tb' in self.include and not self.opt.evolve:
             prefix = colorstr('TensorBoard: ')
             self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
-            # self.tb = SummaryWriter(str(s))
+            self.tb = SummaryWriter(str(s))
 
         # W&B
         if wandb and 'wandb' in self.include:
             wandb_artifact_resume = isinstance(self.opt.resume, str) and self.opt.resume.startswith('wandb-artifact://')
-            run_id = flow.load(self.weights).get('wandb_id') if self.opt.resume and not wandb_artifact_resume else None
+            run_id = torch.load(self.weights).get('wandb_id') if self.opt.resume and not wandb_artifact_resume else None
             self.opt.hyp = self.hyp  # add hyperparameters
             self.wandb = WandbLogger(self.opt, run_id)
             # temp warn. because nested artifacts not supported after 0.12.10
@@ -102,10 +102,10 @@ class Loggers():
         # Callback runs on train batch end
         if plots:
             if ni == 0:
-                if self.tb and not self.opt.sync_bn:  # --sync known issue https://github.com/ultralytics/yolov5/issues/3754
+                if not self.opt.sync_bn:  # --sync known issue https://github.com/ultralytics/yolov5/issues/3754
                     with warnings.catch_warnings():
                         warnings.simplefilter('ignore')  # suppress jit trace warning
-                        # self.tb.add_graph(torch.jit.trace(de_parallel(model), imgs[0:1], strict=False), [])
+                        self.tb.add_graph(torch.jit.trace(de_parallel(model), imgs[0:1], strict=False), [])
             if ni < 3:
                 f = self.save_dir / f'train_batch{ni}.jpg'  # filename
                 plot_images(imgs, targets, paths, f)
@@ -134,14 +134,15 @@ class Loggers():
         x = dict(zip(self.keys, vals))
         if self.csv:
             file = self.save_dir / 'results.csv'
-            n = len(x) + 1  # number of cols
-            s = '' if file.exists() else (('%20s,' * n % tuple(['epoch'] + self.keys)).rstrip(',') + '\n')  # add header
+            s = '' if file.exists() else (
+                        ('%20s,' * 14 % tuple(['epoch'] + self.keys)).rstrip(',') + '\n')  # add header
             with open(file, 'a') as f:
-                f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
+                f.write(s + ('%20.5g,' * 14 % tuple([epoch] + vals)).rstrip(',') + '\n')
+                pass
 
-        if self.tb:
-            for k, v in x.items():
-                self.tb.add_scalar(k, v, epoch)
+        # if self.tb:
+        #     for k, v in x.items():
+        #         self.tb.add_scalar(k, v, epoch)
 
         if self.wandb:
             if best_fitness == fi:

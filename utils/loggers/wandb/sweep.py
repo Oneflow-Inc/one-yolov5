@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
 from train import parse_opt, train
 from utils.callbacks import Callbacks
 from utils.general import increment_path
-from utils.flow_utils import select_device
+from utils.torch_utils import select_device
 
 
 def sweep():

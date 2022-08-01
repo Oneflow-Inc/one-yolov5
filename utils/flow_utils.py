@@ -1,167 +1,82 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
-"""
-OneFlow utils
-"""
-
+import datetime
 import math
 import os
 import platform
 import subprocess
 import time
-import warnings
 from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 
 import oneflow as flow
-import oneflow.distributed as dist
 import oneflow.nn as nn
 import oneflow.nn.functional as F
+from oneflow.framework.sysconfig import with_cuda
 from oneflow.nn.parallel import DistributedDataParallel as DDP
-
-from utils.general import LOGGER, check_version, colorstr, file_date, git_describe
-
-LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))
-RANK = int(os.getenv('RANK', -1))
-WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
+import oneflow.distributed as dist
+from utils.general import LOGGER
 
 try:
     import thop  # for FLOPs computation
 except ImportError:
     thop = None
 
-# Suppress OneFlow warnings
-warnings.filterwarnings('ignore', message='User provided device_type of \'cuda\', but CUDA is not available. Disabling')
+
+def date_modified(path=__file__):
+    # return human-readable file modification date, i.e. '2021-3-26'
+    t = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
+    return f'{t.year}-{t.month}-{t.day}'
 
 
-def smart_DDP(model):
-    # Model DDP creation with checks
-    return DDP(model)
-
-
-# @contextmanager
-# def flow_distributed_zero_first(local_rank: int):
-#     # Decorator to make all processes in distributed training wait for each local_master to do something
-#     # if local_rank not in [-1, 0]:
-#     #     dist.barrier(device_ids=[local_rank])
-#     # yield
-#     # if local_rank == 0:
-#     #     dist.barrier(device_ids=[0])
-#     pass
-
-
-def device_count():
-    # Returns number of CUDA devices available. Safe version of flow.cuda.device_count(). Supports Linux and Windows
-    assert platform.system() in ('Linux', 'Windows'), 'device_count() only supported on Linux or Windows'
+def git_describe(path=Path(__file__).parent):  # path must be a directory
+    # return human-readable git description, i.e. v5.0-5-g3e25f1e https://git-scm.com/docs/git-describe
+    s = f'git -C {path} describe --tags --long --always'
     try:
-        cmd = 'nvidia-smi -L | wc -l' if platform.system() == 'Linux' else 'nvidia-smi -L | find /c /v ""'  # Windows
-        return int(subprocess.run(cmd, shell=True, capture_output=True, check=True).stdout.decode().split()[-1])
-    except Exception:
-        return 0
+        return subprocess.check_output(s, shell=True, stderr=subprocess.STDOUT).decode()[:-1]
+    except subprocess.CalledProcessError as e:
+        return ''  # not a git repository
 
 
 def select_device(device='', batch_size=0, newline=True):
-    # device = None or 'cpu' or 0 or '0' or '0,1,2,3'
-    s = f'YOLOv5 🚀 {git_describe() or file_date()} Python-{platform.python_version()} flow-{flow.__version__} '
-    device = str(device).strip().lower().replace('cuda:', '').replace('none', '')  # to string, 'cuda:0' to '0'
-    cpu = device == 'cpu'
-    mps = device == 'mps'  # Apple Metal Performance Shaders (MPS)
-    if cpu or mps:
-        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # force flow.cuda.is_available() = False
+    # device = 'cpu' or '0' or '0,1,2,3'
+    s = f'YOLOv5 🚀 {git_describe() or date_modified()} oneflow {flow.__version__} '  # string
+    device = str(device).strip().lower().replace('cuda:', '')  # to string, 'cuda:0' to '0'
+    cpu = device.lower() == 'cpu'
+    if cpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'  # force torch.cuda.is_available() = False
     elif device:  # non-cpu device requested
-        os.environ['CUDA_VISIBLE_DEVICES'] = device  # set environment variable - must be before assert is_available()
-        assert flow.cuda.is_available() and flow.cuda.device_count() >= len(device.replace(',', '')), \
-            f"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)"
+        os.environ['CUDA_VISIBLE_DEVICES'] = device  # set environment variable
+        assert with_cuda(), f'CUDA unavailable, invalid device {device} requested'  # check availability
 
-    if not (cpu or mps) and flow.cuda.is_available():  # prefer GPU if available
-        devices = device.split(',') if device else '0'  # range(flow.cuda.device_count())  # i.e. 0,1,6,7
+    cuda = not cpu and with_cuda()
+    if cuda:
+        devices = device.split(',') if device else '0'  # range(torch.cuda.device_count())  # i.e. 0,1,6,7
         n = len(devices)  # device count
         if n > 1 and batch_size > 0:  # check batch_size is divisible by device_count
             assert batch_size % n == 0, f'batch-size {batch_size} not multiple of GPU count {n}'
-        # space = ' ' * (len(s) + 1)
-        # for i, d in enumerate(devices):
-            # p = flow.cuda.get_device_properties(i)
-            # s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / (1 << 20):.0f}MiB)\n"  # bytes to MB
-        arg = 'cuda:0'
-    elif mps and getattr(flow, 'has_mps', False) and flow.backends.mps.is_available():  # prefer MPS if available
-        s += 'MPS\n'
-        arg = 'mps'
-    else:  # revert to CPU
+        space = ' ' * (len(s) + 1)
+        for i, d in enumerate(devices):
+            s += f"{'' if i == 0 else space}CUDA:{d}\n"  # bytes to MB
+    else:
         s += 'CPU\n'
-        arg = 'cpu'
 
     if not newline:
         s = s.rstrip()
     LOGGER.info(s.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else s)  # emoji-safe
-    return flow.device(arg)
+    return flow.device('cuda:0' if cuda else 'cpu')
 
 
 def time_sync():
-    # OneFlow-accurate time
-    if flow.cuda.is_available():
-        flow.cuda.synchronize()
     return time.time()
 
 
-def profile(input, ops, n=10, device=None):
-    # YOLOv5 speed/memory/FLOPs profiler
-    #
-    # Usage:
-    #     input = flow.randn(16, 3, 640, 640)
-    #     m1 = lambda x: x * flow.sigmoid(x)
-    #     m2 = nn.SiLU()
-    #     profile(input, [m1, m2], n=100)  # profile over 100 iterations
-
-    results = []
-    if not isinstance(device, flow.device):
-        device = select_device(device)
-    print(f"{'Params':>12s}{'GFLOPs':>12s}{'GPU_mem (GB)':>14s}{'forward (ms)':>14s}{'backward (ms)':>14s}"
-          f"{'input':>24s}{'output':>24s}")
-
-    for x in input if isinstance(input, list) else [input]:
-        x = x.to(device)
-        x.requires_grad = True
-        for m in ops if isinstance(ops, list) else [ops]:
-            m = m.to(device) if hasattr(m, 'to') else m  # device
-            m = m.half() if hasattr(m, 'half') and isinstance(x, flow.Tensor) and x.dtype is flow.float16 else m
-            tf, tb, t = 0, 0, [0, 0, 0]  # dt forward, backward
-            try:
-                flops = thop.profile(m, inputs=(x,), verbose=False)[0] / 1E9 * 2  # GFLOPs
-            except Exception:
-                flops = 0
-
-            try:
-                for _ in range(n):
-                    t[0] = time_sync()
-                    y = m(x)
-                    t[1] = time_sync()
-                    try:
-                        _ = (sum(yi.sum() for yi in y) if isinstance(y, list) else y).sum().backward()
-                        t[2] = time_sync()
-                    except Exception:  # no backward method
-                        # print(e)  # for debug
-                        t[2] = float('nan')
-                    tf += (t[1] - t[0]) * 1000 / n  # ms per op forward
-                    tb += (t[2] - t[1]) * 1000 / n  # ms per op backward
-                mem = flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0  # (GB)
-                s_in, s_out = (tuple(x.shape) if isinstance(x, flow.Tensor) else 'list' for x in (x, y))  # shapes
-                p = sum(x.numel() for x in m.parameters()) if isinstance(m, nn.Module) else 0  # parameters
-                print(f'{p:12}{flops:12.4g}{mem:>14.3f}{tf:14.4g}{tb:14.4g}{str(s_in):>24s}{str(s_out):>24s}')
-                results.append([p, flops, mem, tf, tb, s_in, s_out])
-            except Exception as e:
-                print(e)
-                results.append(None)
-            flow.cuda.empty_cache()
-    return results
-
-
 def is_parallel(model):
-    # Returns True if model is of type DDP
-    return type(model) in (nn.parallel.DistributedDataParallel, )
+    # Returns True if model is of type DP or DDP
+    return type(model) in (nn.parallel.DistributedDataParallel,)
 
 
 def de_parallel(model):
-    # De-parallelize a model: returns single-GPU model if model is of type DDP
+    # De-parallelize a model: returns single-GPU model if model is of type DP or DDP
     return model.module if is_parallel(model) else model
 
 
@@ -191,19 +106,8 @@ def sparsity(model):
     return b / a
 
 
-# def prune(model, amount=0.3):
-#     # Prune model to requested global sparsity
-#     import oneflow.nn.utils.prune as prune
-#     print('Pruning model... ', end='')
-#     for name, m in model.named_modules():
-#         if isinstance(m, nn.Conv2d):
-#             prune.l1_unstructured(m, name='weight', amount=amount)  # prune
-#             prune.remove(m, 'weight')  # make permanent
-#     print(' %.3g global sparsity' % sparsity(model))
-
-
 def fuse_conv_and_bn(conv, bn):
-    # Fuse Conv2d() and BatchNorm2d() layers https://tehnokv.com/posts/fusing-batchnorm-and-conv/
+    # Fuse convolution and batchnorm layers https://tehnokv.com/posts/fusing-batchnorm-and-conv/
     fusedconv = nn.Conv2d(conv.in_channels,
                           conv.out_channels,
                           kernel_size=conv.kernel_size,
@@ -212,12 +116,12 @@ def fuse_conv_and_bn(conv, bn):
                           groups=conv.groups,
                           bias=True).requires_grad_(False).to(conv.weight.device)
 
-    # Prepare filters
+    # prepare filters
     w_conv = conv.weight.clone().view(conv.out_channels, -1)
     w_bn = flow.diag(bn.weight.div(flow.sqrt(bn.eps + bn.running_var)))
     fusedconv.weight.copy_(flow.mm(w_bn, w_conv).view(fusedconv.weight.shape))
 
-    # Prepare spatial bias
+    # prepare spatial bias
     b_conv = flow.zeros(conv.weight.size(0), device=conv.weight.device) if conv.bias is None else conv.bias
     b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(flow.sqrt(bn.running_var + bn.eps))
     fusedconv.bias.copy_(flow.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
@@ -236,30 +140,22 @@ def model_info(model, verbose=False, img_size=640):
             print('%5g %40s %9s %12g %20s %10.3g %10.3g' %
                   (i, name, p.requires_grad, p.numel(), list(p.shape), p.mean(), p.std()))
 
-    try:  # FLOPs
-        from thop import profile
-        stride = max(int(model.stride.max()), 32) if hasattr(model, 'stride') else 32
-        img = flow.zeros((1, model.yaml.get('ch', 3), stride, stride), device=next(model.parameters()).device)  # input
-        flops = profile(deepcopy(model), inputs=(img,), verbose=False)[0] / 1E9 * 2  # stride GFLOPs
-        img_size = img_size if isinstance(img_size, list) else [img_size, img_size]  # expand if int/float
-        fs = ', %.1f GFLOPs' % (flops * img_size[0] / stride * img_size[1] / stride)  # 640x640 GFLOPs
-    except Exception:
-        fs = ''
+    fs = ''
 
-    name = Path(model.yaml_file).stem.replace('yolov5', 'YOLOv5') if hasattr(model, 'yaml_file') else 'Model'
-    LOGGER.info(f"{name} summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients{fs}")
+    LOGGER.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients{fs}")
 
 
 def scale_img(img, ratio=1.0, same_shape=False, gs=32):  # img(16,3,256,416)
-    # Scales img(bs,3,y,x) by ratio constrained to gs-multiple
+    # scales img(bs,3,y,x) by ratio constrained to gs-multiple
     if ratio == 1.0:
         return img
-    h, w = img.shape[2:]
-    s = (int(h * ratio), int(w * ratio))  # new size
-    img = F.interpolate(img, size=s, mode='bilinear', align_corners=False)  # resize
-    if not same_shape:  # pad/crop img
-        h, w = (math.ceil(x * ratio / gs) * gs for x in (h, w))
-    return F.pad(img, [0, w - s[1], 0, h - s[0]], value=0.447)  # value = imagenet mean
+    else:
+        h, w = img.shape[2:]
+        s = (int(h * ratio), int(w * ratio))  # new size
+        img = F.interpolate(img, size=s, mode='bilinear', align_corners=False)  # resize
+        if not same_shape:  # pad/crop img
+            h, w = (math.ceil(x * ratio / gs) * gs for x in (h, w))
+        return F.pad(img, [0, w - s[1], 0, h - s[0]], value=0.447)  # value = imagenet mean
 
 
 def copy_attr(a, b, include=(), exclude=()):
@@ -269,36 +165,6 @@ def copy_attr(a, b, include=(), exclude=()):
             continue
         else:
             setattr(a, k, v)
-
-
-def smart_optimizer(model, name='Adam', lr=0.001, momentum=0.9, weight_decay=1e-5):
-    # YOLOv5 3-param group optimizer: 0) weights with decay, 1) weights no decay, 2) biases no decay
-    g = [], [], []  # optimizer parameter groups
-    bn = tuple(v for k, v in nn.__dict__.items() if 'Norm' in k)  # normalization layers, i.e. BatchNorm2d()
-    for v in model.modules():
-        if hasattr(v, 'bias') and isinstance(v.bias, nn.Parameter):  # bias (no decay)
-            g[2].append(v.bias)
-        if isinstance(v, bn):  # weight (no decay)
-            g[1].append(v.weight)
-        elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):  # weight (with decay)
-            g[0].append(v.weight)
-
-    if name == 'Adam':
-        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999))  # adjust beta1 to momentum
-    elif name == 'AdamW':
-        optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
-    elif name == 'RMSProp':
-        optimizer = flow.optim.RMSprop(g[2], lr=lr, momentum=momentum)
-    elif name == 'SGD':
-        optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
-    else:
-        raise NotImplementedError(f'Optimizer {name} not implemented.')
-
-    optimizer.add_param_group({'params': g[0], 'weight_decay': weight_decay})  # add g0 with weight_decay
-    optimizer.add_param_group({'params': g[1], 'weight_decay': 0.0})  # add g1 (BatchNorm2d weights)
-    LOGGER.info(f"{colorstr('optimizer:')} {type(optimizer).__name__} with parameter groups "
-                f"{len(g[1])} weight (no decay), {len(g[0])} weight, {len(g[2])} bias")
-    return optimizer
 
 
 class EarlyStopping:
@@ -325,18 +191,22 @@ class EarlyStopping:
 
 
 class ModelEMA:
-    """ Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
-    Keeps a moving average of everything in the model state_dict (parameters and buffers)
-    For EMA details see https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
+    """ Model Exponential Moving Average from https://github.com/rwightman/pytorch-image-models
+    Keep a moving average of everything in the model state_dict (parameters and buffers).
+    This is intended to allow functionality like
+    https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
+    A smoothed version of the weights is necessary for some training schemes to perform well.
+    This class is sensitive where it is initialized in the sequence of model init,
+    GPU assignment and distributed training wrappers.
     """
 
-    def __init__(self, model, decay=0.9999, tau=2000, updates=0):
+    def __init__(self, model, decay=0.9999, updates=0):
         # Create EMA
-        self.ema = deepcopy(de_parallel(model)).eval()  # FP32 EMA
+        self.ema = deepcopy(model.module if is_parallel(model) else model).eval()  # FP32 EMA
         # if next(model.parameters()).device.type != 'cpu':
         #     self.ema.half()  # FP16 EMA
         self.updates = updates  # number of EMA updates
-        self.decay = lambda x: decay * (1 - math.exp(-x / tau))  # decay exponential ramp (to help early epochs)
+        self.decay = lambda x: decay * (1 - math.exp(-x / 2000))  # decay exponential ramp (to help early epochs)
         for p in self.ema.parameters():
             p.requires_grad_(False)
 
@@ -346,7 +216,7 @@ class ModelEMA:
             self.updates += 1
             d = self.decay(self.updates)
 
-            msd = de_parallel(model).state_dict()  # model state_dict
+            msd = model.module.state_dict() if is_parallel(model) else model.state_dict()  # model state_dict
             for k, v in self.ema.state_dict().items():
                 if v.dtype.is_floating_point:
                     v *= d
