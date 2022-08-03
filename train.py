@@ -11,7 +11,6 @@ Usage:
     $ python path/to/train.py --data coco128.yaml --weights yolov5s.pt --img 640  # from pretrained (RECOMMENDED)
     $ python path/to/train.py --data coco128.yaml --weights '' --cfg yolov5s.yaml --img 640  # from scratch
 """
-import faulthandler
 import argparse
 import math
 import os
@@ -73,7 +72,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     # Directories
     w = save_dir / 'weights'  # weights dir
     (w.parent if evolve else w).mkdir(parents=True, exist_ok=True)  # make dir
-    last, best = w / 'last.pt', w / 'best.pt'
+    last, best = w / 'last', w / 'best'
 
     # Hyperparameters
     if isinstance(hyp, str):
@@ -115,12 +114,9 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
     # Model
-    # check_suffix(weights, '.pt')  # check weights
-#    pretrained = weights.endswith('.pt')
-    pretrained = False
+    pretrained = os.path.exists(weights)
     if pretrained:
-        # with torch_distributed_zero_first(LOCAL_RANK):
-        #     weights = attempt_download(weights)  # download if not found locally
+        # weights = attempt_download(weights)  # download if not found locally
         ckpt = flow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
@@ -175,7 +171,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     elif opt.optimizer == 'SGD':
         optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
     else:
-        raise NotImplementedError(f'Optimizer {name} not implemented.')
+        raise NotImplementedError(f'Optimizer {opt.optimizer} not implemented.')
 
     optimizer.add_param_group({'params': g[0], 'weight_decay': weight_decay})  # add g0 with weight_decay
     optimizer.add_param_group({'params': g[1], 'weight_decay': 0.0})  # add g1 (BatchNorm2d weights)
@@ -213,16 +209,10 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
 
         del ckpt, csd
 
-    # DP mode
-    if cuda and RANK == -1 and flow.cuda.device_count() > 1:
-        LOGGER.warning('WARNING: DP not recommended, use flow.distributed.run for best DDP Multi-GPU results.\n'
-                       'See Multi-GPU Tutorial at https://github.com/ultralytics/yolov5/issues/475 to get started.')
-        model = flow.nn.DataParallel(model)
-
-#    SyncBatchNorm
-    if opt.sync_bn and cuda and RANK != -1:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
-        LOGGER.info('Using SyncBatchNorm()')
+#    SyncBatchNorm, OneFlow not support now !
+    # if opt.sync_bn and cuda and RANK != -1:
+    #     model = flow.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
+    #     LOGGER.info('Using SyncBatchNorm()')
 
     # Trainloader
     train_loader, dataset = create_dataloader(train_path, imgsz, batch_size // WORLD_SIZE, gs, single_cls,
@@ -254,9 +244,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
 
         callbacks.run('on_pretrain_routine_end')
 
- #   DDP mode
+    # DDP mode
     if cuda and RANK != -1:
-       print(1)
        model = DDP(model)
 
     # Model attributes
@@ -330,7 +319,6 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                     imgs = nn.functional.interpolate(imgs, size=ns, mode='bilinear', align_corners=False)
 
             # Forward
-            # with amp.autocast(enabled=cuda):
             pred = model(imgs)  # forward
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
             if RANK != -1:
@@ -339,14 +327,11 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                 loss *= 4.
 
             #Backward
-            #scaler.scale(loss).backward()
             loss.backward()
 
             # Optimize
             if ni - last_opt_step >= accumulate:
-                # scaler.step(optimizer)  # optimizer.step
                 optimizer.step()
-                # scaler.update()
                 optimizer.zero_grad()
                 if ema:
                     ema.update(model)
@@ -394,7 +379,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
             if (not nosave) or (final_epoch and not evolve):  # if save
                 ckpt = {'epoch': epoch,
                         'best_fitness': best_fitness,
-                        'model': deepcopy(de_parallel(model)).state_dict(),
+                        'model': deepcopy(de_parallel(model)).state_dict(), # TODO (support save model in OneFlow)
                         'ema': deepcopy(ema.ema).state_dict(),
                         'updates': ema.updates,
                         'optimizer': optimizer.state_dict(),
@@ -436,7 +421,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                     results, _, _ = val.run(data_dict,
                                             batch_size=batch_size // WORLD_SIZE * 2,
                                             imgsz=imgsz,
-                                            model=attempt_load(f, device),
+                                            # model=attempt_load(f, device),
+                                            model=ema.ema,
                                             iou_thres=0.65 if is_coco else 0.60,  # best pycocotools results at 0.65
                                             single_cls=single_cls,
                                             dataloader=val_loader,
@@ -452,7 +438,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         callbacks.run('on_train_end', last, best, plots, epoch, results)
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}")
 
-    # torch.cuda.empty_cache()
+    flow.cuda.empty_cache()
     return results
 
 
