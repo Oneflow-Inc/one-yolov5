@@ -131,7 +131,7 @@ dmypy.json
 # dataset
 
 datasets/
-
+yolov5/
 # log
 log/
 runs/
