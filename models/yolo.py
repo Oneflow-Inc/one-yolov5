@@ -143,10 +143,10 @@ class Model(nn.Module):
                 self._profile_one_layer(m, x, dt)
             x = m(x)  # run
             y.append(x if m.i in self.save else None)  # save output
+     
         return x
 
     def _descale_pred(self, p, flips, scale, img_size):
-        # de-scale predictions following augmented inference (inverse operation)
         if self.inplace:
             p[..., :4] /= scale  # de-scale
             if flips == 2:

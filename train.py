@@ -16,8 +16,11 @@ import argparse
 import math
 import os
 import random
+from statistics import mode
 import sys
 import time
+from pickle import dump, load
+
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -115,22 +118,24 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
     # Model
-    check_suffix(weights, '.pt')  # check weights
-#    pretrained = weights.endswith('.pt')
-    pretrained = False
+    # check_suffix(weights, '.pt')  # check weights
+    # pretrained = weights.endswith('.pt')
+    pretrained = True
     if pretrained:
-        # with torch_distributed_zero_first(LOCAL_RANK):
-        #     weights = attempt_download(weights)  # download if not found locally
-        ckpt = flow.load('ckpt')  # load checkpoint
+        # weights = attempt_download(weights)  # download if not found locally
+        ckpt = flow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-    #     exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
-        csd = ckpt['model']  # checkpoint state_dict as FP32
-    #     csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+        exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+        csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
+        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-
+    #amp = check_amp(model)  # check AMP
+    
+ 
+    
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
     for k, v in model.named_parameters():
@@ -147,6 +152,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     # if RANK == -1 and batch_size == -1:  # single-GPU only, estimate best batch size
     #     batch_size = check_train_batch_size(model, imgsz)
     #     loggers.on_params_update({"batch_size": batch_size})
+    
+
 
     # Optimizer
     nbs = 64  # nominal batch size
@@ -219,7 +226,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                        'See Multi-GPU Tutorial at https://github.com/ultralytics/yolov5/issues/475 to get started.')
         model = flow.nn.DataParallel(model)
 
-#    SyncBatchNorm
+    #    SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         LOGGER.info('Using SyncBatchNorm()')
@@ -269,6 +276,8 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     model.hyp = hyp  # attach hyperparameters to model
     model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
     model.names = names
+    
+
 
     # Start training
     t0 = time.time()
@@ -277,15 +286,25 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     last_opt_step = -1
     maps = np.zeros(nc)  # mAP per class
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
-#    scheduler.last_epoch = start_epoch - 1  # do not move
+    #    scheduler.last_epoch = start_epoch - 1  # do not move
     # scaler = amp.GradScaler(enabled=cuda)
     stopper = EarlyStopping(patience=opt.patience)
     compute_loss = ComputeLoss(model)  # init loss class
+
+
+
     LOGGER.info(f'Image sizes {imgsz} train, {imgsz} val\n'
                 f'Using {train_loader.num_workers * WORLD_SIZE} dataloader workers\n'
                 f"Logging results to {colorstr('bold', save_dir)}\n"
                 f'Starting training for {epochs} epochs...')
+    #-------start_debug------1659476510----#
+    FENGWEN_EPOCHS = []
+    #-------end_debug-------1659476510----#
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
+        #----start----------------1659437555
+        time_epoch_start = time.time()
+        #--end---------------------1659437555
+        
         model.train()
 
         # Update image weights (optional, single-GPU only)
@@ -301,14 +320,25 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         mloss = flow.zeros(3, device=device)  # mean losses
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
+
+
         pbar = enumerate(train_loader)
         LOGGER.info(('\n' + '%10s' * 6) % ('Epoch', 'box', 'obj', 'cls', 'labels', 'img_size'))
         if RANK in [-1, 0]:
             pbar = tqdm(pbar, total=nb, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')  # progress bar
         optimizer.zero_grad()
+
+        #-------start_debug------1659476510----#
+        epoch_times=[]   
+        #-------end_debug-------1659476510----#
+
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
+            #-------start_debug------1659476510----#
+            time_batch_start = time.time()
+            #-------end_debug-------1659476510----#
             ni = i + nb * epoch  # number integrated batches (since train start)
             imgs = imgs.to(device).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
+            
             # Warmup
             if ni <= nw:
                 xi = [0, nw]  # x interp
@@ -329,10 +359,13 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                     ns = [math.ceil(x * sf / gs) * gs for x in imgs.shape[2:]]  # new shape (stretched to gs-multiple)
                     imgs = nn.functional.interpolate(imgs, size=ns, mode='bilinear', align_corners=False)
 
-            # Forward
-            # with amp.autocast(enabled=cuda):
             pred = model(imgs)  # forward
+            
+         
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+          
+         
+
             if RANK != -1:
                 loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
             if opt.quad:
@@ -361,7 +394,16 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                     f'{epoch}/{epochs - 1}',  *t, targets.shape[0], imgs.shape[-1]))
  #               callbacks.run('on_train_batch_end', ni, model, imgs, targets, paths, plots)
             # end batch -------------------------------------------------------------------------------/workspace/yolov5_pytorch/yolov5/data/coco128.yaml-----------------
-
+           
+            #-------start_debug------1659476510----#
+            batch_temap = time.time() - time_batch_start
+            epoch_times.append(batch_temap)
+             #-------end_debug-------1659476510----#
+        
+        #-------start_debug------1659476510----#
+        FENGWEN_EPOCHS.append(epoch_times)
+        #-------end_debug-------1659476510----#
+        
         # Scheduler
         lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
         scheduler.step()
@@ -425,7 +467,17 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         #    break  # must break all DDP ranks
 
         # end epoch ----------------------------------------------------------------------------------------------------
+        #--start_debug------1659437555
+        FENGWEN_EPOCHS.append(time.time() - time_epoch_start)
+        #--end_debug------1659437555
     # end training -----------------------------------------------------------------------------------------------------
+    
+    with open('/home/fengwen/loss_materials/epoch_speed/oneflow.db', 'wb+') as f:  # 将实例化后的类的对象使用序列化写入到文件中
+        dump(FENGWEN_EPOCHS, f)
+    
+    FENGWEN_EPOCHS.clear()
+
+
     if RANK in [-1, 0]:
         LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
         for f in last, best:
