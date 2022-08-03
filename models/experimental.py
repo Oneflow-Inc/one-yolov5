@@ -82,35 +82,32 @@ class Ensemble(nn.ModuleList):
         return y, None  # inference, train output
 
 
-def attempt_load(weights, map_location=None, inplace=True, fuse=True):
+def attempt_load(weights, device=None, inplace=True, fuse=True):
+    # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     from models.yolo import Detect, Model
 
-    # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = flow.load(w)['model'].to(flow.device("cuda"))  # load
-        model.append(ckpt.eval())
-        # if fuse:
-        #     model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
-        # else:
-        #     model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().eval())  # without layer fuse
+        ckpt = flow.load(w, map_location='cpu')  # load
+        ckpt = (ckpt.get('ema') or ckpt['model']).to(device).float()  # FP32 model
+        model.append(ckpt.fuse().eval() if fuse else ckpt.eval())  # fused or un-fused model in eval mode
 
     # Compatibility updates
     for m in model.modules():
-        if type(m) in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model]:
-            m.inplace = inplace  # pytorch 1.7.0 compatibility
-            if type(m) is Detect:
-                if not isinstance(m.anchor_grid, list):  # new Detect Layer compatibility
-                    delattr(m, 'anchor_grid')
-                    setattr(m, 'anchor_grid', [flow.zeros(1)] * m.nl)
-        elif type(m) is Conv:
-            m._non_persistent_buffers_set = set()  # pytorch 1.6.0 compatibility
+        t = type(m)
+        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
+            m.inplace = inplace  # torch 1.7.0 compatibility
+            if t is Detect and not isinstance(m.anchor_grid, list):
+                delattr(m, 'anchor_grid')
+                setattr(m, 'anchor_grid', [flow.zeros(1)] * m.nl)
+        elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
+            m.recompute_scale_factor = None  # torch 1.11.0 compatibility
 
     if len(model) == 1:
         return model[-1]  # return model
-    else:
-        print(f'Ensemble created with {weights}\n')
-        for k in ['names']:
-            setattr(model, k, getattr(model[-1], k))
-        model.stride = model[flow.argmax(flow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
-        return model  # return ensemble
+    print(f'Ensemble created with {weights}\n')
+    for k in 'names', 'nc', 'yaml':
+        setattr(model, k, getattr(model[0], k))
+    model.stride = model[flow.argmax(flow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
+    assert all(model[0].nc == m.nc for m in model), f'Models have different class counts: {[m.nc for m in model]}'
+    return model  # return ensemble
