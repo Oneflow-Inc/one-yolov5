@@ -132,7 +132,7 @@ dmypy.json
 # dataset
 
 datasets/
-
+/home/fengwen/one-yolo/pickled_data
 yolov5s/*
 yolov5s/
 # log
