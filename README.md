@@ -13,7 +13,7 @@ The MS COCO dataset is a large-scale object detection, segmentation, and caption
 
 You can change below code to change dataset or use your custom dataset by change the .yaml file.
 ```
-parser.add_argument('--data', type=str, default=ROOT / 'dataset/coco.yaml', help='dataset.yaml path')
+parser.add_argument('--data', type=str, default=ROOT / 'data/coco.yaml', help='dataset.yaml path')
 ```
 ### Pretrained model
 Please get the Pretrained model from:

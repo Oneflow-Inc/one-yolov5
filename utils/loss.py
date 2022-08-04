@@ -118,7 +118,7 @@ class ComputeLoss:
         # Losses
         for i, pi in enumerate(p):  # layer index, layer predictions
             b, a, gj, gi = indices[i]  # image, anchor, gridy, gridx
-            tobj = flow.zeros((*pi.shape[:4]), dtype=pi.dtype, device=device)  # target obj
+            tobj = flow.zeros((pi.shape[:4]), dtype=pi.dtype, device=device)  # target obj
 
             n = b.shape[0]  # number of targets
             if n:
