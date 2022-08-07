@@ -95,7 +95,7 @@ def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=Non
     if rect and shuffle:
         LOGGER.warning('WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False')
         shuffle = False
-    False
+
     dataset = LoadImagesAndLabels(path, imgsz, batch_size,
                                   augment=augment,  # augmentation
                                   hyp=hyp,  # hyperparameters

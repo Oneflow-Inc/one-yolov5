@@ -69,10 +69,13 @@ class Detect(nn.Module):
         return x if self.training else (flow.cat(z, 1), x)
 
     def _make_grid(self, nx=20, ny=20, i=0):
-        yv, xv = flow.meshgrid(flow.arange(ny, dtype=flow.float), flow.arange(nx, dtype=flow.float))
-        grid = flow.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).to(dtype=flow.float)
-        anchor_grid = (self.anchors[i].clone() * self.stride[i]) \
-            .view(1, self.na, 1, 1, 2).expand(1, self.na, ny, nx, 2).to(dtype=flow.float)
+        d = self.anchors[i].device
+        t = self.anchors[i].dtype
+        shape = 1, self.na, ny, nx, 2  # grid shape
+        y, x = flow.arange(ny, device=d, dtype=t), flow.arange(nx, device=d, dtype=t)
+        yv, xv = flow.meshgrid(y, x)
+        grid = flow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
+        anchor_grid = (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
         return grid, anchor_grid
 
 
