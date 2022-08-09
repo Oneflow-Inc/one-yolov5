@@ -6,7 +6,7 @@ AutoAnchor utils
 import random
 
 import numpy as np
-import oneflow as flow
+import oneflow 
 import yaml
 from tqdm import tqdm
 
@@ -30,11 +30,11 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
     m = model.module.model[-1] if hasattr(model, 'module') else model.model[-1]  # Detect()
     shapes = imgsz * dataset.shapes / dataset.shapes.max(1, keepdims=True)
     scale = np.random.uniform(0.9, 1.1, size=(shapes.shape[0], 1))  # augment scale
-    wh = torch.tensor(np.concatenate([l[:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
+    wh = oneflow.tensor(np.concatenate([l[:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
 
     def metric(k):  # compute metric
         r = wh[:, None] / k[None]
-        x = torch.min(r, 1 / r).min(2)[0]  # ratio metric
+        x = oneflow.min(r, 1 / r).min(2)[0]  # ratio metric
         best = x.max(1)[0]  # best_x
         aat = (x > 1 / thr).float().sum(1).mean()  # anchors above threshold
         bpr = (best > 1 / thr).float().mean()  # best possible recall
@@ -55,7 +55,7 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
             LOGGER.info(f'{PREFIX}ERROR: {e}')
         new_bpr = metric(anchors)[0]
         if new_bpr > bpr:  # replace anchors
-            anchors = torch.tensor(anchors, device=m.anchors.device).type_as(m.anchors)
+            anchors = oneflow.tensor(anchors, device=m.anchors.device).type_as(m.anchors)
             m.anchors[:] = anchors.clone().view_as(m.anchors)
             check_anchor_order(m)  # must be in pixel-space (not grid-space)
             m.anchors /= stride
@@ -89,12 +89,12 @@ def kmean_anchors(dataset='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen
 
     def metric(k, wh):  # compute metrics
         r = wh[:, None] / k[None]
-        x = flow.min(r, 1 / r).min(2)[0]  # ratio metric
-        # x = wh_iou(wh, torch.tensor(k))  # iou metric
+        x = oneflow.min(r, 1 / r).min(2)[0]  # ratio metric
+        # x = wh_iou(wh, oneflow.tensor(k))  # iou metric
         return x, x.max(1)[0]  # x, best_x
 
     def anchor_fitness(k):  # mutation fitness
-        _, best = metric(torch.tensor(k, dtype=torch.float32), wh)
+        _, best = metric(oneflow.tensor(k, dtype=oneflow.float32), wh)
         return (best * (best > thr).float()).mean()  # fitness
 
     def print_results(k, verbose=True):
@@ -137,7 +137,7 @@ def kmean_anchors(dataset='./data/coco128.yaml', n=9, img_size=640, thr=4.0, gen
     except Exception:
         LOGGER.warning(f'{PREFIX}WARNING: switching strategies from kmeans to random init')
         k = np.sort(npr.rand(n * 2)).reshape(n, 2) * img_size  # random init
-    wh, wh0 = (torch.tensor(x, dtype=torch.float32) for x in (wh, wh0))
+    wh, wh0 = (oneflow.tensor(x, dtype=oneflow.float32) for x in (wh, wh0))
     k = print_results(k, verbose=False)
 
     # Plot

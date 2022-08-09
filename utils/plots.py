@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sn
-import torch
+import oneflow as flow
 from PIL import Image, ImageDraw, ImageFont
 
 from utils.general import (CONFIG_DIR, FONT, LOGGER, Timeout, check_font, check_requirements, clip_coords,
@@ -138,7 +138,7 @@ def feature_visualization(x, module_type, stage, n=32, save_dir=Path('runs/detec
         if height > 1 and width > 1:
             f = save_dir / f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
 
-            blocks = torch.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
+            blocks = flow.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
             n = min(n, channels)  # number of plots
             fig, ax = plt.subplots(math.ceil(n / 8), 8, tight_layout=True)  # 8 rows x n/8 cols
             ax = ax.ravel()
@@ -188,12 +188,12 @@ def output_to_target(output):
 @threaded
 def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max_size=1920, max_subplots=16):
     # Plot image grid with labels
-    if isinstance(images, torch.Tensor):
+    if isinstance(images, flow.Tensor):
         images = images.cpu().float().numpy()
-    if isinstance(targets, torch.Tensor):
+    if isinstance(targets, flow.Tensor):
         targets = targets.cpu().numpy()
     if np.max(images[0]) <= 1:
-        images *= 255  # de-normalise (optional)
+        images = images * 255  # de-normalise (optional)
     bs, _, h, w = images.shape  # batch size, _, height, width
     bs = min(bs, max_subplots)  # limit plot images
     ns = np.ceil(bs ** 0.5)  # number of subplots (square)
@@ -231,12 +231,12 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
 
             if boxes.shape[1]:
                 if boxes.max() <= 1.01:  # if normalized with tolerance 0.01
-                    boxes[[0, 2]] *= w  # scale to pixels
-                    boxes[[1, 3]] *= h
+                    boxes[[0, 2]] = boxes[[0, 2]] * w  # scale to pixels
+                    boxes[[1, 3]] = boxes[[1, 3]] * h
                 elif scale < 1:  # absolute coords need scale if image scales
-                    boxes *= scale
-            boxes[[0, 2]] += x
-            boxes[[1, 3]] += y
+                    boxes = boxes * scale
+            boxes[[0, 2]] = boxes[[0, 2]] + x
+            boxes[[1, 3]] = boxes[[1, 3]] + y
             for j, box in enumerate(boxes.T.tolist()):
                 cls = classes[j]
                 color = colors(cls)
@@ -474,7 +474,7 @@ def profile_idetection(start=0, stop=0, labels=(), save_dir=''):
 
 def save_one_box(xyxy, im, file=Path('im.jpg'), gain=1.02, pad=10, square=False, BGR=False, save=True):
     # Save image crop as {file} with crop size multiple {gain} and {pad} pixels. Save and/or return crop
-    xyxy = torch.tensor(xyxy).view(-1, 4)
+    xyxy = flow.tensor(xyxy).view(-1, 4)
     b = xyxy2xywh(xyxy)  # boxes
     if square:
         b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # attempt rectangle to square

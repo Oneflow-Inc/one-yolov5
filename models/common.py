@@ -15,17 +15,17 @@ import cv2
 import numpy as np
 import pandas as pd
 import requests
-import torch
-import torch.nn as nn
+import oneflow
+import oneflow.nn as nn
 import yaml
 from PIL import Image
-from torch.cuda import amp
+# from oneflow.cuda import amp
 
 from utils.dataloaders import exif_transpose, letterbox
 from utils.general import (LOGGER, check_requirements, check_suffix, check_version, colorstr, increment_path,
                            make_divisible, non_max_suppression, scale_coords, xywh2xyxy, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
-from utils.torch_utils import copy_attr, time_sync
+from utils.oneflow_utils import copy_attr, time_sync
 
 
 def autopad(k, p=None):  # kernel, padding
@@ -127,7 +127,7 @@ class BottleneckCSP(nn.Module):
     def forward(self, x):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
-        return self.cv4(self.act(self.bn(torch.cat((y1, y2), 1))))
+        return self.cv4(self.act(self.bn(oneflow.cat((y1, y2), dim=1))))
 
 
 class CrossConv(nn.Module):
@@ -155,7 +155,7 @@ class C3(nn.Module):
         self.m = nn.Sequential(*(Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
 
     def forward(self, x):
-        return self.cv3(torch.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
+        return self.cv3(oneflow.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
 
 
 class C3x(C3):
@@ -202,8 +202,8 @@ class SPP(nn.Module):
     def forward(self, x):
         x = self.cv1(x)
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')  # suppress torch 1.9.0 max_pool2d() warning
-            return self.cv2(torch.cat([x] + [m(x) for m in self.m], 1))
+            warnings.simplefilter('ignore')  # suppress oneflow 1.9.0 max_pool2d() warning
+            return self.cv2(oneflow.cat([x] + [m(x) for m in self.m], 1))
 
 
 class SPPF(nn.Module):
@@ -218,10 +218,10 @@ class SPPF(nn.Module):
     def forward(self, x):
         x = self.cv1(x)
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')  # suppress torch 1.9.0 max_pool2d() warning
+            warnings.simplefilter('ignore')  # suppress oneflow 1.9.0 max_pool2d() warning
             y1 = self.m(x)
             y2 = self.m(y1)
-            return self.cv2(torch.cat((x, y1, y2, self.m(y2)), 1))
+            return self.cv2(oneflow.cat((x, y1, y2, self.m(y2)), 1))
 
 
 class Focus(nn.Module):
@@ -232,7 +232,7 @@ class Focus(nn.Module):
         # self.contract = Contract(gain=2)
 
     def forward(self, x):  # x(b,c,w,h) -> y(b,4c,w/2,h/2)
-        return self.conv(torch.cat((x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]), 1))
+        return self.conv(oneflow.cat((x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]), 1))
         # return self.conv(self.contract(x))
 
 
@@ -246,7 +246,7 @@ class GhostConv(nn.Module):
 
     def forward(self, x):
         y = self.cv1(x)
-        return torch.cat((y, self.cv2(y)), 1)
+        return oneflow.cat((y, self.cv2(y)), 1)
 
 
 class GhostBottleneck(nn.Module):
@@ -300,15 +300,15 @@ class Concat(nn.Module):
         self.d = dimension
 
     def forward(self, x):
-        return torch.cat(x, self.d)
+        return oneflow.cat(x, self.d)
 
 
 class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
-    def __init__(self, weights='yolov5s.pt', device=torch.device('cpu'), dnn=False, data=None, fp16=False, fuse=True):
+    def __init__(self, weights='yolov5s.pt', device=oneflow.device('cpu'), dnn=False, data=None, fp16=False, fuse=True):
         # Usage:
-        #   PyTorch:              weights = *.pt
-        #   TorchScript:                    *.torchscript
+        #   Pyoneflow:              weights = *.pt
+        #   oneflowScript:                    *.oneflowscript
         #   ONNX Runtime:                   *.onnx
         #   ONNX OpenCV DNN:                *.onnx with --dnn
         #   OpenVINO:                       *.xml
@@ -336,21 +336,21 @@ class DetectMultiBackend(nn.Module):
             names = model.module.names if hasattr(model, 'module') else model.names  # get class names
             model.half() if fp16 else model.float()
             self.model = model  # explicitly assign for to(), cpu(), cuda(), half()
-        elif jit:  # TorchScript
-            LOGGER.info(f'Loading {w} for TorchScript inference...')
-            extra_files = {'config.txt': ''}  # model metadata
-            model = torch.jit.load(w, _extra_files=extra_files)
-            model.half() if fp16 else model.float()
-            if extra_files['config.txt']:
-                d = json.loads(extra_files['config.txt'])  # extra_files dict
-                stride, names = int(d['stride']), d['names']
+        # elif jit:  # TorchScript
+        #     LOGGER.info(f'Loading {w} for TorchScript inference...')
+        #     extra_files = {'config.txt': ''}  # model metadata
+        #     model = torch.jit.load(w, _extra_files=extra_files)
+        #     model.half() if fp16 else model.float()
+        #     if extra_files['config.txt']:
+        #         d = json.loads(extra_files['config.txt'])  # extra_files dict
+        #         stride, names = int(d['stride']), d['names']
         elif dnn:  # ONNX OpenCV DNN
             LOGGER.info(f'Loading {w} for ONNX OpenCV DNN inference...')
             check_requirements(('opencv-python>=4.5.4',))
             net = cv2.dnn.readNetFromONNX(w)
         elif onnx:  # ONNX Runtime
             LOGGER.info(f'Loading {w} for ONNX Runtime inference...')
-            cuda = torch.cuda.is_available()
+            cuda = oneflow.cuda.is_available()
             check_requirements(('onnx', 'onnxruntime-gpu' if cuda else 'onnxruntime'))
             import onnxruntime
             providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if cuda else ['CPUExecutionProvider']
@@ -398,7 +398,7 @@ class DetectMultiBackend(nn.Module):
                     if dtype == np.float16:
                         fp16 = True
                 shape = tuple(context.get_binding_shape(index))
-                data = torch.from_numpy(np.empty(shape, dtype=np.dtype(dtype))).to(device)
+                data = oneflow.from_numpy(np.empty(shape, dtype=np.dtype(dtype))).to(device)
                 bindings[name] = Binding(name, dtype, shape, data, int(data.data_ptr()))
             binding_addrs = OrderedDict((n, d.ptr) for n, d in bindings.items())
             batch_size = bindings['images'].shape[0]  # if dynamic, this is instead max batch size
@@ -453,7 +453,7 @@ class DetectMultiBackend(nn.Module):
     def forward(self, im, augment=False, visualize=False, val=False):
         # YOLOv5 MultiBackend inference
         b, ch, h, w = im.shape  # batch, channel, height, width
-        if self.fp16 and im.dtype != torch.float16:
+        if self.fp16 and im.dtype != oneflow.float16:
             im = im.half()  # to FP16
 
         if self.pt:  # PyTorch
@@ -514,14 +514,14 @@ class DetectMultiBackend(nn.Module):
             y[..., :4] *= [w, h, w, h]  # xywh normalized to pixels
 
         if isinstance(y, np.ndarray):
-            y = torch.tensor(y, device=self.device)
+            y = oneflow.tensor(y, device=self.device)
         return (y, []) if val else y
 
     def warmup(self, imgsz=(1, 3, 640, 640)):
         # Warmup model by running inference once
         warmup_types = self.pt, self.jit, self.onnx, self.engine, self.saved_model, self.pb
         if any(warmup_types) and self.device.type != 'cpu':
-            im = torch.zeros(*imgsz, dtype=torch.half if self.fp16 else torch.float, device=self.device)  # input
+            im = oneflow.zeros(*imgsz, dtype=oneflow.half if self.fp16 else oneflow.float, device=self.device)  # input
             for _ in range(2 if self.jit else 1):  #
                 self.forward(im)  # warmup
 
@@ -553,7 +553,8 @@ class AutoShape(nn.Module):
     multi_label = False  # NMS multiple labels per box
     classes = None  # (optional list) filter by class, i.e. = [0, 15, 16] for COCO persons, cats and dogs
     max_det = 1000  # maximum number of detections per image
-    amp = False  # Automatic Mixed Precision (AMP) inference
+    
+    # amp = False  # Automatic Mixed Precision (AMP) inference
 
     def __init__(self, model, verbose=True):
         super().__init__()
@@ -578,7 +579,7 @@ class AutoShape(nn.Module):
                 m.anchor_grid = list(map(fn, m.anchor_grid))
         return self
 
-    @torch.no_grad()
+    @oneflow.no_grad()
     def forward(self, imgs, size=640, augment=False, profile=False):
         # Inference from various sources. For height=640, width=1280, RGB images example inputs are:
         #   file:       imgs = 'data/images/zidane.jpg'  # str or PosixPath
@@ -590,11 +591,11 @@ class AutoShape(nn.Module):
         #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
 
         t = [time_sync()]
-        p = next(self.model.parameters()) if self.pt else torch.zeros(1, device=self.model.device)  # for device, type
+        p = next(self.model.parameters()) if self.pt else oneflow.zeros(1, device=self.model.device)  # for device, type
         autocast = self.amp and (p.device.type != 'cpu')  # Automatic Mixed Precision (AMP) inference
-        if isinstance(imgs, torch.Tensor):  # torch
-            with amp.autocast(autocast):
-                return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
+        if isinstance(imgs, oneflow.Tensor):  # oneflow
+            # with amp.autocast(autocast):
+            return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
 
         # Pre-process
         n, imgs = (len(imgs), list(imgs)) if isinstance(imgs, (list, tuple)) else (1, [imgs])  # number, list of images
@@ -618,27 +619,27 @@ class AutoShape(nn.Module):
         shape1 = [make_divisible(x, self.stride) if self.pt else size for x in np.array(shape1).max(0)]  # inf shape
         x = [letterbox(im, shape1, auto=False)[0] for im in imgs]  # pad
         x = np.ascontiguousarray(np.array(x).transpose((0, 3, 1, 2)))  # stack and BHWC to BCHW
-        x = torch.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
+        x = oneflow.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
         t.append(time_sync())
 
-        with amp.autocast(autocast):
+        # with amp.autocast(autocast):
             # Inference
-            y = self.model(x, augment, profile)  # forward
-            t.append(time_sync())
+        y = self.model(x, augment, profile)  # forward
+        t.append(time_sync())
 
-            # Post-process
-            y = non_max_suppression(y if self.dmb else y[0],
-                                    self.conf,
-                                    self.iou,
-                                    self.classes,
-                                    self.agnostic,
-                                    self.multi_label,
-                                    max_det=self.max_det)  # NMS
-            for i in range(n):
-                scale_coords(shape1, y[i][:, :4], shape0[i])
-
-            t.append(time_sync())
-            return Detections(imgs, y, files, t, self.names, x.shape)
+        # Post-process
+        y = non_max_suppression(y if self.dmb else y[0],
+                                self.conf,
+                                self.iou,
+                                self.classes,
+                                self.agnostic,
+                                self.multi_label,
+                                max_det=self.max_det)  # NMS
+        for i in range(n):
+            scale_coords(shape1, y[i][:, :4], shape0[i])
+            
+        t.append(time_sync())
+        return Detections(imgs, y, files, t, self.names, x.shape)
 
 
 class Detections:
@@ -646,7 +647,7 @@ class Detections:
     def __init__(self, imgs, pred, files, times=(0, 0, 0, 0), names=None, shape=None):
         super().__init__()
         d = pred[0].device  # device
-        gn = [torch.tensor([*(im.shape[i] for i in [1, 0, 1, 0]), 1, 1], device=d) for im in imgs]  # normalizations
+        gn = [oneflow.tensor([*(im.shape[i] for i in [1, 0, 1, 0]), 1, 1], device=d) for im in imgs]  # normalizations
         self.imgs = imgs  # list of images as numpy arrays
         self.pred = pred  # list of tensors pred[0] = (xyxy, conf, cls)
         self.names = names  # class names
@@ -758,5 +759,5 @@ class Classify(nn.Module):
         self.flat = nn.Flatten()
 
     def forward(self, x):
-        z = torch.cat([self.aap(y) for y in (x if isinstance(x, list) else [x])], 1)  # cat if list
+        z = oneflow.cat([self.aap(y) for y in (x if isinstance(x, list) else [x])], 1)  # cat if list
         return self.flat(self.conv(z))  # flatten to x(b,c2)

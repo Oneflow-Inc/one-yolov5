@@ -14,7 +14,7 @@ from utils.general import colorstr, cv2
 from utils.loggers.clearml.clearml_utils import ClearmlLogger
 from utils.loggers.wandb.wandb_utils import WandbLogger
 from utils.plots import plot_images, plot_results
-from utils.torch_utils import de_parallel
+from utils.oneflow_utils import de_parallel
 
 LOGGERS = ('csv', 'tb', 'wandb', 'clearml')  # *.csv, TensorBoard, Weights & Biases, ClearML
 RANK = int(os.getenv('RANK', -1))
@@ -167,13 +167,13 @@ class Loggers():
             with open(file, 'a') as f:
                 f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 
-        if self.tb:
-            for k, v in x.items():
-                self.tb.add_scalar(k, v, epoch)
-        elif self.clearml:  # log to ClearML if TensorBoard not used
-            for k, v in x.items():
-                title, series = k.split('/')
-                self.clearml.task.get_logger().report_scalar(title, series, v, epoch)
+        # if self.tb:
+        #     for k, v in x.items():
+        #         self.tb.add_scalar(k, v, epoch)
+        # elif self.clearml:  # log to ClearML if TensorBoard not used
+        #     for k, v in x.items():
+        #         title, series = k.split('/')
+        #         self.clearml.task.get_logger().report_scalar(title, series, v, epoch)
 
         if self.wandb:
             if best_fitness == fi:

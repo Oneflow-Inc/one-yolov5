@@ -53,9 +53,9 @@ import warnings
 from pathlib import Path
 
 import pandas as pd
-import torch
+import oneflow
 import yaml
-from torch.utils.mobile_optimizer import optimize_for_mobile
+from oneflow.utils.mobile_optimizer import optimize_for_mobile
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
