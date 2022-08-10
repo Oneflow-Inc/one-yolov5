@@ -53,9 +53,6 @@ class Detect(nn.Module):
         self.inplace = inplace  # use inplace ops (e.g. slice assignment)
 
     def forward(self, x):
-        print("=6"*50)
-        print(x[0].view(-1)[0:10])
-
         z = []  # inference output
         for i in range(self.nl):
             x[i] = self.m[i](x[i])  # conv
@@ -89,9 +86,6 @@ class Detect(nn.Module):
         else:
             yv, xv = oneflow.meshgrid(y, x)
 
-        # print('=5'*50)
-        # print(yv,xv)
-
         grid = oneflow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
         anchor_grid = (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
         return grid, anchor_grid
@@ -100,8 +94,6 @@ class Detect(nn.Module):
 class Model(nn.Module):
     # YOLOv5 model
     def __init__(self, cfg='yolov5s.yaml', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
-        print('=4'*50)
-        print("nn.Module ")
         super().__init__()
         if isinstance(cfg, dict):
             self.yaml = cfg  # model dict
@@ -159,26 +151,17 @@ class Model(nn.Module):
         return oneflow.cat(y, 1), None  # augmented inference, train
 
     def _forward_once(self, x, profile=False, visualize=False):
-        y, dt = [], []  # outputs
-        print(' def _forward_once(self, x, profile=False, visualize=False):')
-        
-        my_name = 0
+        y, dt = [], []  # outputs        
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             if profile:
                 self._profile_one_layer(m, x, dt)
-            x = m(x)  # run
-
-            print('=7'*50)
-        
-    
-            if oneflow.is_tensor(x):
-                my_path = '/home/fengwen/np_list/'+str(my_name)+'.txt'
-                my_name = my_name + 1
-                np.savetxt(my_path, x.cpu().numpy().flatten().tolist())
-                
-
+            x = m(x)  # run    
+            # if oneflow.is_tensor(x):
+            #     my_path = '/home/fengwen/np_list/'+str(my_name)+'.txt'
+            #     my_name = my_name + 1
+            #     np.savetxt(my_path, x.cpu().numpy().flatten().tolist())
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)

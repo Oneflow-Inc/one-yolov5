@@ -169,11 +169,6 @@ class ComputeLoss:
             obji = self.BCEobj(pi[..., 4], tobj)
             lobj = lobj + ( obji * self.balance[i] ) # obj loss
 
-            print('=8'*50)
-            print(pi[..., 4].flatten(0,-1)[0:10])
-            print(tobj.flatten(0,-1)[0:10])
-            # print(obji)
-            # print(lobj)
 
             if self.autobalance:
                 self.balance[i] = self.balance[i] * 0.9999 + 0.0001 / obji.detach().item()

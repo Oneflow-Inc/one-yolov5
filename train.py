@@ -66,7 +66,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
-    callbacks.run('on_pretrain_routine_start')
+    
+    # callbacks.run('on_pretrain_routine_start') 
 
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -81,8 +82,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # opt.hyp = hyp.copy()  # for saving hyps to checkpoints
 
     # Save run settings
-    if not evolve:
-        with open(save_dir / 'hyp.yaml', 'w') as f:
+    if not evolve: # 保存运行的参数
+        with open(save_dir / 'hyp.yaml', 'w') as f: 
             yaml.safe_dump(hyp, f, sort_keys=False)
         with open(save_dir / 'opt.yaml', 'w') as f:
             yaml.safe_dump(vars(opt), f, sort_keys=False)
@@ -91,8 +92,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     data_dict = None
     if RANK in {-1, 0}:
         loggers = Loggers(save_dir, weights, opt, hyp, LOGGER)  # loggers instance
-        if loggers.clearml:
-            data_dict = loggers.clearml.data_dict  # None if no ClearML dataset or filled in by ClearML
+        # if loggers.clearml:
+        #     data_dict = loggers.clearml.data_dict  # None if no ClearML dataset or filled in by ClearML
         if loggers.wandb:
             data_dict = loggers.wandb.data_dict
             if resume:
@@ -124,15 +125,29 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # print(pretrained)
 
     if pretrained:
-        # with torch_distributed_zero_first(LOCAL_RANK):
-        #     weights = attempt_download(weights)  # download if not found locally
-        ckpt = oneflow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+        # ---------------------------------------------------------#
+        ckpt = oneflow.load('/home/fengwen/mobilenetv2_onefdddddddddflow_model',map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
-        csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
+        csd = ckpt['model']  # checkpoint state_dict as FP32
         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
+        # -----------------#
+        # import torch
+        # ckpt = torch.load('/home/fengwen/weights/yolov5s.pt', map_location='cpu')
+        # print(ckpt.keys())
+        # new_parameters = dict()
+        # for key, value in ckpt['model'].state_dict().items():
+        #     if value.detach().cpu().numpy().dtype == np.float16:
+        #         val = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
+        #     else:
+        #         val = oneflow.tensor(value.detach().cpu().numpy())
+        #     new_parameters[key] = val
+        # ckpt['model'] = new_parameters
+
+        # oneflow.save(ckpt, '/home/fengwen/mobilenetv2_onefdddddddddflow_model')
+        # exit(0)
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
     # amp = check_amp(model)  # check AMP
@@ -258,7 +273,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     maps = np.zeros(nc)  # mAP per class
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
 
-    # scheduler.last_epoch = start_epoch - 1  # do not move
+    scheduler.last_epoch = start_epoch - 1  # do not move
     # scaler = oneflow.cuda.amp.GradScaler(enabled=amp)
 
     stopper, stop = EarlyStopping(patience=opt.patience), False
@@ -308,43 +323,42 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     if 'momentum' in x:
                         x['momentum'] = np.interp(ni, xi, [hyp['warmup_momentum'], hyp['momentum']])
 
-            # Multi-scale
-            if opt.multi_scale:
-                sz = random.randrange(imgsz * 0.5, imgsz * 1.5 + gs) // gs * gs  # size
-                sf = sz / max(imgs.shape[2:])  # scale factor
-                if sf != 1:
-                    ns = [math.ceil(x * sf / gs) * gs for x in imgs.shape[2:]]  # new shape (stretched to gs-multiple)
-                    imgs = nn.functional.interpolate(imgs, size=ns, mode='bilinear', align_corners=False)
+            # # Multi-scale
+            # if opt.multi_scale:
+            #     sz = random.randrange(imgsz * 0.5, imgsz * 1.5 + gs) // gs * gs  # size
+            #     sf = sz / max(imgs.shape[2:])  # scale factor
+            #     if sf != 1:
+            #         ns = [math.ceil(x * sf / gs) * gs for x in imgs.shape[2:]]  # new shape (stretched to gs-multiple)
+            #         imgs = nn.functional.interpolate(imgs, size=ns, mode='bilinear', align_corners=False)
 
             # Forward
             # with torch.cuda.amp.autocast(amp):
-            print('=1'*50)
-            print(type(imgs))         
-            # imgs = oneflow.ones((16, 3, 640, 640))
-            imgs =  oneflow.FloatTensor(np.ones([16, 3, 640, 640])).cuda()
-
+            # print('=1'*50)
+            # print(type(imgs))         
+            # imgs =  oneflow.FloatTensor(np.ones([16, 3, 640, 640])).cuda()
             # print(imgs.shape)
+            
             # print('=4'*50)
             # print("attach model(imgs)")
 
             pred = model(imgs)  # forward
 
-            print('=3'*50)
-            print(type(pred))
-            print(type(pred[0]))
-            print(len(pred))
-            y = pred[0].view(-1)
-            print(y[0:15])
-            exit(0)
+            # print('=3'*50)
+            # print(type(pred))
+            # print(type(pred[0]))
+            # print(len(pred))
+            # y = pred[0].view(-1)
+            # print(y[0:15])
+            # exit(0)
 
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
 
-            print('=0'*50)
-            print(type(loss))
-            print(type(loss_items))
-            print(loss)
-            print(loss_items)
-            exit(0)
+            # print('=0'*50)
+            # print(type(loss))
+            # print(type(loss_items))
+            # print(loss)
+            # print(loss_items)
+            # exit(0)
 
             if RANK != -1:
                 loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
