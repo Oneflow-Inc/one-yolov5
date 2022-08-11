@@ -22,7 +22,7 @@ from oneflow.nn.parallel import DistributedDataParallel as DDP
 from utils.general import LOGGER, check_version, colorstr, file_date, git_describe
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
-RANK = int(os.getenv('RANK', -1))
+RANK = -1 # int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 try:
@@ -111,7 +111,7 @@ def profile(input, ops, n=10, device=None):
         x.requires_grad = True
         for m in ops if isinstance(ops, list) else [ops]:
             m = m.to(device) if hasattr(m, 'to') else m  # device
-            m = m.half() if hasattr(m, 'half') and isinstance(x, flow.Tensor) and x.dtype is oneflow.float16 else m
+            m = m.half() if hasattr(m, 'half') and isinstance(x, oneflow.Tensor) and x.dtype is oneflow.float16 else m
             tf, tb, t = 0, 0, [0, 0, 0]  # dt forward, backward
             try:
                 flops = thop.profile(m, inputs=(x,), verbose=False)[0] / 1E9 * 2  # GFLOPs

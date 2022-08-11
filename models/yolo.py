@@ -125,7 +125,7 @@ class Model(nn.Module):
             m.anchors /= m.stride.view(-1, 1, 1)
             self.stride = m.stride
             self._initialize_biases()  # only run once
-
+        
         # Init weights, biases
         initialize_weights(self)
         self.info()
@@ -152,16 +152,32 @@ class Model(nn.Module):
 
     def _forward_once(self, x, profile=False, visualize=False):
         y, dt = [], []  # outputs        
+        
+        my_name = 0
+
         for m in self.model:
+      
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             if profile:
                 self._profile_one_layer(m, x, dt)
+            
+            
             x = m(x)  # run    
+            
             # if oneflow.is_tensor(x):
-            #     my_path = '/home/fengwen/np_list/'+str(my_name)+'.txt'
+            #     my_path = '/home/fengwen/np_list/flow'+str(my_name)+'.txt'
             #     my_name = my_name + 1
-            #     np.savetxt(my_path, x.cpu().numpy().flatten().tolist())
+            #     my_len = len(x.cpu().detach().numpy().flatten().tolist())
+            #     if my_len > 1000000:
+            #         np.savetxt(my_path, x.cpu().detach().numpy().flatten()[0:1000000].tolist())
+            #     else:
+            #         np.savetxt(my_path, x.cpu().detach().numpy().flatten().tolist())
+            #     print(x.dtype) #  oneflow.float32
+            #     print(str(my_name))
+            #     print("=d"*40)
+                
+
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)

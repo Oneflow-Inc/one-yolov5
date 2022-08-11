@@ -40,7 +40,7 @@ from utils.downloads import download_url_to_file
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
-RANK = int(os.getenv('RANK', -1))
+RANK = -1 #int(os.getenv('RANK', -1))
 
 # Settings
 DATASETS_DIR = ROOT.parent / 'datasets'  # YOLOv5 datasets directory

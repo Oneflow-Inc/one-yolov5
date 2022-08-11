@@ -17,7 +17,7 @@ from utils.plots import plot_images, plot_results
 from utils.oneflow_utils import de_parallel
 
 LOGGERS = ('csv', 'tb', 'wandb', 'clearml')  # *.csv, TensorBoard, Weights & Biases, ClearML
-RANK = int(os.getenv('RANK', -1))
+RANK =  -1 # int(os.getenv('RANK', -1))
 
 try:
     import wandb

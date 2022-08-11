@@ -71,6 +71,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     
     # callbacks.run('on_pretrain_routine_start') 
+  
 
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -99,7 +100,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     plots = not evolve and not opt.noplots  # create plots
     cuda = device.type != 'cpu'
     
-    init_seeds(opt.seed + 1 + RANK, deterministic=True)
+    init_seeds(0, deterministic=True)
 
     print('=d'*50)
     print(opt.seed)
@@ -116,10 +117,19 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # pretrained = os.path.exists(weights)
     pretrained =  True
     # print(pretrained)
-
+    
     if pretrained:
         # ---------------------------------------------------------#
-        ckpt = oneflow.load('/home/fengwen/mobilenetv2_onefdddddddddflow_model',map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+        # ckpt = oneflow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+        # model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+        # exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+        # csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
+        # csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+        # model.load_state_dict(csd, strict=False)  # load
+        # LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
+
+        # ---------------------------------------------------------#
+        ckpt = oneflow.load(weights,map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
         csd = ckpt['model']  # checkpoint state_dict as FP32
@@ -179,6 +189,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # EMA
     ema = ModelEMA(model) if RANK in {-1, 0} else None
 
+    
     # Resume
     best_fitness, start_epoch = 0.0, 0
     if pretrained:
@@ -220,6 +231,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                        workers=workers * 2,
                                        pad=0.5,
                                        prefix=colorstr('val: '))[0]
+          
+
 
         if not resume:
             # if plots:
@@ -228,11 +241,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Anchors
             if not opt.noautoanchor:
                 check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
-            model.half().float()  # pre-reduce anchor precision
+            # model.half().float()  # pre-reduce anchor precision
+            print("resume"*50)
 
         callbacks.run('on_pretrain_routine_end')
 
-    model.eval()
 
 
     # Model attributes
@@ -305,10 +318,15 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     if 'momentum' in x:
                         x['momentum'] = np.interp(ni, xi, [hyp['warmup_momentum'], hyp['momentum']])
 
-        
 
+
+            # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
+            
             pred = model(imgs)  # forward
 
+
+       
+            
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
 
        
@@ -354,57 +372,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             if not noval or final_epoch:  # Calculate mAP
                 exit(0)
 
-                results, maps, _ = val.run(data_dict,
-                                           batch_size=batch_size // WORLD_SIZE * 2,
-                                           imgsz=imgsz,
-                                        #    half=amp,
-                                           model=ema.ema,
-                                           single_cls=single_cls,
-                                           dataloader=val_loader,
-                                           save_dir=save_dir,
-                                           plots=False,
-                                           callbacks=callbacks,
-                                           compute_loss=compute_loss)
-
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
-            # stop = stopper(epoch=epoch, fitness=fi)  # early stop check
-            if fi > best_fitness:
-                best_fitness = fi
             log_vals = list(mloss) + list(results) + lr
-
             callbacks.run('on_fit_epoch_end', log_vals, epoch, best_fitness, fi)
 
-            # Save model
-            if (not nosave) or (final_epoch and not evolve):  # if save
-                ckpt = {
-                    'epoch': epoch,
-                    'best_fitness': best_fitness,
-                    'model': deepcopy(de_parallel(model)).state_dict(),
-                    'ema': deepcopy(ema.ema).state_dict(),
-                    'updates': ema.updates,
-                    'optimizer': optimizer.state_dict(),
-                    'wandb_id': loggers.wandb.wandb_run.id if loggers.wandb else None,
-                    # 'opt': vars(opt),
-                    'date': datetime.now().isoformat()}
-
-                # Save last, best and delete
-                oneflow.save(ckpt, last)
-                if best_fitness == fi:
-                    oneflow.save(ckpt, best)
-                if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    oneflow.save(ckpt, w / f'epoch{epoch}')
-                del ckpt
-                callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
-
-        # EarlyStopping
-        if RANK != -1:  # if DDP training
-            broadcast_list = [stop if RANK == 0 else None]
-            # dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-            if RANK != 0:
-                stop = broadcast_list[0]
-        if stop:
-            break  # must break all DDP ranks
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
