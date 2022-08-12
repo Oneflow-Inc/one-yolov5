@@ -81,10 +81,10 @@ class Detect(nn.Module):
         t = self.anchors[i].dtype
         shape = 1, self.na, ny, nx, 2  # grid shape
         y, x = oneflow.arange(ny, device=d, dtype=t), oneflow.arange(nx, device=d, dtype=t)
-        if check_version(oneflow.__version__, '1.10.0'):  # torch>=1.10.0 meshgrid workaround for torch>=0.7 compatibility
-            yv, xv = oneflow.meshgrid(y, x, indexing='ij')
-        else:
-            yv, xv = oneflow.meshgrid(y, x)
+        # if check_version(oneflow.__version__, '1.10.0'):  # torch>=1.10.0 meshgrid workaround for torch>=0.7 compatibility
+        #     yv, xv = oneflow.meshgrid(y, x, indexing='ij')
+        # else:
+        yv, xv = oneflow.meshgrid(y, x)
 
         grid = oneflow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
         anchor_grid = (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
@@ -176,7 +176,6 @@ class Model(nn.Module):
             #     print(x.dtype) #  oneflow.float32
             #     print(str(my_name))
             #     print("=d"*40)
-                
 
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
@@ -241,10 +240,10 @@ class Model(nn.Module):
             LOGGER.info(
                 ('%6g Conv2d.bias:' + '%10.3g' * 6) % (mi.weight.shape[1], *b[:5].mean(1).tolist(), b[5:].mean()))
 
-    # def _print_weights(self):
-    #     for m in self.model.modules():
-    #         if type(m) is Bottleneck:
-    #             LOGGER.info('%10.3g' % (m.w.detach().sigmoid() * 2))  # shortcut weights
+    def _print_weights(self):
+        for m in self.model.modules():
+            if type(m) is Bottleneck:
+                LOGGER.info('%10.3g' % (m.w.detach().sigmoid() * 2))  # shortcut weights
 
     def fuse(self):  # fuse model Conv2d() + BatchNorm2d() layers
         LOGGER.info('Fusing layers... ')
@@ -355,4 +354,5 @@ if __name__ == '__main__':
                 print(f'Error in {cfg}: {e}')
 
     else:  # report fused model summary
-        model.fuse()
+        # model.fuse()
+        pass

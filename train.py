@@ -70,7 +70,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     
-    # callbacks.run('on_pretrain_routine_start') 
+    callbacks.run('on_pretrain_routine_start') 
   
 
     # Directories
@@ -241,8 +241,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Anchors
             if not opt.noautoanchor:
                 check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
-            # model.half().float()  # pre-reduce anchor precision
-            print("resume"*50)
+            model.half().float()  # pre-reduce anchor precision
 
         callbacks.run('on_pretrain_routine_end')
 
@@ -289,17 +288,21 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             iw = labels_to_image_weights(dataset.labels, nc=nc, class_weights=cw)  # image weights
             dataset.indices = random.choices(range(dataset.n), weights=iw, k=dataset.n)  # rand weighted idx
 
-        print(RANK,'RANK')
 
         mloss = oneflow.zeros(3, device=device)  # mean losses
-        if RANK != -1:
-            train_loader.sampler.set_epoch(epoch)
+
+
+
         pbar = enumerate(train_loader)
 
         LOGGER.info(('\n' + '%10s' * 7) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'labels', 'img_size'))
         if RANK in {-1, 0}:
             pbar = tqdm(pbar, total=nb, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')  # progress bar
+      
+      
         optimizer.zero_grad()
+
+
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             callbacks.run('on_train_batch_start')
             ni = i + nb * epoch  # number integrated batches (since train start)
@@ -319,12 +322,17 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         x['momentum'] = np.interp(ni, xi, [hyp['warmup_momentum'], hyp['momentum']])
 
 
-
+            
+            # Forward
             # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
+    
             
             pred = model(imgs)  # forward
-
-
+            # print('shape'*50)
+            # print(model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().shape)
+            # np.savetxt('/home/fengwen/compare_model/one-yolo.txt',model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().flatten().tolist())
+            # exit(0)
+            
        
             
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
