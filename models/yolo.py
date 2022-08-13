@@ -77,6 +77,7 @@ class Detect(nn.Module):
         return x if self.training else (oneflow.cat(z, 1),) if self.export else (oneflow.cat(z, 1), x)
 
     def _make_grid(self, nx=20, ny=20, i=0):
+        
         d = self.anchors[i].device
         t = self.anchors[i].dtype
         shape = 1, self.na, ny, nx, 2  # grid shape
@@ -84,7 +85,7 @@ class Detect(nn.Module):
         # if check_version(oneflow.__version__, '1.10.0'):  # torch>=1.10.0 meshgrid workaround for torch>=0.7 compatibility
         #     yv, xv = oneflow.meshgrid(y, x, indexing='ij')
         # else:
-        yv, xv = oneflow.meshgrid(y, x)
+        yv, xv = oneflow.meshgrid(y, x,indexing='ij')
 
         grid = oneflow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
         anchor_grid = (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
@@ -180,6 +181,7 @@ class Model(nn.Module):
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
+                print("=d tial"*50)
         return x
 
     def _descale_pred(self, p, flips, scale, img_size):

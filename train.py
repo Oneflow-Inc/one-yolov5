@@ -70,7 +70,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     
-    callbacks.run('on_pretrain_routine_start') 
+    # callbacks.run('on_pretrain_routine_start') 
   
 
     # Directories
@@ -113,65 +113,75 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
 
-    # Model
-    # pretrained = os.path.exists(weights)
-    pretrained =  True
-    # print(pretrained)
+    # ---------------------------------------------------------------#
+    import torch
+    weights = '/home/fengwen/weights/yolov5s.pt'
+    ckpt = torch.load(weights, map_location='cpu')
+    model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+    exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+    new_parameters = dict()
+    for key, value in ckpt['model'].state_dict().items():
+        if 'num_batches_tracked' in key:
+            continue
+        value = oneflow.tensor(value.detach().cpu().numpy()).float()
+
+        new_parameters[key] = value
+
+    csd = intersect_dicts(new_parameters, model.state_dict(), exclude=exclude)  # intersect
+    model.load_state_dict(csd, strict=False)  # load
+    pretrained = True
+
+    # ---------------------------------------------------------------------------------------------------#
+ 
+
+
+    # # Model
+    # # pretrained = os.path.exists(weights)
+    # pretrained =  True
+    # # print(pretrained)
     
-    if pretrained:
-        # ---------------------------------------------------------#
-        # ckpt = oneflow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
-        # model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-        # exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
-        # csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
-        # csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
-        # model.load_state_dict(csd, strict=False)  # load
-        # LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
+    # if pretrained:
+    #     # ---------------------------------------------------------#
+    #     ckpt = oneflow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+    #     model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+    #     exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+    #     csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
+    #     csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+    #     model.load_state_dict(csd, strict=False)  # load
+    #     LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
 
-        # ---------------------------------------------------------#
-        ckpt = oneflow.load(weights,map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
-        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-        exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
-        csd = ckpt['model']  # checkpoint state_dict as FP32
-        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
-        model.load_state_dict(csd, strict=False)  # load
-        LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
-        # -----------------#
-        # import torch
-        # ckpt = torch.load('/home/fengwen/weights/yolov5s.pt', map_location='cpu')
-        # print(ckpt.keys())
-        # new_parameters = dict()
-        # for key, value in ckpt['model'].state_dict().items():
-        #     if value.detach().cpu().numpy().dtype == np.float16:
-        #         val = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
-        #     else:
-        #         val = oneflow.tensor(value.detach().cpu().numpy())
-        #     new_parameters[key] = val
-        # ckpt['model'] = new_parameters
+    #     # ---------------------------------------------------------#
+    #     # ckpt = oneflow.load(weights,map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+    #     # model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+    #     # exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+    #     # csd = ckpt['model']  # checkpoint state_dict as FP32
+    #     # csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+    #     # model.load_state_dict(csd, strict=False)  # load
+    #     # LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
+    #     # -----------------#
+    #     # import torch
+    #     # ckpt = torch.load('/home/fengwen/weights/yolov5s.pt', map_location='cpu')
+    #     # print(ckpt.keys())
+    #     # new_parameters = dict()
+    #     # for key, value in ckpt['model'].state_dict().items():
+    #     #     if value.detach().cpu().numpy().dtype == np.float16:
+    #     #         val = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
+    #     #     else:
+    #     #         val = oneflow.tensor(value.detach().cpu().numpy())
+    #     #     new_parameters[key] = val
+    #     # ckpt['model'] = new_parameters
 
-        # oneflow.save(ckpt, '/home/fengwen/mobilenetv2_onefdddddddddflow_model')
-        # exit(0)
-    else:
-        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-    # amp = check_amp(model)  # check AMP
+    #     # oneflow.save(ckpt, '/home/fengwen/mobilenetv2_onefdddddddddflow_model')
+    #     # exit(0)
+    # else:
+    #     model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+    # # amp = check_amp(model)  # check AMP
 
-    # Freeze
-    freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
-    for k, v in model.named_parameters():
-        v.requires_grad = True  # train all layers
-        # v.register_hook(lambda x: torch.nan_to_num(x))  # NaN to 0 (commented for erratic training results)
-        if any(x in k for x in freeze):
-            LOGGER.info(f'freezing {k}')
-            v.requires_grad = False
 
     # Image size
     gs = max(int(model.stride.max()), 32)  # grid size (max stride)
     imgsz = check_img_size(opt.imgsz, gs, floor=gs * 2)  # verify imgsz is gs-multiple
 
-    # Batch size
-    if RANK == -1 and batch_size == -1:  # single-GPU only, estimate best batch size
-        batch_size = check_train_batch_size(model, imgsz, amp)
-        loggers.on_params_update({"batch_size": batch_size})
 
     # Optimizer
     nbs = 64  # nominal batch size
@@ -235,15 +245,14 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
 
         if not resume:
-            # if plots:
-            #     plot_labels(labels, names, save_dir)
+
 
             # Anchors
             if not opt.noautoanchor:
                 check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
-            model.half().float()  # pre-reduce anchor precision
+            # model.half().float()  # pre-reduce anchor precision
 
-        callbacks.run('on_pretrain_routine_end')
+        # callbacks.run('on_pretrain_routine_end')
 
 
 
@@ -257,6 +266,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     model.hyp = hyp  # attach hyperparameters to model
     model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
     model.names = names
+
 
     # Start training
     t0 = time.time()
@@ -281,7 +291,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         callbacks.run('on_train_epoch_start')
         model.train()
         
+
         print(opt.image_weights,'iimage_weights')
+
         # Update image weights (optional, single-GPU only)
         if opt.image_weights:
             cw = model.class_weights.cpu().numpy() * (1 - maps) ** 2 / nc  # class weights
@@ -324,10 +336,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             
             # Forward
-            # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
+            imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
     
-            
             pred = model(imgs)  # forward
+            
             # print('shape'*50)
             # print(model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().shape)
             # np.savetxt('/home/fengwen/compare_model/one-yolo.txt',model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().flatten().tolist())
