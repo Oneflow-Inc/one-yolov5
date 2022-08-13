@@ -100,11 +100,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     plots = not evolve and not opt.noplots  # create plots
     cuda = device.type != 'cpu'
     
-    init_seeds(0, deterministic=True)
+    init_seeds(1, deterministic=True)
 
-    print('=d'*50)
-    print(opt.seed)
-    
+
     
     # with torch_distributed_zero_first(LOCAL_RANK):
     data_dict = data_dict or check_dataset(data)  # check if None
@@ -123,7 +121,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     for key, value in ckpt['model'].state_dict().items():
         if 'num_batches_tracked' in key:
             continue
-        value = oneflow.tensor(value.detach().cpu().numpy()).float()
+        value = oneflow.tensor(value.detach().cpu().numpy(),dtype=oneflow.float32).float()
 
         new_parameters[key] = value
 
@@ -241,8 +239,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                        workers=workers * 2,
                                        pad=0.5,
                                        prefix=colorstr('val: '))[0]
-          
-
+        
 
         if not resume:
 
@@ -250,7 +247,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Anchors
             if not opt.noautoanchor:
                 check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
-            # model.half().float()  # pre-reduce anchor precision
+            model.half().float()  # pre-reduce anchor precision
 
         # callbacks.run('on_pretrain_routine_end')
 
@@ -336,7 +333,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             
             # Forward
-            imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
+            # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
     
             pred = model(imgs)  # forward
             
@@ -454,7 +451,7 @@ def parse_opt(known=False):
     parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
-    parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
+    parser.add_argument('--workers', type=int, default=0, help='max dataloader workers (per RANK in DDP mode)')
     parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
