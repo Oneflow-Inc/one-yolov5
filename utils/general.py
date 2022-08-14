@@ -204,15 +204,15 @@ def init_seeds(seed=0, deterministic=False):
     # cudnn seed 0 settings are slower and more reproducible, else faster and less reproducible
     import oneflow.backends.cudnn as cudnn
 
-    if deterministic and check_version(oneflow.__version__, '1.12.0'):  # https://github.com/ultralytics/yolov5/pull/8213
-        oneflow.use_deterministic_algorithms(True)
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-        os.environ['PYTHONHASHSEED'] = str(seed)
+    # if deterministic and check_version(oneflow.__version__, '1.12.0'):  # https://github.com/ultralytics/yolov5/pull/8213
+    #     oneflow.use_deterministic_algorithms(True)
+    #     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+    #     os.environ['PYTHONHASHSEED'] = str(seed)
 
     random.seed(seed)
     np.random.seed(seed)
     oneflow.manual_seed(seed)
-    cudnn.benchmark, cudnn.deterministic = (False, True) if seed == 0 else (True, False)
+    cudnn.benchmark, cudnn.deterministic = (False, True) # if seed == 0 else (True, False)
     oneflow.cuda.manual_seed(seed)
     oneflow.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
 

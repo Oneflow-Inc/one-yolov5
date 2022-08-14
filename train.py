@@ -60,7 +60,7 @@ from utils.oneflow_utils import (EarlyStopping, ModelEMA, de_parallel, select_de
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
-
+LOCAL_RANK,RANK,WORLD_SIZE = -1, -1, 1
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
@@ -107,8 +107,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     plots = not evolve and not opt.noplots  # create plots
     cuda = device.type != 'cpu'
     
-    # init_seeds(opt.seed + 1 + RANK, deterministic=True)
-    init_seeds(1)
+    init_seeds(1, True)
     
     # with torch_distributed_zero_first(LOCAL_RANK):
     data_dict = data_dict or check_dataset(data)  # check if None
@@ -120,34 +119,18 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
     # Model
-    # pretrained = os.path.exists(weights)
-    pretrained =  True
+    pretrained = os.path.exists(weights)
     # print(pretrained)
 
     if pretrained:
         # ---------------------------------------------------------#
-        ckpt = oneflow.load('/home/fengwen/mobilenetv2_onefdddddddddflow_model',map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+        ckpt = oneflow.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
         csd = ckpt['model']  # checkpoint state_dict as FP32
         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
-        # -----------------#
-        # import torch
-        # ckpt = torch.load('/home/fengwen/weights/yolov5s.pt', map_location='cpu')
-        # print(ckpt.keys())
-        # new_parameters = dict()
-        # for key, value in ckpt['model'].state_dict().items():
-        #     if value.detach().cpu().numpy().dtype == np.float16:
-        #         val = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
-        #     else:
-        #         val = oneflow.tensor(value.detach().cpu().numpy())
-        #     new_parameters[key] = val
-        # ckpt['model'] = new_parameters
-
-        # oneflow.save(ckpt, '/home/fengwen/mobilenetv2_onefdddddddddflow_model')
-        # exit(0)
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
     # amp = check_amp(model)  # check AMP
@@ -333,32 +316,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Forward
             # with torch.cuda.amp.autocast(amp):
-            # print('=1'*50)
-            # print(type(imgs))         
-            # imgs =  oneflow.FloatTensor(np.ones([16, 3, 640, 640])).cuda()
-            # print(imgs.shape)
-            
-            # print('=4'*50)
-            # print("attach model(imgs)")
 
             pred = model(imgs)  # forward
 
-            # print('=3'*50)
-            # print(type(pred))
-            # print(type(pred[0]))
-            # print(len(pred))
-            # y = pred[0].view(-1)
-            # print(y[0:15])
-            # exit(0)
-
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
-
-            # print('=0'*50)
-            # print(type(loss))
-            # print(type(loss_items))
-            # print(loss)
-            # print(loss_items)
-            # exit(0)
 
             if RANK != -1:
                 loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
@@ -401,9 +362,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
             
-            noval = True
             if not noval or final_epoch:  # Calculate mAP
-                exit(0)
 
                 results, maps, _ = val.run(data_dict,
                                            batch_size=batch_size // WORLD_SIZE * 2,
@@ -419,7 +378,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
-            # stop = stopper(epoch=epoch, fitness=fi)  # early stop check
+            stop = stopper(epoch=epoch, fitness=fi)  # early stop check
             if fi > best_fitness:
                 best_fitness = fi
             log_vals = list(mloss) + list(results) + lr
@@ -436,7 +395,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     'updates': ema.updates,
                     'optimizer': optimizer.state_dict(),
                     'wandb_id': loggers.wandb.wandb_run.id if loggers.wandb else None,
-                    # 'opt': vars(opt),
+                    'opt': vars(opt),
                     'date': datetime.now().isoformat()}
 
                 # Save last, best and delete
