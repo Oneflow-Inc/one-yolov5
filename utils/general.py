@@ -31,7 +31,8 @@ import numpy as np
 import pandas as pd
 import pkg_resources as pkg
 import oneflow 
-import torchvision
+# import torchvision
+
 import yaml
 
 from utils.downloads import gsutil_getsize
@@ -40,7 +41,7 @@ from utils.downloads import download_url_to_file
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
-RANK = -1 #int(os.getenv('RANK', -1))
+RANK = int(os.getenv('RANK', -1))
 
 # Settings
 DATASETS_DIR = ROOT.parent / 'datasets'  # YOLOv5 datasets directory
@@ -204,22 +205,10 @@ def init_seeds(seed=0, deterministic=False):
     # cudnn seed 0 settings are slower and more reproducible, else faster and less reproducible
     import oneflow.backends.cudnn as cudnn
 
-<<<<<<< HEAD
-    # if deterministic and check_version(oneflow.__version__, '1.12.0'):  # https://github.com/ultralytics/yolov5/pull/8213
-    #     oneflow.use_deterministic_algorithms(True)
-    #     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    #     os.environ['PYTHONHASHSEED'] = str(seed)
-
-    random.seed(seed)
-    np.random.seed(seed)
-    oneflow.manual_seed(seed)
-    cudnn.benchmark, cudnn.deterministic = (False, True) # if seed == 0 else (True, False)
-=======
     random.seed(seed)
     np.random.seed(seed)
     oneflow.manual_seed(seed)
     cudnn.benchmark, cudnn.deterministic = (False, True) 
->>>>>>> fa453eae561894828f29ced24a57bb3a46585da1
     oneflow.cuda.manual_seed(seed)
     oneflow.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
 
@@ -891,7 +880,8 @@ def non_max_suppression(prediction,
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        # i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        i = oneflow.nms(boxes, scores, iou_thres)  # NMS
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)

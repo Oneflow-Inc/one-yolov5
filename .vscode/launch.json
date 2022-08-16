@@ -21,14 +21,9 @@
                 "--cfg",
                 "/home/fengwen/torch-yolo5/models/yolov5s.yaml",
                 "--epochs",
-                "300",
-                "--workers",
-                "0",
-                "--device",
-                "0",
+                "100",
                 "--noplots",
                 "--nosave",
-                "--noval",
             ]
         }
     ]
