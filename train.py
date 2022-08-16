@@ -14,6 +14,7 @@ Usage:
 
 import argparse
 import math
+from operator import mod
 import os
 import random
 from re import T
@@ -58,9 +59,8 @@ from utils.oneflow_utils import (EarlyStopping, ModelEMA, de_parallel, select_de
                                smart_resume)
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
-RANK = int(os.getenv('RANK', -1))
+RANK = int(os.getenv('RANK', -1)) 
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
-LOCAL_RANK,RANK,WORLD_SIZE = -1, -1, 1
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
@@ -68,6 +68,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
     
     # callbacks.run('on_pretrain_routine_start') 
+  
 
     # Directories
     w = save_dir / 'weights'  # weights dir
@@ -81,24 +82,13 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     LOGGER.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     # opt.hyp = hyp.copy()  # for saving hyps to checkpoints
 
-    # Save run settings
-    if not evolve: # 保存运行的参数
-        with open(save_dir / 'hyp.yaml', 'w') as f: 
-            yaml.safe_dump(hyp, f, sort_keys=False)
-        with open(save_dir / 'opt.yaml', 'w') as f:
-            yaml.safe_dump(vars(opt), f, sort_keys=False)
 
     # Loggers
     data_dict = None
     if RANK in {-1, 0}:
         loggers = Loggers(save_dir, weights, opt, hyp, LOGGER)  # loggers instance
-        # if loggers.clearml:
-        #     data_dict = loggers.clearml.data_dict  # None if no ClearML dataset or filled in by ClearML
-        if loggers.wandb:
-            data_dict = loggers.wandb.data_dict
-            if resume:
-                weights, epochs, hyp, batch_size = opt.weights, opt.epochs, opt.hyp, opt.batch_size
-
+    
+      
         # Register actions
         for k in methods(loggers):
             callbacks.register_action(k, callback=getattr(loggers, k))
@@ -106,8 +96,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Config
     plots = not evolve and not opt.noplots  # create plots
     cuda = device.type != 'cpu'
-    
-    init_seeds(1, True)
+
+    init_seeds(1, deterministic=True)
+
     
     # with torch_distributed_zero_first(LOCAL_RANK):
     data_dict = data_dict or check_dataset(data)  # check if None
@@ -115,26 +106,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     train_path, val_path = data_dict['train'], data_dict['val']
     nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
-    assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {data}'  # check
-    is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
 
-    # pretrained = True
-    # import torch
-    # ckpt = torch.load('/home/fengwen/weights/yolov5s.pt', map_location='cpu')
-    # print(ckpt.keys())
-    # new_parameters = dict()
-    # for key, value in ckpt['model'].state_dict().items():
-    #     if value.detach().cpu().numpy().dtype == np.float16:
-    #         val = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
-    #     else:
-    #         val = oneflow.tensor(value.detach().cpu().numpy())
-    #     new_parameters[key] = val
-    # ckpt['model'] = new_parameters
-    # oneflow.save(ckpt, '/home/fengwen/one-yolo/datasets')
-    # print("="*50)
-    # exit(0)
-    # Model
     pretrained = os.path.exists(weights)
     # print(pretrained)
 
@@ -160,14 +133,12 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             LOGGER.info(f'freezing {k}')
             v.requires_grad = False
 
+
+
     # Image size
     gs = max(int(model.stride.max()), 32)  # grid size (max stride)
     imgsz = check_img_size(opt.imgsz, gs, floor=gs * 2)  # verify imgsz is gs-multiple
 
-    # Batch size
-    if RANK == -1 and batch_size == -1:  # single-GPU only, estimate best batch size
-        batch_size = check_train_batch_size(model, imgsz, amp)
-        loggers.on_params_update({"batch_size": batch_size})
 
     # Optimizer
     nbs = 64  # nominal batch size
@@ -185,23 +156,14 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # EMA
     ema = ModelEMA(model) if RANK in {-1, 0} else None
 
+    
     # Resume
     best_fitness, start_epoch = 0.0, 0
     if pretrained:
         best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
         del ckpt, csd
 
-    # # DP mode
-    # if cuda and RANK == -1 and oneflow.cuda.device_count() > 1:
-    #     LOGGER.warning('WARNING: DP not recommended, use torch.distributed.run for best DDP Multi-GPU results.\n'
-    #                    'See Multi-GPU Tutorial at https://github.com/ultralytics/yolov5/issues/475 to get started.')
-    #     model = torch.nn.DataParallel(model)
-
-    # # SyncBatchNorm
-    # if opt.sync_bn and cuda and RANK != -1:
-    #     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
-    #     LOGGER.info('Using SyncBatchNorm()')
-
+   
     # Trainloader
     train_loader, dataset = create_dataloader(train_path,
                                               imgsz,
@@ -236,21 +198,19 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                        workers=workers * 2,
                                        pad=0.5,
                                        prefix=colorstr('val: '))[0]
+        
 
         if not resume:
-            # if plots:
-            #     plot_labels(labels, names, save_dir)
+
 
             # Anchors
             if not opt.noautoanchor:
                 check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)
             model.half().float()  # pre-reduce anchor precision
 
-        callbacks.run('on_pretrain_routine_end')
+        # callbacks.run('on_pretrain_routine_end')
 
-    # DDP mode
-    if cuda and RANK != -1:
-        model = smart_DDP(model)
+
 
     # Model attributes
     nl = de_parallel(model).model[-1].nl  # number of detection layers (to scale hyps)
@@ -262,6 +222,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     model.hyp = hyp  # attach hyperparameters to model
     model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
     model.names = names
+
 
     # Start training
     t0 = time.time()
@@ -285,6 +246,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run('on_train_epoch_start')
         model.train()
+        
+
+        print(opt.image_weights,'iimage_weights')
 
         # Update image weights (optional, single-GPU only)
         if opt.image_weights:
@@ -292,18 +256,21 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             iw = labels_to_image_weights(dataset.labels, nc=nc, class_weights=cw)  # image weights
             dataset.indices = random.choices(range(dataset.n), weights=iw, k=dataset.n)  # rand weighted idx
 
-        # Update mosaic border (optional)
-        # b = int(random.uniform(0.25 * imgsz, 0.75 * imgsz + gs) // gs * gs)
-        # dataset.mosaic_border = [b - imgsz, -b]  # height, width borders
 
         mloss = oneflow.zeros(3, device=device)  # mean losses
-        if RANK != -1:
-            train_loader.sampler.set_epoch(epoch)
+
+
+
         pbar = enumerate(train_loader)
+
         LOGGER.info(('\n' + '%10s' * 7) % ('Epoch', 'gpu_mem', 'box', 'obj', 'cls', 'labels', 'img_size'))
         if RANK in {-1, 0}:
             pbar = tqdm(pbar, total=nb, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')  # progress bar
+      
+      
         optimizer.zero_grad()
+
+
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             callbacks.run('on_train_batch_start')
             ni = i + nb * epoch  # number integrated batches (since train start)
@@ -322,14 +289,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     if 'momentum' in x:
                         x['momentum'] = np.interp(ni, xi, [hyp['warmup_momentum'], hyp['momentum']])
 
-            # # Multi-scale
-            # if opt.multi_scale:
-            #     sz = random.randrange(imgsz * 0.5, imgsz * 1.5 + gs) // gs * gs  # size
-            #     sf = sz / max(imgs.shape[2:])  # scale factor
-            #     if sf != 1:
-            #         ns = [math.ceil(x * sf / gs) * gs for x in imgs.shape[2:]]  # new shape (stretched to gs-multiple)
-            #         imgs = nn.functional.interpolate(imgs, size=ns, mode='bilinear', align_corners=False)
 
+<<<<<<< HEAD
             # Forward
             # with torch.cuda.amp.autocast(amp):
             
@@ -339,6 +300,24 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
 
+=======
+            
+            # Forward
+            # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
+    
+            pred = model(imgs)  # forward
+            
+            # print('shape'*50)
+            # print(model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().shape)
+            # np.savetxt('/home/fengwen/compare_model/one-yolo.txt',model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().flatten().tolist())
+            # exit(0)
+            
+       
+            
+            loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+
+       
+>>>>>>> fa453eae561894828f29ced24a57bb3a46585da1
             if RANK != -1:
                 loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
             if opt.quad:
@@ -350,10 +329,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
-                # scaler.unscale_(optimizer)  # unscale gradients
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
-                # scaler.step(optimizer)  # optimizer.step
-                # scaler.update()
+            
                 optimizer.step()
                 optimizer.zero_grad()
                 if ema:
@@ -382,27 +358,18 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             
             if not noval or final_epoch:  # Calculate mAP
 
-                results, maps, _ = val.run(data_dict,
-                                           batch_size=batch_size // WORLD_SIZE * 2,
-                                           imgsz=imgsz,
-                                        #    half=amp,
-                                           model=ema.ema,
-                                           single_cls=single_cls,
-                                           dataloader=val_loader,
-                                           save_dir=save_dir,
-                                           plots=False,
-                                           callbacks=callbacks,
-                                           compute_loss=compute_loss)
-
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
+<<<<<<< HEAD
             stop = stopper(epoch=epoch, fitness=fi)  # early stop check
             if fi > best_fitness:
                 best_fitness = fi
+=======
+>>>>>>> fa453eae561894828f29ced24a57bb3a46585da1
             log_vals = list(mloss) + list(results) + lr
-
             callbacks.run('on_fit_epoch_end', log_vals, epoch, best_fitness, fi)
 
+<<<<<<< HEAD
             # Save model
             if (not nosave) or (final_epoch and not evolve):  # if save
                 ckpt = {
@@ -433,6 +400,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 stop = broadcast_list[0]
         if stop:
             break  # must break all DDP ranks
+=======
+>>>>>>> fa453eae561894828f29ced24a57bb3a46585da1
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
@@ -459,8 +428,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         plots=plots,
                         callbacks=callbacks,
                         compute_loss=compute_loss)  # val best model with plots
-                    if is_coco:
-                        callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
 
         callbacks.run('on_train_end', last, best, plots, epoch, results)
 
@@ -492,7 +459,7 @@ def parse_opt(known=False):
     parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
-    parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
+    parser.add_argument('--workers', type=int, default=0, help='max dataloader workers (per RANK in DDP mode)')
     parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
     parser.add_argument('--name', default='exp', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')

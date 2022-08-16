@@ -25,7 +25,7 @@ try:
 except (ImportError, AssertionError):
     wandb = None
 
-RANK = int(os.getenv('RANK', -1))
+RANK = -1 # int(os.getenv('RANK', -1))
 WANDB_ARTIFACT_PREFIX = 'wandb-artifact://'
 
 

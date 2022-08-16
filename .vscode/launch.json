@@ -28,7 +28,7 @@
                 "0",
                 "--noplots",
                 "--nosave",
-                "--noval"
+                "--noval",
             ]
         }
     ]
