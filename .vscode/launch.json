@@ -5,12 +5,31 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Current File",
+            "name": "Python: one-yolov5",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "program": "/home/fengwen/one-yolo/train.py",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "args": [
+                "--data",
+                "/home/fengwen/coco_yaml/coco128.yaml",
+                "--weights",
+                "/home/fengwen/one-yolo/datasets",
+                "--batch-size",
+                "16",
+                "--cfg",
+                "/home/fengwen/torch-yolo5/models/yolov5s.yaml",
+                "--epochs",
+                "300",
+                "--workers",
+                "0",
+                "--device",
+                "0",
+                "--noplots",
+                "--nosave",
+                "--noval"
+            ]
         }
     ]
 }

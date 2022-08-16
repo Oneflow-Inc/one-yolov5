@@ -118,6 +118,22 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {data}'  # check
     is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
 
+
+    # pretrained = True
+    # import torch
+    # ckpt = torch.load('/home/fengwen/weights/yolov5s.pt', map_location='cpu')
+    # print(ckpt.keys())
+    # new_parameters = dict()
+    # for key, value in ckpt['model'].state_dict().items():
+    #     if value.detach().cpu().numpy().dtype == np.float16:
+    #         val = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
+    #     else:
+    #         val = oneflow.tensor(value.detach().cpu().numpy())
+    #     new_parameters[key] = val
+    # ckpt['model'] = new_parameters
+    # oneflow.save(ckpt, '/home/fengwen/one-yolo/datasets')
+    # print("="*50)
+    # exit(0)
     # Model
     pretrained = os.path.exists(weights)
     # print(pretrained)
@@ -316,6 +332,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Forward
             # with torch.cuda.amp.autocast(amp):
+            
+            # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
 
             pred = model(imgs)  # forward
 
