@@ -106,6 +106,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     train_path, val_path = data_dict['train'], data_dict['val']
     nc = 1 if single_cls else int(data_dict['nc'])  # number of classes
     names = ['item'] if single_cls and len(data_dict['names']) != 1 else data_dict['names']  # class names
+    assert len(names) == nc, f'{len(names)} names found for nc={nc} dataset in {data}'  # check
+    is_coco = isinstance(val_path, str) and val_path.endswith('coco/val2017.txt')  # COCO dataset
+
 
 
     pretrained = os.path.exists(weights)
@@ -314,12 +317,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
     
             pred = model(imgs)  # forward
-            
-            # print('shape'*50)
-            # print(model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().shape)
-            # np.savetxt('/home/fengwen/compare_model/one-yolo.txt',model.state_dict()['model.0.conv.weight'].cpu().detach().numpy().flatten().tolist())
-            # exit(0)
-            
+
        
             
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size

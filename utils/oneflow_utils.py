@@ -86,8 +86,8 @@ def select_device(device='', batch_size=0, newline=True):
 
 def time_sync():
     # Oneoneflow-accurate time
-    if oneflow.cuda.is_available():
-        oneflow.cuda.synchronize()
+    # if oneflow.cuda.is_available():
+    #     oneflow.cuda.synchronize()
     return time.time()
 
 
