@@ -136,3 +136,5 @@ datasets/
 log/
 runs/
 *.qdrep
+.vscode/
+

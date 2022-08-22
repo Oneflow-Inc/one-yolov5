@@ -9,7 +9,7 @@ pip3 install -r requirements.txt
 ### Dataset
 The MS COCO dataset is a large-scale object detection, segmentation, and captioning dataset published by Microsoft. Machine Learning and Computer Vision engineers popularly use the COCO dataset for various computer vision projects.
 
-'dataset/coco.yaml' has the place of dataset. and if the dataset is missed, it will autodownload the whole coco dataset.
+'data/coco.yaml' has the place of dataset. and if the dataset is missed, it will autodownload the whole coco dataset.
 
 You can change below code to change dataset or use your custom dataset by change the .yaml file.
 ```
