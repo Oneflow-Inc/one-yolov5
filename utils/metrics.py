@@ -23,11 +23,11 @@ def smooth(y, f=0.05):
     nf = round(len(y) * f * 2) // 2 + 1  # number of filter elements (must be odd)
     p = np.ones(nf // 2)  # ones padding
     yp = np.concatenate((p * y[0], y, p * y[-1]), 0)  # y padded
-    return np.convolve(yp, np.ones(nf) / nf, mode='valid')  # y-smoothed
+    return np.convolve(yp, np.ones(nf) / nf, mode="valid")  # y-smoothed
 
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names=(), eps=1e-16):
-    """ Compute the average precision, given the recall and precision curves.
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir=".", names=(), eps=1e-16):
+    """Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
         tp:  True positives (nparray, nx1 or nx10).
@@ -64,7 +64,9 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
 
         # Recall
         recall = tpc / (n_l + eps)  # recall curve
-        r[ci] = np.interp(-px, -conf[i], recall[:, 0], left=0)  # negative x, xp because xp decreases
+        r[ci] = np.interp(
+            -px, -conf[i], recall[:, 0], left=0
+        )  # negative x, xp because xp decreases
 
         # Precision
         precision = tpc / (tpc + fpc)  # precision curve
@@ -78,13 +80,15 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
 
     # Compute F1 (harmonic mean of precision and recall)
     f1 = 2 * p * r / (p + r + eps)
-    names = [v for k, v in names.items() if k in unique_classes]  # list: only classes that have data
+    names = [
+        v for k, v in names.items() if k in unique_classes
+    ]  # list: only classes that have data
     names = dict(enumerate(names))  # to dict
     if plot:
-        plot_pr_curve(px, py, ap, Path(save_dir) / 'PR_curve.png', names)
-        plot_mc_curve(px, f1, Path(save_dir) / 'F1_curve.png', names, ylabel='F1')
-        plot_mc_curve(px, p, Path(save_dir) / 'P_curve.png', names, ylabel='Precision')
-        plot_mc_curve(px, r, Path(save_dir) / 'R_curve.png', names, ylabel='Recall')
+        plot_pr_curve(px, py, ap, Path(save_dir) / "PR_curve.png", names)
+        plot_mc_curve(px, f1, Path(save_dir) / "F1_curve.png", names, ylabel="F1")
+        plot_mc_curve(px, p, Path(save_dir) / "P_curve.png", names, ylabel="Precision")
+        plot_mc_curve(px, r, Path(save_dir) / "R_curve.png", names, ylabel="Recall")
 
     i = smooth(f1.mean(0), 0.1).argmax()  # max F1 index
     p, r, f1 = p[:, i], r[:, i], f1[:, i]
@@ -94,7 +98,7 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
 
 
 def compute_ap(recall, precision):
-    """ Compute the average precision, given the recall and precision curves
+    """Compute the average precision, given the recall and precision curves
     # Arguments
         recall:    The recall curve (list)
         precision: The precision curve (list)
@@ -110,8 +114,8 @@ def compute_ap(recall, precision):
     mpre = np.flip(np.maximum.accumulate(np.flip(mpre)))
 
     # Integrate area under curve
-    method = 'interp'  # methods: 'continuous', 'interp'
-    if method == 'interp':
+    method = "interp"  # methods: 'continuous', 'interp'
+    if method == "interp":
         x = np.linspace(0, 1, 101)  # 101-point interp (COCO)
         ap = np.trapz(np.interp(x, mrec, mpre), x)  # integrate
     else:  # 'continuous'
@@ -184,11 +188,13 @@ class ConfusionMatrix:
         # fn = self.matrix.sum(0) - tp  # false negatives (missed detections)
         return tp[:-1], fp[:-1]  # remove background class
 
-    def plot(self, normalize=True, save_dir='', names=()):
+    def plot(self, normalize=True, save_dir="", names=()):
         try:
             import seaborn as sn
 
-            array = self.matrix / ((self.matrix.sum(0).reshape(1, -1) + 1E-9) if normalize else 1)  # normalize columns
+            array = self.matrix / (
+                (self.matrix.sum(0).reshape(1, -1) + 1e-9) if normalize else 1
+            )  # normalize columns
             array[array < 0.005] = np.nan  # don't annotate (would appear as 0.00)
 
             fig = plt.figure(figsize=(12, 9), tight_layout=True)
@@ -196,28 +202,31 @@ class ConfusionMatrix:
             sn.set(font_scale=1.0 if nc < 50 else 0.8)  # for label size
             labels = (0 < nn < 99) and (nn == nc)  # apply names to ticklabels
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore')  # suppress empty matrix RuntimeWarning: All-NaN slice encountered
-                sn.heatmap(array,
-                           annot=nc < 30,
-                           annot_kws={
-                               "size": 8},
-                           cmap='Blues',
-                           fmt='.2f',
-                           square=True,
-                           vmin=0.0,
-                           xticklabels=names + ['background FP'] if labels else "auto",
-                           yticklabels=names + ['background FN'] if labels else "auto").set_facecolor((1, 1, 1))
-            fig.axes[0].set_xlabel('True')
-            fig.axes[0].set_ylabel('Predicted')
-            plt.title('Confusion Matrix')
-            fig.savefig(Path(save_dir) / 'confusion_matrix.png', dpi=250)
+                warnings.simplefilter(
+                    "ignore"
+                )  # suppress empty matrix RuntimeWarning: All-NaN slice encountered
+                sn.heatmap(
+                    array,
+                    annot=nc < 30,
+                    annot_kws={"size": 8},
+                    cmap="Blues",
+                    fmt=".2f",
+                    square=True,
+                    vmin=0.0,
+                    xticklabels=names + ["background FP"] if labels else "auto",
+                    yticklabels=names + ["background FN"] if labels else "auto",
+                ).set_facecolor((1, 1, 1))
+            fig.axes[0].set_xlabel("True")
+            fig.axes[0].set_ylabel("Predicted")
+            plt.title("Confusion Matrix")
+            fig.savefig(Path(save_dir) / "confusion_matrix.png", dpi=250)
             plt.close()
         except Exception as e:
-            print(f'WARNING: ConfusionMatrix plot failure: {e}')
+            print(f"WARNING: ConfusionMatrix plot failure: {e}")
 
     def print(self):
         for i in range(self.nc + 1):
-            print(' '.join(map(str, self.matrix[i])))
+            print(" ".join(map(str, self.matrix[i])))
 
 
 def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7):
@@ -236,8 +245,9 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7
         w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1
 
     # Intersection area
-    inter = (flow.min(b1_x2, b2_x2) - flow.max(b1_x1, b2_x1)).clamp(0) * \
-            (flow.min(b1_y2, b2_y2) - flow.max(b1_y1, b2_y1)).clamp(0)
+    inter = (flow.min(b1_x2, b2_x2) - flow.max(b1_x1, b2_x1)).clamp(0) * (
+        flow.min(b1_y2, b2_y2) - flow.max(b1_y1, b2_y1)
+    ).clamp(0)
 
     # Union Area
     union = w1 * h1 + w2 * h2 - inter + eps
@@ -245,13 +255,21 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, eps=1e-7
     # IoU
     iou = inter / union
     if CIoU or DIoU or GIoU:
-        cw = flow.max(b1_x2, b2_x2) - flow.min(b1_x1, b2_x1)  # convex (smallest enclosing box) width
+        cw = flow.max(b1_x2, b2_x2) - flow.min(
+            b1_x1, b2_x1
+        )  # convex (smallest enclosing box) width
         ch = flow.max(b1_y2, b2_y2) - flow.min(b1_y1, b2_y1)  # convex height
         if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
             c2 = cw ** 2 + ch ** 2 + eps  # convex diagonal squared
-            rho2 = ((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4  # center dist ** 2
-            if CIoU:  # https://github.com/Zzh-tju/DIoU-SSD-pyflow/blob/master/utils/box/box_utils.py#L47
-                v = (4 / math.pi ** 2) * flow.pow(flow.atan(w2 / (h2 + eps)) - flow.atan(w1 / (h1 + eps)), 2)
+            rho2 = (
+                (b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2
+            ) / 4  # center dist ** 2
+            if (
+                CIoU
+            ):  # https://github.com/Zzh-tju/DIoU-SSD-pyflow/blob/master/utils/box/box_utils.py#L47
+                v = (4 / math.pi ** 2) * flow.pow(
+                    flow.atan(w2 / (h2 + eps)) - flow.atan(w1 / (h1 + eps)), 2
+                )
                 with flow.no_grad():
                     alpha = v / (v - iou + (1 + eps))
                 return iou - (rho2 / c2 + v * alpha)  # CIoU
@@ -288,7 +306,7 @@ def box_iou(box1, box2, eps=1e-7):
 
 
 def bbox_ioa(box1, box2, eps=1e-7):
-    """ Returns the intersection over box2 area given box1, box2. Boxes are x1y1x2y2
+    """Returns the intersection over box2 area given box1, box2. Boxes are x1y1x2y2
     box1:       np.array of shape(4)
     box2:       np.array of shape(nx4)
     returns:    np.array of shape(n)
@@ -299,8 +317,9 @@ def bbox_ioa(box1, box2, eps=1e-7):
     b2_x1, b2_y1, b2_x2, b2_y2 = box2.T
 
     # Intersection area
-    inter_area = (np.minimum(b1_x2, b2_x2) - np.maximum(b1_x1, b2_x1)).clip(0) * \
-                 (np.minimum(b1_y2, b2_y2) - np.maximum(b1_y1, b2_y1)).clip(0)
+    inter_area = (np.minimum(b1_x2, b2_x2) - np.maximum(b1_x1, b2_x1)).clip(0) * (
+        np.minimum(b1_y2, b2_y2) - np.maximum(b1_y1, b2_y1)
+    ).clip(0)
 
     # box2 area
     box2_area = (b2_x2 - b2_x1) * (b2_y2 - b2_y1) + eps
@@ -314,51 +333,65 @@ def wh_iou(wh1, wh2, eps=1e-7):
     wh1 = wh1[:, None]  # [N,1,2]
     wh2 = wh2[None]  # [1,M,2]
     inter = flow.min(wh1, wh2).prod(2)  # [N,M]
-    return inter / (wh1.prod(2) + wh2.prod(2) - inter + eps)  # iou = inter / (area1 + area2 - inter)
+    return inter / (
+        wh1.prod(2) + wh2.prod(2) - inter + eps
+    )  # iou = inter / (area1 + area2 - inter)
 
 
 # Plots ----------------------------------------------------------------------------------------------------------------
 
 
-def plot_pr_curve(px, py, ap, save_dir=Path('pr_curve.png'), names=()):
+def plot_pr_curve(px, py, ap, save_dir=Path("pr_curve.png"), names=()):
     # Precision-recall curve
     fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
     py = np.stack(py, axis=1)
 
     if 0 < len(names) < 21:  # display per-class legend if < 21 classes
         for i, y in enumerate(py.T):
-            ax.plot(px, y, linewidth=1, label=f'{names[i]} {ap[i, 0]:.3f}')  # plot(recall, precision)
+            ax.plot(
+                px, y, linewidth=1, label=f"{names[i]} {ap[i, 0]:.3f}"
+            )  # plot(recall, precision)
     else:
-        ax.plot(px, py, linewidth=1, color='grey')  # plot(recall, precision)
+        ax.plot(px, py, linewidth=1, color="grey")  # plot(recall, precision)
 
-    ax.plot(px, py.mean(1), linewidth=3, color='blue', label='all classes %.3f mAP@0.5' % ap[:, 0].mean())
-    ax.set_xlabel('Recall')
-    ax.set_ylabel('Precision')
+    ax.plot(
+        px,
+        py.mean(1),
+        linewidth=3,
+        color="blue",
+        label="all classes %.3f mAP@0.5" % ap[:, 0].mean(),
+    )
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    plt.title('Precision-Recall Curve')
+    plt.title("Precision-Recall Curve")
     fig.savefig(save_dir, dpi=250)
     plt.close()
 
 
-def plot_mc_curve(px, py, save_dir=Path('mc_curve.png'), names=(), xlabel='Confidence', ylabel='Metric'):
+def plot_mc_curve(
+    px, py, save_dir=Path("mc_curve.png"), names=(), xlabel="Confidence", ylabel="Metric"
+):
     # Metric-confidence curve
     fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
 
     if 0 < len(names) < 21:  # display per-class legend if < 21 classes
         for i, y in enumerate(py):
-            ax.plot(px, y, linewidth=1, label=f'{names[i]}')  # plot(confidence, metric)
+            ax.plot(px, y, linewidth=1, label=f"{names[i]}")  # plot(confidence, metric)
     else:
-        ax.plot(px, py.T, linewidth=1, color='grey')  # plot(confidence, metric)
+        ax.plot(px, py.T, linewidth=1, color="grey")  # plot(confidence, metric)
 
     y = smooth(py.mean(0), 0.05)
-    ax.plot(px, y, linewidth=3, color='blue', label=f'all classes {y.max():.2f} at {px[y.argmax()]:.3f}')
+    ax.plot(
+        px, y, linewidth=3, color="blue", label=f"all classes {y.max():.2f} at {px[y.argmax()]:.3f}"
+    )
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    plt.title(f'{ylabel}-Confidence Curve')
+    plt.title(f"{ylabel}-Confidence Curve")
     fig.savefig(save_dir, dpi=250)
     plt.close()

@@ -11,40 +11,55 @@ try:
     import clearml
     from clearml import Dataset, Task
 
-    assert hasattr(clearml, '__version__')  # verify package import not local dir
+    assert hasattr(clearml, "__version__")  # verify package import not local dir
 except (ImportError, AssertionError):
     clearml = None
 
 
 def construct_dataset(clearml_info_string):
-    dataset_id = clearml_info_string.replace('clearml://', '')
+    dataset_id = clearml_info_string.replace("clearml://", "")
     dataset = Dataset.get(dataset_id=dataset_id)
     dataset_root_path = Path(dataset.get_local_copy())
 
     # We'll search for the yaml file definition in the dataset
-    yaml_filenames = list(glob.glob(str(dataset_root_path / "*.yaml")) + glob.glob(str(dataset_root_path / "*.yml")))
+    yaml_filenames = list(
+        glob.glob(str(dataset_root_path / "*.yaml")) + glob.glob(str(dataset_root_path / "*.yml"))
+    )
     if len(yaml_filenames) > 1:
-        raise ValueError('More than one yaml file was found in the dataset root, cannot determine which one contains '
-                         'the dataset definition this way.')
+        raise ValueError(
+            "More than one yaml file was found in the dataset root, cannot determine which one contains "
+            "the dataset definition this way."
+        )
     elif len(yaml_filenames) == 0:
-        raise ValueError('No yaml definition found in dataset root path, check that there is a correct yaml file '
-                         'inside the dataset root path.')
+        raise ValueError(
+            "No yaml definition found in dataset root path, check that there is a correct yaml file "
+            "inside the dataset root path."
+        )
     with open(yaml_filenames[0]) as f:
         dataset_definition = yaml.safe_load(f)
 
     assert set(dataset_definition.keys()).issuperset(
-        {'train', 'test', 'val', 'nc', 'names'}
+        {"train", "test", "val", "nc", "names"}
     ), "The right keys were not found in the yaml file, make sure it at least has the following keys: ('train', 'test', 'val', 'nc', 'names')"
 
     data_dict = dict()
-    data_dict['train'] = str(
-        (dataset_root_path / dataset_definition['train']).resolve()) if dataset_definition['train'] else None
-    data_dict['test'] = str(
-        (dataset_root_path / dataset_definition['test']).resolve()) if dataset_definition['test'] else None
-    data_dict['val'] = str(
-        (dataset_root_path / dataset_definition['val']).resolve()) if dataset_definition['val'] else None
-    data_dict['nc'] = dataset_definition['nc']
-    data_dict['names'] = dataset_definition['names']
+    data_dict["train"] = (
+        str((dataset_root_path / dataset_definition["train"]).resolve())
+        if dataset_definition["train"]
+        else None
+    )
+    data_dict["test"] = (
+        str((dataset_root_path / dataset_definition["test"]).resolve())
+        if dataset_definition["test"]
+        else None
+    )
+    data_dict["val"] = (
+        str((dataset_root_path / dataset_definition["val"]).resolve())
+        if dataset_definition["val"]
+        else None
+    )
+    data_dict["nc"] = dataset_definition["nc"]
+    data_dict["names"] = dataset_definition["names"]
 
     return data_dict
 
@@ -82,20 +97,20 @@ class ClearmlLogger:
         self.data_dict = None
         if self.clearml:
             self.task = Task.init(
-                project_name='YOLOv5',
-                task_name='training',
-                tags=['YOLOv5'],
+                project_name="YOLOv5",
+                task_name="training",
+                tags=["YOLOv5"],
                 output_uri=True,
-                auto_connect_frameworks={'pytorch': False}
+                auto_connect_frameworks={"pytorch": False}
                 # We disconnect pytorch auto-detection, because we added manual model save points in the code
             )
             # ClearML's hooks will already grab all general parameters
             # Only the hyperparameters coming from the yaml config file
             # will have to be added manually!
-            self.task.connect(hyp, name='Hyperparameters')
+            self.task.connect(hyp, name="Hyperparameters")
 
             # Get ClearML Dataset Version if requested
-            if opt.data.startswith('clearml://'):
+            if opt.data.startswith("clearml://"):
                 # data_dict should have the following keys:
                 # names, nc (number of classes), test, train, val (all three relative paths to ../datasets)
                 self.data_dict = construct_dataset(opt.data)
@@ -103,7 +118,7 @@ class ClearmlLogger:
                 # to give it to them
                 opt.data = self.data_dict
 
-    def log_debug_samples(self, files, title='Debug Samples'):
+    def log_debug_samples(self, files, title="Debug Samples"):
         """
         Log files (images) as debug samples in the ClearML task.
 
@@ -113,12 +128,14 @@ class ClearmlLogger:
         """
         for f in files:
             if f.exists():
-                it = re.search(r'_batch(\d+)', f.name)
+                it = re.search(r"_batch(\d+)", f.name)
                 iteration = int(it.groups()[0]) if it else 0
-                self.task.get_logger().report_image(title=title,
-                                                    series=f.name.replace(it.group(), ''),
-                                                    local_path=str(f),
-                                                    iteration=iteration)
+                self.task.get_logger().report_image(
+                    title=title,
+                    series=f.name.replace(it.group(), ""),
+                    local_path=str(f),
+                    iteration=iteration,
+                )
 
     def log_image_with_boxes(self, image_path, boxes, class_names, image):
         """
@@ -130,9 +147,15 @@ class ClearmlLogger:
         class_names (dict): dict containing mapping of class int to class name
         image (Tensor): A torch tensor containing the actual image data
         """
-        if len(self.current_epoch_logged_images) < self.max_imgs_to_log_per_epoch and self.current_epoch >= 0:
+        if (
+            len(self.current_epoch_logged_images) < self.max_imgs_to_log_per_epoch
+            and self.current_epoch >= 0
+        ):
             # Log every bbox_interval times and deduplicate for any intermittend extra eval runs
-            if self.current_epoch % self.bbox_interval == 0 and image_path not in self.current_epoch_logged_images:
+            if (
+                self.current_epoch % self.bbox_interval == 0
+                and image_path not in self.current_epoch_logged_images
+            ):
                 converter = ToPILImage()
                 labels = []
                 for conf, class_nr in zip(boxes[:, 4], boxes[:, 5]):
@@ -140,11 +163,16 @@ class ClearmlLogger:
                     confidence = round(float(conf) * 100, 2)
                     labels.append(f"{class_name}: {confidence}%")
                 annotated_image = converter(
-                    draw_bounding_boxes(image=image.mul(255).clamp(0, 255).byte().cpu(),
-                                        boxes=boxes[:, :4],
-                                        labels=labels))
-                self.task.get_logger().report_image(title='Bounding Boxes',
-                                                    series=image_path.name,
-                                                    iteration=self.current_epoch,
-                                                    image=annotated_image)
+                    draw_bounding_boxes(
+                        image=image.mul(255).clamp(0, 255).byte().cpu(),
+                        boxes=boxes[:, :4],
+                        labels=labels,
+                    )
+                )
+                self.task.get_logger().report_image(
+                    title="Bounding Boxes",
+                    series=image_path.name,
+                    iteration=self.current_epoch,
+                    image=annotated_image,
+                )
                 self.current_epoch_logged_images.add(image_path)
