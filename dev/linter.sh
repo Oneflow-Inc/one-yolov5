@@ -21,11 +21,11 @@ set -v
 echo "Running autoflake ..."
 autoflake --remove-unused-variables --in-place --recursive .
 
-echo "Running isort ..."
-isort . --atomic
+# echo "Running isort ..."
+# isort . --recursive --atomic
 
 echo "Running black ..."
-black -l 100 .
+black -l 200 .
 
 echo "Running flake8 ..."
 if [ -x "$(command -v flake8-3)" ]; then
@@ -35,6 +35,6 @@ else
 fi
 
 echo "Running clang-format ..."
-find . -regex ".*\.\(cpp\|c\|cc\|cu\|cxx\|h\|hh\|hpp\|hxx\|tcc\|mm\|m\)" -print0 | xargs -0 clang-format -i
+find . -regex ".*\.\(cpp\|c\|cc\|cu\|cxx\|h\|hh\|hpp\|hxx\|tcc\|mm\|m\)" -print0 | xargs -0 clang-format
 
 command -v arc > /dev/null && arc lint

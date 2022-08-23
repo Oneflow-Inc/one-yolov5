@@ -68,9 +68,7 @@ def run(
     ) in export.export_formats().iterrows():  # index, (name, file, suffix, CPU, GPU)
         try:
             assert i not in (9, 10), "inference not supported"  # Edge TPU and TF.js are unsupported
-            assert (
-                i != 5 or platform.system() == "Darwin"
-            ), "inference only supported on macOS>=10.13"  # CoreML
+            assert i != 5 or platform.system() == "Darwin", "inference only supported on macOS>=10.13"  # CoreML
             if "cpu" in device.type:
                 assert cpu, "inference not supported on CPU"
             if "cuda" in device.type:
@@ -80,22 +78,14 @@ def run(
             if f == "-":
                 w = weights  # PyTorch format
             else:
-                w = export.run(
-                    weights=weights, imgsz=[imgsz], include=[f], device=device, half=half
-                )[
-                    -1
-                ]  # all others
+                w = export.run(weights=weights, imgsz=[imgsz], include=[f], device=device, half=half)[-1]  # all others
             assert suffix in str(w), "export failed"
 
             # Validate
-            result = val.run(
-                data, w, batch_size, imgsz, plots=False, device=device, task="benchmark", half=half
-            )
+            result = val.run(data, w, batch_size, imgsz, plots=False, device=device, task="benchmark", half=half)
             metrics = result[0]  # metrics (mp, mr, map50, map, *losses(box, obj, cls))
             speeds = result[2]  # times (preprocess, inference, postprocess)
-            y.append(
-                [name, round(file_size(w), 1), round(metrics[3], 4), round(speeds[1], 2)]
-            )  # MB, mAP, t_inference
+            y.append([name, round(file_size(w), 1), round(metrics[3], 4), round(speeds[1], 2)])  # MB, mAP, t_inference
         except Exception as e:
             if hard_fail:
                 assert type(e) is AssertionError, f"Benchmark --hard-fail for {name}: {e}"
@@ -108,11 +98,7 @@ def run(
     LOGGER.info("\n")
     parse_opt()
     notebook_init()  # print system info
-    c = (
-        ["Format", "Size (MB)", "mAP@0.5:0.95", "Inference time (ms)"]
-        if map
-        else ["Format", "Export", "", ""]
-    )
+    c = ["Format", "Size (MB)", "mAP@0.5:0.95", "Inference time (ms)"] if map else ["Format", "Export", "", ""]
     py = pd.DataFrame(y, columns=c)
     LOGGER.info(f"\nBenchmarks complete ({time.time() - t:.2f}s)")
     LOGGER.info(str(py if map else py.iloc[:, :2]))
@@ -139,13 +125,7 @@ def test(
         gpu,
     ) in export.export_formats().iterrows():  # index, (name, file, suffix, gpu-capable)
         try:
-            w = (
-                weights
-                if f == "-"
-                else export.run(
-                    weights=weights, imgsz=[imgsz], include=[f], device=device, half=half
-                )[-1]
-            )  # weights
+            w = weights if f == "-" else export.run(weights=weights, imgsz=[imgsz], include=[f], device=device, half=half)[-1]  # weights
             assert suffix in str(w), "export failed"
             y.append([name, True])
         except Exception:
@@ -164,13 +144,9 @@ def test(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.pt", help="weights path")
-    parser.add_argument(
-        "--imgsz", "--img", "--img-size", type=int, default=640, help="inference size (pixels)"
-    )
+    parser.add_argument("--imgsz", "--img", "--img-size", type=int, default=640, help="inference size (pixels)")
     parser.add_argument("--batch-size", type=int, default=1, help="batch size")
-    parser.add_argument(
-        "--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path"
-    )
+    parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
     parser.add_argument("--half", action="store_true", help="use FP16 half-precision inference")
     parser.add_argument("--test", action="store_true", help="test exports only")

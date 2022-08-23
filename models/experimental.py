@@ -34,9 +34,7 @@ class Sum(nn.Module):
 
 class MixConv2d(nn.Module):
     # Mixed Depth-wise Conv https://arxiv.org/abs/1907.09595
-    def __init__(
-        self, c1, c2, k=(1, 3), s=1, equal_ch=True
-    ):  # ch_in, ch_out, kernel, stride, ch_strategy
+    def __init__(self, c1, c2, k=(1, 3), s=1, equal_ch=True):  # ch_in, ch_out, kernel, stride, ch_strategy
         super().__init__()
         n = len(k)  # number of convolutions
         if equal_ch:  # equal c_ per group
@@ -48,16 +46,9 @@ class MixConv2d(nn.Module):
             a -= np.roll(a, 1, axis=1)
             a *= np.array(k) ** 2
             a[0] = 1
-            c_ = np.linalg.lstsq(a, b, rcond=None)[
-                0
-            ].round()  # solve for equal weight indices, ax = b
+            c_ = np.linalg.lstsq(a, b, rcond=None)[0].round()  # solve for equal weight indices, ax = b
 
-        self.m = nn.ModuleList(
-            [
-                nn.Conv2d(c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False)
-                for k, c_ in zip(k, c_)
-            ]
-        )
+        self.m = nn.ModuleList([nn.Conv2d(c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False) for k, c_ in zip(k, c_)])
         self.bn = nn.BatchNorm2d(c2)
         self.act = nn.SiLU()
 
@@ -86,9 +77,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = oneflow.load(attempt_download(w), map_location="cpu")  # load
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
-        model.append(
-            ckpt.fuse().eval() if fuse else ckpt.eval()
-        )  # fused or un-fused model in eval mode
+        model.append(ckpt.fuse().eval() if fuse else ckpt.eval())  # fused or un-fused model in eval mode
 
     # Compatibility updates
     for m in model.modules():
@@ -106,10 +95,6 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     print(f"Ensemble created with {weights}\n")
     for k in "names", "nc", "yaml":
         setattr(model, k, getattr(model[0], k))
-    model.stride = model[
-        oneflow.argmax(oneflow.tensor([m.stride.max() for m in model])).int()
-    ].stride  # max stride
-    assert all(
-        model[0].nc == m.nc for m in model
-    ), f"Models have different class counts: {[m.nc for m in model]}"
+    model.stride = model[oneflow.argmax(oneflow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
+    assert all(model[0].nc == m.nc for m in model), f"Models have different class counts: {[m.nc for m in model]}"
     return model  # return ensemble

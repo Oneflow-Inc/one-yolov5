@@ -103,9 +103,7 @@ class ComputeLoss:
         BCEobj = nn.BCEWithLogitsLoss(pos_weight=flow.tensor([h["obj_pw"]], device=device))
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
-        self.cp, self.cn = smooth_BCE(
-            eps=h.get("label_smoothing", 0.0)
-        )  # positive, negative BCE targets
+        self.cp, self.cn = smooth_BCE(eps=h.get("label_smoothing", 0.0))  # positive, negative BCE targets
 
         # Focal loss
         g = h["fl_gamma"]  # focal loss gamma
@@ -146,9 +144,7 @@ class ComputeLoss:
             n = b.shape[0]  # number of targets
             if n:
                 # pxy, pwh, _, pcls = pi[b, a, gj, gi].tensor_split((2, 4, 5), dim=1)  # faster, requires flow 1.8.0
-                pxy, pwh, _, pcls = pi[b, a, gj, gi].split(
-                    (2, 2, 1, self.nc), 1
-                )  # target-subset of predictions
+                pxy, pwh, _, pcls = pi[b, a, gj, gi].split((2, 2, 1, self.nc), 1)  # target-subset of predictions
 
                 # Regression
                 pxy = pxy.sigmoid() * 2 - 0.5
@@ -212,9 +208,7 @@ class ComputeLoss:
         gain = flow.ones(7, device=self.device)  # normalized to gridspace gain
         # ai.shape = (na,nt) 生成anchor索引
         # anchor索引，后面有用，用于表示当前bbox和当前层的哪个anchor匹配
-        ai = (
-            flow.arange(na, device=self.device).float().view(na, 1).repeat(1, nt)
-        )  # same as .repeat_interleave(nt)
+        ai = flow.arange(na, device=self.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
 
         targets = flow.cat((targets.repeat(na, 1, 1), ai[..., None]), 2)  # append anchor indices
 

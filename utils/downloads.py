@@ -59,9 +59,7 @@ def download_url_to_file(url, dst, hash_prefix=None, progress=True):
             import hashlib
 
             sha256 = hashlib.sha256()
-        with tqdm(
-            total=file_size, disable=not progress, unit="B", unit_scale=True, unit_divisor=1024
-        ) as pbar:
+        with tqdm(total=file_size, disable=not progress, unit="B", unit_scale=True, unit_divisor=1024) as pbar:
             while True:
                 buffer = u.read(8192)
                 if len(buffer) == 0:
@@ -75,9 +73,7 @@ def download_url_to_file(url, dst, hash_prefix=None, progress=True):
         if hash_prefix is not None:
             digest = sha256.hexdigest()
             if digest[: len(hash_prefix)] != hash_prefix:
-                raise RuntimeError(
-                    'invalid hash value (expected "{}", got "{}")'.format(hash_prefix, digest)
-                )
+                raise RuntimeError('invalid hash value (expected "{}", got "{}")'.format(hash_prefix, digest))
         shutil.move(f.name, dst)
     finally:
         f.close()
@@ -96,9 +92,7 @@ def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
     except Exception as e:  # url2
         file.unlink(missing_ok=True)  # remove partial downloads
         print(f"ERROR: {e}\nRe-attempting {url2 or url} to {file}...")
-        os.system(
-            f"curl -L '{url2 or url}' -o '{file}' --retry 3 -C -"
-        )  # curl download, retry and resume on fail
+        os.system(f"curl -L '{url2 or url}' -o '{file}' --retry 3 -C -")  # curl download, retry and resume on fail
     finally:
         if not file.exists() or file.stat().st_size < min_bytes:  # check
             file.unlink(missing_ok=True)  # remove partial downloads
@@ -106,9 +100,7 @@ def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
         print("")
 
 
-def attempt_download(
-    file, repo="ultralytics/yolov5"
-):  # from utils.downloads import *; attempt_download()
+def attempt_download(file, repo="ultralytics/yolov5"):  # from utils.downloads import *; attempt_download()
     # Attempt file download if does not exist
     file = Path(str(file).strip().replace("'", ""))
 
@@ -127,12 +119,8 @@ def attempt_download(
         # GitHub assets
         file.parent.mkdir(parents=True, exist_ok=True)  # make parent dir (if required)
         try:
-            response = requests.get(
-                f"https://api.github.com/repos/{repo}/releases/latest"
-            ).json()  # github api
-            assets = [
-                x["name"] for x in response["assets"]
-            ]  # release assets, i.e. ['yolov5s.pt', 'yolov5m.pt', ...]
+            response = requests.get(f"https://api.github.com/repos/{repo}/releases/latest").json()  # github api
+            assets = [x["name"] for x in response["assets"]]  # release assets, i.e. ['yolov5s.pt', 'yolov5m.pt', ...]
             tag = response["tag_name"]  # i.e. 'v1.0'
         except:  # fallback plan
             assets = [
@@ -148,11 +136,7 @@ def attempt_download(
                 "yolov5x6.pt",
             ]
             try:
-                tag = (
-                    subprocess.check_output("git tag", shell=True, stderr=subprocess.STDOUT)
-                    .decode()
-                    .split()[-1]
-                )
+                tag = subprocess.check_output("git tag", shell=True, stderr=subprocess.STDOUT).decode().split()[-1]
             except:
                 tag = "v6.0"  # current release
 

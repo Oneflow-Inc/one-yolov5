@@ -35,8 +35,7 @@ jobs:
       - name: Lint
         id: py_check
         run: |
-          isort --check .
-          black -l 100 --check .
+          black -l 200 --check .
           flake8 .
       
       - name: Please request CI again

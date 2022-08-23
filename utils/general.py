@@ -46,22 +46,16 @@ RANK = int(os.getenv("RANK", -1))
 # Settings
 DATASETS_DIR = ROOT.parent / "datasets"  # YOLOv5 datasets directory
 NUM_THREADS = min(8, max(1, os.cpu_count() - 1))  # number of YOLOv5 multiprocessing threads
-AUTOINSTALL = (
-    str(os.getenv("YOLOv5_AUTOINSTALL", True)).lower() == "true"
-)  # global auto-install mode
+AUTOINSTALL = str(os.getenv("YOLOv5_AUTOINSTALL", True)).lower() == "true"  # global auto-install mode
 VERBOSE = str(os.getenv("YOLOv5_VERBOSE", True)).lower() == "true"  # global verbose mode
 FONT = "Arial.ttf"  # https://ultralytics.com/assets/Arial.ttf
 
 oneflow.set_printoptions(linewidth=320, precision=5, profile="long")
-np.set_printoptions(
-    linewidth=320, formatter={"float_kind": "{:11.5g}".format}
-)  # format short g, %precision=5
+np.set_printoptions(linewidth=320, formatter={"float_kind": "{:11.5g}".format})  # format short g, %precision=5
 pd.options.display.max_columns = 10
 cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with PyTorch DataLoader)
 os.environ["NUMEXPR_MAX_THREADS"] = str(NUM_THREADS)  # NumExpr max threads
-os.environ["OMP_NUM_THREADS"] = (
-    "1" if platform.system() == "darwin" else str(NUM_THREADS)
-)  # OpenMP (Pyflow and SciPy)
+os.environ["OMP_NUM_THREADS"] = "1" if platform.system() == "darwin" else str(NUM_THREADS)  # OpenMP (Pyflow and SciPy)
 
 
 def is_kaggle():
@@ -92,9 +86,7 @@ def set_logging(name=None, verbose=VERBOSE):
     # Sets level and returns logger
     if is_kaggle():
         for h in logging.root.handlers:
-            logging.root.removeHandler(
-                h
-            )  # remove all handlers associated with the root logger object
+            logging.root.removeHandler(h)  # remove all handlers associated with the root logger object
     rank = int(os.getenv("RANK", -1))  # rank in world for Multi-GPU trainings
     level = logging.INFO if verbose and rank in {-1, 0} else logging.ERROR
     log = logging.getLogger(name)
@@ -123,9 +115,7 @@ def user_config_dir(dir="Ultralytics", env_var="YOLOV5_CONFIG_DIR"):
             "Darwin": "Library/Application Support",
         }  # 3 OS dirs
         path = Path.home() / cfg.get(platform.system(), "")  # OS-specific config dir
-        path = (
-            path if is_writeable(path) else Path("/tmp")
-        ) / dir  # GCP and AWS lambda fix, only /tmp is writeable
+        path = (path if is_writeable(path) else Path("/tmp")) / dir  # GCP and AWS lambda fix, only /tmp is writeable
     path.mkdir(exist_ok=True)  # make if required
     return path
 
@@ -229,11 +219,7 @@ def init_seeds(seed=0, deterministic=False):
 
 def intersect_dicts(da, db, exclude=()):
     # Dictionary intersection of matching keys and shapes, omitting 'exclude' keys, using da values
-    return {
-        k: v
-        for k, v in da.items()
-        if k in db and not any(x in k for x in exclude) and v.shape == db[k].shape
-    }
+    return {k: v for k, v in da.items() if k in db and not any(x in k for x in exclude) and v.shape == db[k].shape}
 
 
 def get_latest_run(search_dir="."):
@@ -323,9 +309,7 @@ def git_describe(path=ROOT):  # path must be a directory
     # Return human-readable git description, i.e. v5.0-5-g3e25f1e https://git-scm.com/docs/git-describe
     try:
         assert (Path(path) / ".git").is_dir()
-        return check_output(f"git -C {path} describe --tags --long --always", shell=True).decode()[
-            :-1
-        ]
+        return check_output(f"git -C {path} describe --tags --long --always", shell=True).decode()[:-1]
     except Exception:
         return ""
 
@@ -348,12 +332,8 @@ def check_git_status(repo="ultralytics/yolov5"):
         remote = "ultralytics"
         check_output(f"git remote add {remote} {url}", shell=True)
     check_output(f"git fetch {remote}", shell=True, timeout=5)  # git fetch
-    branch = (
-        check_output("git rev-parse --abbrev-ref HEAD", shell=True).decode().strip()
-    )  # checked out
-    n = int(
-        check_output(f"git rev-list {branch}..{remote}/master --count", shell=True)
-    )  # commits behind
+    branch = check_output("git rev-parse --abbrev-ref HEAD", shell=True).decode().strip()  # checked out
+    n = int(check_output(f"git rev-list {branch}..{remote}/master --count", shell=True))  # commits behind
     if n > 0:
         pull = "git pull" if remote == "origin" else f"git pull {remote} master"
         s += f"⚠️ YOLOv5 is out of date by {n} commit{'s' * (n > 1)}. Use `{pull}` or `git clone {url}` to update."
@@ -367,9 +347,7 @@ def check_python(minimum="3.7.0"):
     check_version(platform.python_version(), minimum, name="Python ", hard=True)
 
 
-def check_version(
-    current="0.0.0", minimum="0.0.0", name="version ", pinned=False, hard=False, verbose=False
-):
+def check_version(current="0.0.0", minimum="0.0.0", name="version ", pinned=False, hard=False, verbose=False):
     # Check version vs. required version
     current, minimum = (pkg.parse_version(x) for x in (current, minimum))
     result = (current == minimum) if pinned else (current >= minimum)  # bool
@@ -390,9 +368,7 @@ def check_requirements(requirements=ROOT / "requirements.txt", exclude=(), insta
         file = Path(requirements)
         assert file.exists(), f"{prefix} {file.resolve()} not found, check failed."
         with file.open() as f:
-            requirements = [
-                f"{x.name}{x.specifier}" for x in pkg.parse_requirements(f) if x.name not in exclude
-            ]
+            requirements = [f"{x.name}{x.specifier}" for x in pkg.parse_requirements(f) if x.name not in exclude]
     else:  # list or tuple of packages
         requirements = [x for x in requirements if x not in exclude]
 
@@ -406,11 +382,7 @@ def check_requirements(requirements=ROOT / "requirements.txt", exclude=(), insta
                 LOGGER.info(f"{s}, attempting auto-update...")
                 try:
                     assert check_online(), f"'pip install {r}' skipped (offline)"
-                    LOGGER.info(
-                        check_output(
-                            f'pip install "{r}" {cmds[i] if cmds else ""}', shell=True
-                        ).decode()
-                    )
+                    LOGGER.info(check_output(f'pip install "{r}" {cmds[i] if cmds else ""}', shell=True).decode())
                     n += 1
                 except Exception as e:
                     LOGGER.warning(f"{prefix} {e}")
@@ -419,10 +391,7 @@ def check_requirements(requirements=ROOT / "requirements.txt", exclude=(), insta
 
     if n:  # if packages updated
         source = file.resolve() if "file" in locals() else requirements
-        s = (
-            f"{prefix} {n} package{'s' * (n > 1)} updated per {source}\n"
-            f"{prefix} ⚠️ {colorstr('bold', 'Restart runtime or rerun command for updates to take effect')}\n"
-        )
+        s = f"{prefix} {n} package{'s' * (n > 1)} updated per {source}\n" f"{prefix} ⚠️ {colorstr('bold', 'Restart runtime or rerun command for updates to take effect')}\n"
         LOGGER.info(s)
 
 
@@ -434,9 +403,7 @@ def check_img_size(imgsz, s=32, floor=0):
         imgsz = list(imgsz)  # convert to list if tuple
         new_size = [max(make_divisible(x, int(s)), floor) for x in imgsz]
     if new_size != imgsz:
-        LOGGER.warning(
-            f"WARNING: --img-size {imgsz} must be multiple of max stride {s}, updating to {new_size}"
-        )
+        LOGGER.warning(f"WARNING: --img-size {imgsz} must be multiple of max stride {s}, updating to {new_size}")
     return new_size
 
 
@@ -451,9 +418,7 @@ def check_imshow():
         cv2.waitKey(1)
         return True
     except Exception as e:
-        LOGGER.warning(
-            f"WARNING: Environment does not support cv2.imshow() or PIL Image.show() image displays\n{e}"
-        )
+        LOGGER.warning(f"WARNING: Environment does not support cv2.imshow() or PIL Image.show() image displays\n{e}")
         return False
 
 
@@ -481,31 +446,23 @@ def check_file(file, suffix=""):
         return file
     elif file.startswith(("http:/", "https:/")):  # download
         url = file  # warning: Pathlib turns :// -> :/
-        file = Path(
-            urllib.parse.unquote(file).split("?")[0]
-        ).name  # '%2F' to '/', split https://url.com/file.txt?auth
+        file = Path(urllib.parse.unquote(file).split("?")[0]).name  # '%2F' to '/', split https://url.com/file.txt?auth
         if Path(file).is_file():
             LOGGER.info(f"Found {url} locally at {file}")  # file already exists
         else:
             LOGGER.info(f"Downloading {url} to {file}...")
             download_url_to_file(url, file)
-            assert (
-                Path(file).exists() and Path(file).stat().st_size > 0
-            ), f"File download failed: {url}"  # check
+            assert Path(file).exists() and Path(file).stat().st_size > 0, f"File download failed: {url}"  # check
         return file
     elif file.startswith("clearml://"):  # ClearML Dataset ID
-        assert (
-            "clearml" in sys.modules
-        ), "ClearML is not installed, so cannot use ClearML dataset. Try running 'pip install clearml'."
+        assert "clearml" in sys.modules, "ClearML is not installed, so cannot use ClearML dataset. Try running 'pip install clearml'."
         return file
     else:  # search
         files = []
         for d in "data", "models", "utils":  # search directories
             files.extend(glob.glob(str(ROOT / d / "**" / file), recursive=True))  # find file
         assert len(files), f"File not found: {file}"  # assert file was found
-        assert (
-            len(files) == 1
-        ), f"Multiple files match '{file}', specify exact path: {files}"  # assert unique
+        assert len(files) == 1, f"Multiple files match '{file}', specify exact path: {files}"  # assert unique
         return files[0]  # return file
 
 
@@ -524,9 +481,7 @@ def check_dataset(data, autodownload=True):
 
     # Download (optional)
     extract_dir = ""
-    if isinstance(data, (str, Path)) and str(data).endswith(
-        ".zip"
-    ):  # i.e. gs://bucket/dir/coco128.zip
+    if isinstance(data, (str, Path)) and str(data).endswith(".zip"):  # i.e. gs://bucket/dir/coco128.zip
         download(data, dir=DATASETS_DIR, unzip=True, delete=False, curl=False, threads=1)
         data = next((DATASETS_DIR / Path(data).stem).rglob("*.yaml"))
         extract_dir, autodownload = data.parent, False
@@ -540,9 +495,7 @@ def check_dataset(data, autodownload=True):
     for k in "train", "val", "nc":
         assert k in data, f"data.yaml '{k}:' field missing ❌"
     if "names" not in data:
-        LOGGER.warning(
-            "data.yaml 'names:' field missing ⚠️, assigning default names 'class0', 'class1', etc."
-        )
+        LOGGER.warning("data.yaml 'names:' field missing ⚠️, assigning default names 'class0', 'class1', etc.")
         data["names"] = [f"class{i}" for i in range(data["nc"])]  # default names
 
     # Resolve paths
@@ -551,20 +504,14 @@ def check_dataset(data, autodownload=True):
         path = (ROOT / path).resolve()
     for k in "train", "val", "test":
         if data.get(k):  # prepend path
-            data[k] = (
-                str(path / data[k])
-                if isinstance(data[k], str)
-                else [str(path / x) for x in data[k]]
-            )
+            data[k] = str(path / data[k]) if isinstance(data[k], str) else [str(path / x) for x in data[k]]
 
     # Parse yaml
     train, val, test, s = (data.get(x) for x in ("train", "val", "test", "download"))
     if val:
         val = [Path(x).resolve() for x in (val if isinstance(val, list) else [val])]  # val path
         if not all(x.exists() for x in val):
-            LOGGER.info(
-                "\nDataset not found ⚠️, missing paths %s" % [str(x) for x in val if not x.exists()]
-            )
+            LOGGER.info("\nDataset not found ⚠️, missing paths %s" % [str(x) for x in val if not x.exists()])
             if not s or not autodownload:
                 raise Exception("Dataset not found ❌")
             t = time.time()
@@ -583,15 +530,9 @@ def check_dataset(data, autodownload=True):
             else:  # python script
                 r = exec(s, {"yaml": data})  # return None
             dt = f"({round(time.time() - t, 1)}s)"
-            s = (
-                f"success ✅ {dt}, saved to {colorstr('bold', root)}"
-                if r in (0, None)
-                else f"failure {dt} ❌"
-            )
+            s = f"success ✅ {dt}, saved to {colorstr('bold', root)}" if r in (0, None) else f"failure {dt} ❌"
             LOGGER.info(f"Dataset download {s}")
-    check_font(
-        "Arial.ttf" if is_ascii(data["names"]) else "Arial.Unicode.ttf", progress=True
-    )  # download fonts
+    check_font("Arial.ttf" if is_ascii(data["names"]) else "Arial.Unicode.ttf", progress=True)  # download fonts
     return data  # dictionary
 
 
@@ -626,9 +567,7 @@ def check_dataset(data, autodownload=True):
 def url2file(url):
     # Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt
     url = str(Path(url)).replace(":/", "://")  # Pathlib turns :// -> :/
-    return Path(urllib.parse.unquote(url)).name.split("?")[
-        0
-    ]  # '%2F' to '/', split https://url.com/file.txt?auth
+    return Path(urllib.parse.unquote(url)).name.split("?")[0]  # '%2F' to '/', split https://url.com/file.txt?auth
 
 
 def download(url, dir=".", unzip=True, delete=True, curl=False, threads=1, retry=3):
@@ -644,9 +583,7 @@ def download(url, dir=".", unzip=True, delete=True, curl=False, threads=1, retry
             for i in range(retry + 1):
                 if curl:
                     s = "sS" if threads > 1 else ""  # silent
-                    r = os.system(
-                        f'curl -{s}L "{url}" -o "{f}" --retry 9 -C -'
-                    )  # curl download with retry, continue
+                    r = os.system(f'curl -{s}L "{url}" -o "{f}" --retry 9 -C -')  # curl download with retry, continue
                     success = r == 0
                 else:
                     download_url_to_file(url, f, progress=threads == 1)  # torch download
@@ -698,9 +635,7 @@ def one_cycle(y1=0.0, y2=1.0, steps=100):
 
 def colorstr(*input):
     # Colors a string https://en.wikipedia.org/wiki/ANSI_escape_code, i.e.  colorstr('blue', 'hello world')
-    *args, string = (
-        input if len(input) > 1 else ("blue", "bold", input[0])
-    )  # color arguments, string
+    *args, string = input if len(input) > 1 else ("blue", "bold", input[0])  # color arguments, string
     colors = {
         "black": "\033[30m",  # basic colors
         "red": "\033[31m",
@@ -917,21 +852,15 @@ def resample_segments(segments, n=1000):
         s = np.concatenate((s, s[0:1, :]), axis=0)
         x = np.linspace(0, len(s) - 1, n)
         xp = np.arange(len(s))
-        segments[i] = (
-            np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)]).reshape(2, -1).T
-        )  # segment xy
+        segments[i] = np.concatenate([np.interp(x, xp, s[:, i]) for i in range(2)]).reshape(2, -1).T  # segment xy
     return segments
 
 
 def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     # Rescale coords (xyxy) from img1_shape to img0_shape
     if ratio_pad is None:  # calculate from img0_shape
-        gain = min(
-            img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1]
-        )  # gain  = old / new
-        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (
-            img1_shape[0] - img0_shape[0] * gain
-        ) / 2  # wh padding
+        gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
+        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
@@ -976,9 +905,7 @@ def non_max_suppression(
     xc = prediction[..., 4] > conf_thres  # candidates
 
     # Checks
-    assert (
-        0 <= conf_thres <= 1
-    ), f"Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0"
+    assert 0 <= conf_thres <= 1, f"Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0"
     assert 0 <= iou_thres <= 1, f"Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0"
 
     # Settings
@@ -1050,9 +977,7 @@ def non_max_suppression(
             # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
             iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
             weights = iou * scores[None]  # box weights
-            x[i, :4] = oneflow.mm(weights, x[:, :4]).float() / weights.sum(
-                1, keepdim=True
-            )  # merged boxes
+            x[i, :4] = oneflow.mm(weights, x[:, :4]).float() / weights.sum(1, keepdim=True)  # merged boxes
             if redundant:
                 i = i[iou.sum(1) > 1]  # require redundancy
 
@@ -1083,15 +1008,7 @@ def strip_optimizer(f="best.pt", s=""):  # from utils.general import *; strip_op
 def print_mutation(results, hyp, save_dir, bucket, prefix=colorstr("evolve: ")):
     evolve_csv = save_dir / "evolve.csv"
     evolve_yaml = save_dir / "hyp_evolve.yaml"
-    keys = (
-        "metrics/precision",
-        "metrics/recall",
-        "metrics/mAP_0.5",
-        "metrics/mAP_0.5:0.95",
-        "val/box_loss",
-        "val/obj_loss",
-        "val/cls_loss",
-    ) + tuple(
+    keys = ("metrics/precision", "metrics/recall", "metrics/mAP_0.5", "metrics/mAP_0.5:0.95", "val/box_loss", "val/obj_loss", "val/cls_loss",) + tuple(
         hyp.keys()
     )  # [results + hyps]
     keys = tuple(x.strip() for x in keys)
@@ -1130,14 +1047,7 @@ def print_mutation(results, hyp, save_dir, bucket, prefix=colorstr("evolve: ")):
 
     # Print to screen
     LOGGER.info(
-        prefix
-        + f"{generations} generations finished, current result:\n"
-        + prefix
-        + ", ".join(f"{x.strip():>20s}" for x in keys)
-        + "\n"
-        + prefix
-        + ", ".join(f"{x:20.5g}" for x in vals)
-        + "\n\n"
+        prefix + f"{generations} generations finished, current result:\n" + prefix + ", ".join(f"{x.strip():>20s}" for x in keys) + "\n" + prefix + ", ".join(f"{x:20.5g}" for x in vals) + "\n\n"
     )
 
     if bucket:
