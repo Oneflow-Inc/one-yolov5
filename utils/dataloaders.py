@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 from zipfile import ZipFile
 
 import numpy as np
-import oneflow
+import oneflow as flow
 import oneflow.nn.functional as F
 import yaml
 from oneflow.utils.data import DataLoader, Dataset, dataloader, distributed
@@ -129,8 +129,8 @@ def exif_transpose(image):
 
 
 def seed_worker(worker_id):
-    # Set dataloader worker seed https://pyoneflow.org/docs/stable/notes/randomness.html#dataloader
-    worker_seed = oneflow.initial_seed() % 2 ** 32
+    # Set dataloader worker seed https://pyflow.org/docs/stable/notes/randomness.html#dataloader
+    worker_seed = flow.initial_seed() % 2 ** 32
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
@@ -173,13 +173,13 @@ def create_dataloader(
     )
 
     batch_size = min(batch_size, len(dataset))
-    nd = oneflow.cuda.device_count()  # number of CUDA devices
+    nd = flow.cuda.device_count()  # number of CUDA devices
     nw = min([os.cpu_count() // max(nd, 1), batch_size if batch_size > 1 else 0, workers])  # number of workers
     print("nw " * 50)
     print(nw)
     sampler = None if rank == -1 else distributed.DistributedSampler(dataset, shuffle=shuffle)
     loader = DataLoader if image_weights else InfiniteDataLoader  # only DataLoader allows for attribute updates
-    generator = oneflow.Generator()
+    generator = flow.Generator()
     generator.manual_seed(0)
     return (
         loader(
@@ -724,15 +724,15 @@ class LoadImagesAndLabels(Dataset):
             # labels = cutout(img, labels, p=0.5)
             # nl = len(labels)  # update after cutout
 
-        labels_out = oneflow.zeros((nl, 6))
+        labels_out = flow.zeros((nl, 6))
         if nl:
-            labels_out[:, 1:] = oneflow.from_numpy(labels)
+            labels_out[:, 1:] = flow.from_numpy(labels)
 
         # Convert
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
         img = np.ascontiguousarray(img)
 
-        return oneflow.from_numpy(img), labels_out, self.im_files[index], shapes
+        return flow.from_numpy(img), labels_out, self.im_files[index], shapes
 
     def load_image(self, i):
         # Loads 1 image from dataset index 'i', returns (im, original hw, resized hw)
@@ -914,7 +914,7 @@ class LoadImagesAndLabels(Dataset):
         im, label, path, shapes = zip(*batch)  # transposed
         for i, lb in enumerate(label):
             lb[:, 0] = i  # add target image index for build_targets()
-        return oneflow.stack(im, 0), oneflow.cat(label, 0), path, shapes
+        return flow.stack(im, 0), flow.cat(label, 0), path, shapes
 
     @staticmethod
     def collate_fn4(batch):
@@ -922,10 +922,10 @@ class LoadImagesAndLabels(Dataset):
         n = len(shapes) // 4
         im4, label4, path4, shapes4 = [], [], path[:n], shapes[:n]
 
-        ho = oneflow.tensor([[0.0, 0, 0, 1, 0, 0]])
-        wo = oneflow.tensor([[0.0, 0, 1, 0, 0, 0]])
-        s = oneflow.tensor([[1, 1, 0.5, 0.5, 0.5, 0.5]])  # scale
-        for i in range(n):  # zidane oneflow.zeros(16,3,720,1280)  # BCHW
+        ho = flow.tensor([[0.0, 0, 0, 1, 0, 0]])
+        wo = flow.tensor([[0.0, 0, 1, 0, 0, 0]])
+        s = flow.tensor([[1, 1, 0.5, 0.5, 0.5, 0.5]])  # scale
+        for i in range(n):  # zidane flow.zeros(16,3,720,1280)  # BCHW
             i *= 4
             if random.random() < 0.5:
                 im = F.interpolate(img[i].unsqueeze(0).float(), scale_factor=2.0, mode="bilinear", align_corners=False,)[
@@ -933,21 +933,21 @@ class LoadImagesAndLabels(Dataset):
                 ].type(img[i].type())
                 lb = label[i]
             else:
-                im = oneflow.cat(
+                im = flow.cat(
                     (
-                        oneflow.cat((img[i], img[i + 1]), 1),
-                        oneflow.cat((img[i + 2], img[i + 3]), 1),
+                        flow.cat((img[i], img[i + 1]), 1),
+                        flow.cat((img[i + 2], img[i + 3]), 1),
                     ),
                     2,
                 )
-                lb = oneflow.cat((label[i], label[i + 1] + ho, label[i + 2] + wo, label[i + 3] + ho + wo), 0) * s
+                lb = flow.cat((label[i], label[i + 1] + ho, label[i + 2] + wo, label[i + 3] + ho + wo), 0) * s
             im4.append(im)
             label4.append(lb)
 
         for i, lb in enumerate(label4):
             lb[:, 0] = i  # add target image index for build_targets()
 
-        return oneflow.stack(im4, 0), oneflow.cat(label4, 0), path4, shapes4
+        return flow.stack(im4, 0), flow.cat(label4, 0), path4, shapes4
 
 
 # Ancillary functions --------------------------------------------------------------------------------------------------

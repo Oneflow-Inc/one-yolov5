@@ -12,7 +12,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-import oneflow
+import oneflow as flow
 import oneflow.nn as nn
 import pandas as pd
 import requests
@@ -24,7 +24,7 @@ from utils.general import LOGGER, check_requirements, check_suffix, check_versio
 from utils.oneflow_utils import copy_attr, time_sync
 from utils.plots import Annotator, colors, save_one_box
 
-# from oneflow.cuda import amp
+# from flow.cuda import amp
 
 
 def autopad(k, p=None):  # kernel, padding
@@ -126,7 +126,7 @@ class BottleneckCSP(nn.Module):
     def forward(self, x):
         y1 = self.cv3(self.m(self.cv1(x)))
         y2 = self.cv2(x)
-        return self.cv4(self.act(self.bn(oneflow.cat((y1, y2), 1))))
+        return self.cv4(self.act(self.bn(flow.cat((y1, y2), 1))))
 
 
 class CrossConv(nn.Module):
@@ -154,7 +154,7 @@ class C3(nn.Module):
         self.m = nn.Sequential(*(Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
 
     def forward(self, x):
-        return self.cv3(oneflow.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
+        return self.cv3(flow.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
 
 
 class C3x(C3):
@@ -202,7 +202,7 @@ class SPP(nn.Module):
         x = self.cv1(x)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # suppress oneflow 1.9.0 max_pool2d() warning
-            return self.cv2(oneflow.cat([x] + [m(x) for m in self.m], 1))
+            return self.cv2(flow.cat([x] + [m(x) for m in self.m], 1))
 
 
 class SPPF(nn.Module):
@@ -220,7 +220,7 @@ class SPPF(nn.Module):
             warnings.simplefilter("ignore")  # suppress oneflow 1.9.0 max_pool2d() warning
             y1 = self.m(x)
             y2 = self.m(y1)
-            return self.cv2(oneflow.cat([x, y1, y2, self.m(y2)], 1))
+            return self.cv2(flow.cat([x, y1, y2, self.m(y2)], 1))
 
 
 class Focus(nn.Module):
@@ -231,7 +231,7 @@ class Focus(nn.Module):
         # self.contract = Contract(gain=2)
 
     def forward(self, x):  # x(b,c,w,h) -> y(b,4c,w/2,h/2)
-        return self.conv(oneflow.cat((x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]), 1))
+        return self.conv(flow.cat((x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]), 1))
         # return self.conv(self.contract(x))
 
 
@@ -245,7 +245,7 @@ class GhostConv(nn.Module):
 
     def forward(self, x):
         y = self.cv1(x)
-        return oneflow.cat((y, self.cv2(y)), 1)
+        return flow.cat((y, self.cv2(y)), 1)
 
 
 class GhostBottleneck(nn.Module):
@@ -299,7 +299,7 @@ class Concat(nn.Module):
         self.d = dimension
 
     def forward(self, x):
-        return oneflow.cat(x, self.d)
+        return flow.cat(x, self.d)
 
 
 class DetectMultiBackend(nn.Module):
@@ -307,7 +307,7 @@ class DetectMultiBackend(nn.Module):
     def __init__(
         self,
         weights="yolov5s.pt",
-        device=oneflow.device("cpu"),
+        device=flow.device("cpu"),
         dnn=False,
         data=None,
         fp16=False,
@@ -359,7 +359,7 @@ class DetectMultiBackend(nn.Module):
             net = cv2.dnn.readNetFromONNX(w)
         elif onnx:  # ONNX Runtime
             LOGGER.info(f"Loading {w} for ONNX Runtime inference...")
-            cuda = oneflow.cuda.is_available()
+            cuda = flow.cuda.is_available()
             check_requirements(("onnx", "onnxruntime-gpu" if cuda else "onnxruntime"))
             import onnxruntime
 
@@ -410,7 +410,7 @@ class DetectMultiBackend(nn.Module):
                     if dtype == np.float16:
                         fp16 = True
                 shape = tuple(context.get_binding_shape(index))
-                data = oneflow.from_numpy(np.empty(shape, dtype=np.dtype(dtype))).to(device)
+                data = flow.from_numpy(np.empty(shape, dtype=np.dtype(dtype))).to(device)
                 bindings[name] = Binding(name, dtype, shape, data, int(data.data_ptr()))
             binding_addrs = OrderedDict((n, d.ptr) for n, d in bindings.items())
             batch_size = bindings["images"].shape[0]  # if dynamic, this is instead max batch size
@@ -472,7 +472,7 @@ class DetectMultiBackend(nn.Module):
     def forward(self, im, augment=False, visualize=False, val=False):
         # YOLOv5 MultiBackend inference
         b, ch, h, w = im.shape  # batch, channel, height, width
-        if self.fp16 and im.dtype != oneflow.float16:
+        if self.fp16 and im.dtype != flow.float16:
             im = im.half()  # to FP16
 
         if self.pt:  # PyTorch
@@ -533,14 +533,14 @@ class DetectMultiBackend(nn.Module):
             y[..., :4] *= [w, h, w, h]  # xywh normalized to pixels
 
         if isinstance(y, np.ndarray):
-            y = oneflow.tensor(y, device=self.device)
+            y = flow.tensor(y, device=self.device)
         return (y, []) if val else y
 
     def warmup(self, imgsz=(1, 3, 640, 640)):
         # Warmup model by running inference once
         warmup_types = self.pt, self.jit, self.onnx, self.engine, self.saved_model, self.pb
         if any(warmup_types) and self.device.type != "cpu":
-            im = oneflow.zeros(*imgsz, dtype=oneflow.half if self.fp16 else oneflow.float, device=self.device)  # input
+            im = flow.zeros(*imgsz, dtype=flow.half if self.fp16 else flow.float, device=self.device)  # input
             for _ in range(2 if self.jit else 1):  #
                 self.forward(im)  # warmup
 
@@ -599,7 +599,7 @@ class AutoShape(nn.Module):
                 m.anchor_grid = list(map(fn, m.anchor_grid))
         return self
 
-    @oneflow.no_grad()
+    @flow.no_grad()
     def forward(self, imgs, size=640, augment=False, profile=False):
         # Inference from various sources. For height=640, width=1280, RGB images example inputs are:
         #   file:       imgs = 'data/images/zidane.jpg'  # str or PosixPath
@@ -611,11 +611,11 @@ class AutoShape(nn.Module):
         #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
 
         t = [time_sync()]
-        p = next(self.model.parameters()) if self.pt else oneflow.zeros(1, device=self.model.device)  # for device, type
+        p = next(self.model.parameters()) if self.pt else flow.zeros(1, device=self.model.device)  # for device, type
         # autocast = self.amp and (
         #     p.device.type != "cpu"
         # )  # Automatic Mixed Precision (AMP) inference
-        if isinstance(imgs, oneflow.Tensor):  # oneflow
+        if isinstance(imgs, flow.Tensor):  # oneflow
             # with amp.autocast(autocast):
             return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
 
@@ -644,7 +644,7 @@ class AutoShape(nn.Module):
         shape1 = [make_divisible(x, self.stride) if self.pt else size for x in np.array(shape1).max(0)]  # inf shape
         x = [letterbox(im, shape1, auto=False)[0] for im in imgs]  # pad
         x = np.ascontiguousarray(np.array(x).transpose((0, 3, 1, 2)))  # stack and BHWC to BCHW
-        x = oneflow.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
+        x = flow.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
         t.append(time_sync())
 
         # with amp.autocast(autocast):
@@ -674,7 +674,7 @@ class Detections:
     def __init__(self, imgs, pred, files, times=(0, 0, 0, 0), names=None, shape=None):
         super().__init__()
         d = pred[0].device  # device
-        gn = [oneflow.tensor([*(im.shape[i] for i in [1, 0, 1, 0]), 1, 1], device=d) for im in imgs]  # normalizations
+        gn = [flow.tensor([*(im.shape[i] for i in [1, 0, 1, 0]), 1, 1], device=d) for im in imgs]  # normalizations
         self.imgs = imgs  # list of images as numpy arrays
         self.pred = pred  # list of tensors pred[0] = (xyxy, conf, cls)
         self.names = names  # class names
@@ -798,5 +798,5 @@ class Classify(nn.Module):
         self.flat = nn.Flatten()
 
     def forward(self, x):
-        z = oneflow.cat([self.aap(y) for y in (x if isinstance(x, list) else [x])], 1)  # cat if list
+        z = flow.cat([self.aap(y) for y in (x if isinstance(x, list) else [x])], 1)  # cat if list
         return self.flat(self.conv(z))  # flatten to x(b,c2)

@@ -224,7 +224,7 @@ def intersect_dicts(da, db, exclude=()):
 
 def get_latest_run(search_dir="."):
     # Return path to most recent 'last.pt' in /runs (i.e. to --resume from)
-    last_list = glob.glob(f"{search_dir}/**/last*.pt", recursive=True)
+    last_list = glob.glob(f"{search_dir}/**/last", recursive=True)
     return max(last_list, key=os.path.getctime) if last_list else ""
 
 
@@ -316,7 +316,7 @@ def git_describe(path=ROOT):  # path must be a directory
 
 @try_except
 @WorkingDirectory(ROOT)
-def check_git_status(repo="ultralytics/yolov5"):
+def check_git_status(repo="Oneflow-Inc/one-yolo"):
     # YOLOv5 status check, recommend 'git pull' if code is out of date
     url = f"https://github.com/{repo}"
     msg = f", for updates see {url}"
@@ -329,7 +329,7 @@ def check_git_status(repo="ultralytics/yolov5"):
     if any(matches):
         remote = splits[matches.index(True) - 1]
     else:
-        remote = "ultralytics"
+        remote = "Oneflow-Inc"
         check_output(f"git remote add {remote} {url}", shell=True)
     check_output(f"git fetch {remote}", shell=True, timeout=5)  # git fetch
     branch = check_output("git rev-parse --abbrev-ref HEAD", shell=True).decode().strip()  # checked out
