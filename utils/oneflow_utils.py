@@ -12,9 +12,9 @@ import warnings
 from copy import deepcopy
 from pathlib import Path
 
-import oneflow
+import oneflow as flow
 
-# import oneflow.distributed as dist
+# import flow.distributed as dist
 import oneflow.nn as nn
 import oneflow.nn.functional as F
 from oneflow.nn.parallel import DistributedDataParallel as DDP
@@ -22,7 +22,7 @@ from oneflow.nn.parallel import DistributedDataParallel as DDP
 from utils.general import LOGGER, colorstr, file_date, git_describe
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
-RANK = -1  # int(os.getenv('RANK', -1))
+RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
 try:
@@ -39,7 +39,7 @@ def smart_DDP(model):
 
 
 def device_count():
-    # Returns number of CUDA devices available. Safe version of oneflow.cuda.device_count(). Supports Linux and Windows
+    # Returns number of CUDA devices available. Safe version of flow.cuda.device_count(). Supports Linux and Windows
     assert platform.system() in (
         "Linux",
         "Windows",
@@ -53,29 +53,29 @@ def device_count():
 
 def select_device(device="", batch_size=0, newline=True):
     # device = None or 'cpu' or 0 or '0' or '0,1,2,3'
-    s = f"YOLOv5 🚀 {git_describe() or file_date()} Python-{platform.python_version()} oneflow-{oneflow.__version__} "
+    s = f"YOLOv5 🚀 {git_describe() or file_date()} Python-{platform.python_version()} oneflow-{flow.__version__} "
     device = str(device).strip().lower().replace("cuda:", "").replace("none", "")  # to string, 'cuda:0' to '0'
     cpu = device == "cpu"
     mps = device == "mps"  # Apple Metal Performance Shaders (MPS)
     if cpu or mps:
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # force oneflow.cuda.is_available() = False
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # force flow.cuda.is_available() = False
     elif device:  # non-cpu device requested
         os.environ["CUDA_VISIBLE_DEVICES"] = device  # set environment variable - must be before assert is_available()
-        assert oneflow.cuda.is_available() and oneflow.cuda.device_count() >= len(
+        assert flow.cuda.is_available() and flow.cuda.device_count() >= len(
             device.replace(",", "")
         ), f"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)"
 
-    if not (cpu or mps) and oneflow.cuda.is_available():  # prefer GPU if available
-        devices = device.split(",") if device else "0"  # range(oneflow.cuda.device_count())  # i.e. 0,1,6,7
+    if not (cpu or mps) and flow.cuda.is_available():  # prefer GPU if available
+        devices = device.split(",") if device else "0"  # range(flow.cuda.device_count())  # i.e. 0,1,6,7
         n = len(devices)  # device count
         if n > 1 and batch_size > 0:  # check batch_size is divisible by device_count
             assert batch_size % n == 0, f"batch-size {batch_size} not multiple of GPU count {n}"
         " " * (len(s) + 1)
         # for i, d in enumerate(devices):
-        #     p = oneflow.cuda.get_device_properties(i)
+        #     p = flow.cuda.get_device_properties(i)
         #     s += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / (1 << 20):.0f}MiB)\n"  # bytes to MB
         arg = "cuda:0"
-    # elif mps and getattr(flow, 'has_mps', False) and oneflow.backends.mps.is_available():  # prefer MPS if available
+    # elif mps and getattr(flow, 'has_mps', False) and flow.backends.mps.is_available():  # prefer MPS if available
     #     s += 'MPS\n'
     #     arg = 'mps'
     else:  # revert to CPU
@@ -85,13 +85,13 @@ def select_device(device="", batch_size=0, newline=True):
     if not newline:
         s = s.rstrip()
     LOGGER.info(s)
-    return oneflow.device(arg)
+    return flow.device(arg)
 
 
 def time_sync():
     # Oneoneflow-accurate time
-    # if oneflow.cuda.is_available():
-    #     oneflow.cuda.synchronize()
+    # if flow.cuda.is_available():
+    #     flow.cuda.synchronize()
     return time.time()
 
 
@@ -105,7 +105,7 @@ def profile(input, ops, n=10, device=None):
     #     profile(input, [m1, m2], n=100)  # profile over 100 iterations
 
     results = []
-    if not isinstance(device, oneflow.device):
+    if not isinstance(device, flow.device):
         device = select_device(device)
     print(f"{'Params':>12s}{'GFLOPs':>12s}{'GPU_mem (GB)':>14s}{'forward (ms)':>14s}{'backward (ms)':>14s}" f"{'input':>24s}{'output':>24s}")
 
@@ -114,7 +114,7 @@ def profile(input, ops, n=10, device=None):
         x.requires_grad = True
         for m in ops if isinstance(ops, list) else [ops]:
             m = m.to(device) if hasattr(m, "to") else m  # device
-            m = m.half() if hasattr(m, "half") and isinstance(x, oneflow.Tensor) and x.dtype is oneflow.float16 else m
+            m = m.half() if hasattr(m, "half") and isinstance(x, flow.Tensor) and x.dtype is flow.float16 else m
             tf, tb, t = 0, 0, [0, 0, 0]  # dt forward, backward
             try:
                 flops = thop.profile(m, inputs=(x,), verbose=False)[0] / 1e9 * 2  # GFLOPs
@@ -134,8 +134,8 @@ def profile(input, ops, n=10, device=None):
                         t[2] = float("nan")
                     tf += (t[1] - t[0]) * 1000 / n  # ms per op forward
                     tb += (t[2] - t[1]) * 1000 / n  # ms per op backward
-                # mem = oneflow.cuda.memory_reserved() / 1E9 if oneflow.cuda.is_available() else 0  # (GB)
-                s_in, s_out = (tuple(x.shape) if isinstance(x, oneflow.Tensor) else "list" for x in (x, y))  # shapes
+                # mem = flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0  # (GB)
+                s_in, s_out = (tuple(x.shape) if isinstance(x, flow.Tensor) else "list" for x in (x, y))  # shapes
                 p = sum(x.numel() for x in m.parameters()) if isinstance(m, nn.Module) else 0  # parameters
                 print(f"{p:12}{flops:12.4g}{tf:14.4g}{tb:14.4g}{str(s_in):>24s}{str(s_out):>24s}")
                 # results.append([p, flops, mem, tf, tb, s_in, s_out])
@@ -143,7 +143,7 @@ def profile(input, ops, n=10, device=None):
             except Exception as e:
                 print(e)
                 results.append(None)
-            oneflow.cuda.empty_cache()
+            flow.cuda.empty_cache()
     return results
 
 
@@ -186,7 +186,7 @@ def sparsity(model):
 
 # def prune(model, amount=0.3):
 #     # Prune model to requested global sparsity
-#     import_ oneflow.nn.utils.prune as prune
+#     import_ flow.nn.utils.prune as prune
 #     print('Pruning model... ', end='')
 #     for name, m in model.named_modules():
 #         if isinstance(m, nn.Conv2d):
@@ -213,13 +213,13 @@ def fuse_conv_and_bn(conv, bn):
 
     # Prepare filters
     w_conv = conv.weight.clone().view(conv.out_channels, -1)
-    w_bn = oneflow.diag(bn.weight.div(oneflow.sqrt(bn.eps + bn.running_var)))
-    fusedconv.weight.copy_(oneflow.mm(w_bn, w_conv).view(fusedconv.weight.shape))
+    w_bn = flow.diag(bn.weight.div(flow.sqrt(bn.eps + bn.running_var)))
+    fusedconv.weight.copy_(flow.mm(w_bn, w_conv).view(fusedconv.weight.shape))
 
     # Prepare spatial bias
-    b_conv = oneflow.zeros(conv.weight.size(0), device=conv.weight.device) if conv.bias is None else conv.bias
-    b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(oneflow.sqrt(bn.running_var + bn.eps))
-    fusedconv.bias.copy_(oneflow.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
+    b_conv = flow.zeros(conv.weight.size(0), device=conv.weight.device) if conv.bias is None else conv.bias
+    b_bn = bn.bias - bn.weight.mul(bn.running_mean).div(flow.sqrt(bn.running_var + bn.eps))
+    fusedconv.bias.copy_(flow.mm(w_bn, b_conv.reshape(-1, 1)).reshape(-1) + b_bn)
 
     return fusedconv
 
@@ -238,7 +238,7 @@ def model_info(model, verbose=False, img_size=640):
         from thop import profile
 
         stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32
-        img = oneflow.zeros((1, model.yaml.get("ch", 3), stride, stride), device=next(model.parameters()).device)  # input
+        img = flow.zeros((1, model.yaml.get("ch", 3), stride, stride), device=next(model.parameters()).device)  # input
         flops = profile(deepcopy(model), inputs=(img,), verbose=False)[0] / 1e9 * 2  # stride GFLOPs
         img_size = img_size if isinstance(img_size, list) else [img_size, img_size]  # expand if int/float
         fs = ", %.1f GFLOPs" % (flops * img_size[0] / stride * img_size[1] / stride)  # 640x640 GFLOPs
@@ -283,13 +283,13 @@ def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5):
             g[0].append(v.weight)
 
     if name == "Adam":
-        optimizer = oneflow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999))  # adjust beta1 to momentum
+        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999))  # adjust beta1 to momentum
     elif name == "AdamW":
-        optimizer = oneflow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
+        optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
     elif name == "RMSProp":
-        optimizer = oneflow.optim.RMSprop(g[2], lr=lr, momentum=momentum)
+        optimizer = flow.optim.RMSprop(g[2], lr=lr, momentum=momentum)
     elif name == "SGD":
-        optimizer = oneflow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
+        optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
     else:
         raise NotImplementedError(f"Optimizer {name} not implemented.")
 
@@ -361,7 +361,7 @@ class ModelEMA:
 
     def update(self, model):
         # Update EMA parameters
-        with oneflow.no_grad():
+        with flow.no_grad():
             self.updates += 1
             d = self.decay(self.updates)
 

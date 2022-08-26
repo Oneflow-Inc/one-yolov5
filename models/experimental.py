@@ -5,7 +5,7 @@ Experimental modules
 import math
 
 import numpy as np
-import oneflow
+import oneflow as flow
 import oneflow.nn as nn
 
 from utils.downloads import attempt_download
@@ -18,12 +18,12 @@ class Sum(nn.Module):
         self.weight = weight  # apply weights boolean
         self.iter = range(n - 1)  # iter object
         if weight:
-            self.w = nn.Parameter(-oneflow.arange(1.0, n) / 2, requires_grad=True)  # layer weights
+            self.w = nn.Parameter(-flow.arange(1.0, n) / 2, requires_grad=True)  # layer weights
 
     def forward(self, x):
         y = x[0]  # no weight
         if self.weight:
-            w = oneflow.sigmoid(self.w) * 2
+            w = flow.sigmoid(self.w) * 2
             for i in self.iter:
                 y = y + x[i + 1] * w[i]
         else:
@@ -38,7 +38,7 @@ class MixConv2d(nn.Module):
         super().__init__()
         n = len(k)  # number of convolutions
         if equal_ch:  # equal c_ per group
-            i = oneflow.linspace(0, n - 1e-6, c2).floor()  # c2 indices
+            i = flow.linspace(0, n - 1e-6, c2).floor()  # c2 indices
             c_ = [(i == g).sum() for g in range(n)]  # intermediate channels
         else:  # equal weight.numel() per group
             b = [c2] + [0] * n
@@ -53,7 +53,7 @@ class MixConv2d(nn.Module):
         self.act = nn.SiLU()
 
     def forward(self, x):
-        return self.act(self.bn(oneflow.cat([m(x) for m in self.m], 1)))
+        return self.act(self.bn(flow.cat([m(x) for m in self.m], 1)))
 
 
 class Ensemble(nn.ModuleList):
@@ -63,9 +63,9 @@ class Ensemble(nn.ModuleList):
 
     def forward(self, x, augment=False, profile=False, visualize=False):
         y = [module(x, augment, profile, visualize)[0] for module in self]
-        # y = oneflow.stack(y).max(0)[0]  # max ensemble
-        # y = oneflow.stack(y).mean(0)  # mean ensemble
-        y = oneflow.cat(y, 1)  # nms ensemble
+        # y = flow.stack(y).max(0)[0]  # max ensemble
+        # y = flow.stack(y).mean(0)  # mean ensemble
+        y = flow.cat(y, 1)  # nms ensemble
         return y, None  # inference, train output
 
 
@@ -75,7 +75,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
 
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = oneflow.load(attempt_download(w), map_location="cpu")  # load
+        ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
         model.append(ckpt.fuse().eval() if fuse else ckpt.eval())  # fused or un-fused model in eval mode
 
@@ -86,7 +86,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
             m.inplace = inplace  # oneflow 1.7.0 compatibility
             if t is Detect and not isinstance(m.anchor_grid, list):
                 delattr(m, "anchor_grid")
-                setattr(m, "anchor_grid", [oneflow.zeros(1)] * m.nl)
+                setattr(m, "anchor_grid", [flow.zeros(1)] * m.nl)
         elif t is nn.Upsample and not hasattr(m, "recompute_scale_factor"):
             m.recompute_scale_factor = None  # oneflow 1.11.0 compatibility
 
@@ -95,6 +95,6 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     print(f"Ensemble created with {weights}\n")
     for k in "names", "nc", "yaml":
         setattr(model, k, getattr(model[0], k))
-    model.stride = model[oneflow.argmax(oneflow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
+    model.stride = model[flow.argmax(flow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
     assert all(model[0].nc == m.nc for m in model), f"Models have different class counts: {[m.nc for m in model]}"
     return model  # return ensemble

@@ -25,7 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import oneflow
+import oneflow as flow
 import oneflow.distributed as dist
 import oneflow.nn as nn
 import yaml
@@ -140,7 +140,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     if pretrained:
         # ---------------------------------------------------------#
-        ckpt = oneflow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
+        ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
         exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
         csd = ckpt["model"]  # checkpoint state_dict as FP32
@@ -194,7 +194,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     # SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
-        model = oneflow.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
+        model = flow.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         LOGGER.info("Using SyncBatchNorm()")
 
     # Trainloader
@@ -271,7 +271,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
 
     scheduler.last_epoch = start_epoch - 1  # do not move
-    # scaler = oneflow.cuda.amp.GradScaler(enabled=amp)
+    # scaler = flow.cuda.amp.GradScaler(enabled=amp)
 
     stopper, _ = EarlyStopping(patience=opt.patience), False
     compute_loss = ComputeLoss(model)  # init loss class
@@ -292,7 +292,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             iw = labels_to_image_weights(dataset.labels, nc=nc, class_weights=cw)  # image weights
             dataset.indices = random.choices(range(dataset.n), weights=iw, k=dataset.n)  # rand weighted idx
 
-        mloss = oneflow.zeros(3, device=device)  # mean losses
+        mloss = flow.zeros(3, device=device)  # mean losses
 
         if RANK != -1:
             train_loader.sampler.set_epoch(epoch)
@@ -338,7 +338,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     imgs = nn.functional.interpolate(imgs, size=ns, mode="bilinear", align_corners=False)
 
             # Forward
-            # imgs = oneflow.FloatTensor(np.ones([16,3,640,640])).cuda()
+            # imgs = flow.FloatTensor(np.ones([16,3,640,640])).cuda()
 
             pred = model(imgs)  # forward
 
@@ -417,11 +417,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 }
 
                 # Save last, best and delete
-                oneflow.save(ckpt, last)
+                flow.save(ckpt, last)
                 if best_fitness == fi:
-                    oneflow.save(ckpt, best)
+                    flow.save(ckpt, best)
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    oneflow.save(ckpt, w / f"epoch{epoch}")
+                    flow.save(ckpt, w / f"epoch{epoch}")
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 
@@ -462,7 +462,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         callbacks.run("on_train_end", last, best, plots, epoch, results)
 
-    oneflow.cuda.empty_cache()
+    flow.cuda.empty_cache()
     return results
 
 
@@ -556,7 +556,6 @@ def parse_opt(known=False):
 
     return parser.parse_known_args()[0] if known else parser.parse_args()
 
-
 def main(opt, callbacks=Callbacks()):
     # Checks
     if RANK in {-1, 0}:
@@ -565,7 +564,7 @@ def main(opt, callbacks=Callbacks()):
         check_requirements(exclude=["thop"])
 
     # Resume
-    if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last.pt
+    if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last        
         last = Path(check_file(opt.resume) if isinstance(opt.resume, str) else get_latest_run())
         opt_yaml = last.parent.parent / "opt.yaml"  # train options yaml
         # opt_data = opt.data  # original dataset
@@ -573,7 +572,7 @@ def main(opt, callbacks=Callbacks()):
             with open(opt_yaml, errors="ignore") as f:
                 d = yaml.safe_load(f)
         else:
-            d = oneflow.load(last, map_location="cpu")["opt"]
+            d = flow.load(last, map_location="cpu")["opt"]
         opt = argparse.Namespace(**d)  # replace
         opt.cfg, opt.weights, opt.resume = "", str(last), True  # reinstate
         # if is_url(opt_data):
@@ -606,9 +605,9 @@ def main(opt, callbacks=Callbacks()):
         assert not opt.evolve, f"--evolve {msg}"
         assert opt.batch_size != -1, f"AutoBatch with --batch-size -1 {msg}, please pass a valid --batch-size"
         assert opt.batch_size % WORLD_SIZE == 0, f"--batch-size {opt.batch_size} must be multiple of WORLD_SIZE"
-        assert oneflow.cuda.device_count() > LOCAL_RANK, "insufficient CUDA devices for DDP command"
-        oneflow.cuda.set_device(LOCAL_RANK)
-        device = oneflow.device("cuda", LOCAL_RANK)
+        assert flow.cuda.device_count() > LOCAL_RANK, "insufficient CUDA devices for DDP command"
+        flow.cuda.set_device(LOCAL_RANK)
+        device = flow.device("cuda", LOCAL_RANK)
         # dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Train

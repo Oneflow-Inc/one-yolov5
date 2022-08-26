@@ -28,7 +28,8 @@ from zipfile import ZipFile
 
 import cv2
 import numpy as np
-import oneflow
+import oneflow as flow
+import oneflow.backends.cudnn as cudnn
 import pandas as pd
 import pkg_resources as pkg
 import yaml
@@ -50,7 +51,7 @@ AUTOINSTALL = str(os.getenv("YOLOv5_AUTOINSTALL", True)).lower() == "true"  # gl
 VERBOSE = str(os.getenv("YOLOv5_VERBOSE", True)).lower() == "true"  # global verbose mode
 FONT = "Arial.ttf"  # https://ultralytics.com/assets/Arial.ttf
 
-oneflow.set_printoptions(linewidth=320, precision=5, profile="long")
+flow.set_printoptions(linewidth=320, precision=5, profile="long")
 np.set_printoptions(linewidth=320, formatter={"float_kind": "{:11.5g}".format})  # format short g, %precision=5
 pd.options.display.max_columns = 10
 cv2.setNumThreads(0)  # prevent OpenCV from multithreading (incompatible with PyTorch DataLoader)
@@ -205,16 +206,15 @@ def print_args(args: Optional[dict] = None, show_file=True, show_fcn=False):
 
 
 def init_seeds(seed=0, deterministic=False):
-    # Initialize random number generator (RNG) seeds https://pyoneflow.org/docs/stable/notes/randomness.html
+    # Initialize random number generator (RNG) seeds https://pyflow.org/docs/stable/notes/randomness.html
     # cudnn seed 0 settings are slower and more reproducible, else faster and less reproducible
-    import oneflow.backends.cudnn as cudnn
 
     random.seed(seed)
     np.random.seed(seed)
-    oneflow.manual_seed(seed)
+    flow.manual_seed(seed)
     cudnn.benchmark, cudnn.deterministic = (False, True)
-    oneflow.cuda.manual_seed(seed)
-    oneflow.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
+    flow.cuda.manual_seed(seed)
+    flow.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
 
 
 def intersect_dicts(da, db, exclude=()):
@@ -224,7 +224,7 @@ def intersect_dicts(da, db, exclude=()):
 
 def get_latest_run(search_dir="."):
     # Return path to most recent 'last.pt' in /runs (i.e. to --resume from)
-    last_list = glob.glob(f"{search_dir}/**/last*.pt", recursive=True)
+    last_list = glob.glob(f"{search_dir}/**/last", recursive=True)
     return max(last_list, key=os.path.getctime) if last_list else ""
 
 
@@ -316,7 +316,7 @@ def git_describe(path=ROOT):  # path must be a directory
 
 @try_except
 @WorkingDirectory(ROOT)
-def check_git_status(repo="ultralytics/yolov5"):
+def check_git_status(repo="Oneflow-Inc/one-yolo"):
     # YOLOv5 status check, recommend 'git pull' if code is out of date
     url = f"https://github.com/{repo}"
     msg = f", for updates see {url}"
@@ -329,7 +329,7 @@ def check_git_status(repo="ultralytics/yolov5"):
     if any(matches):
         remote = splits[matches.index(True) - 1]
     else:
-        remote = "ultralytics"
+        remote = "Oneflow-Inc"
         check_output(f"git remote add {remote} {url}", shell=True)
     check_output(f"git fetch {remote}", shell=True, timeout=5)  # git fetch
     branch = check_output("git rev-parse --abbrev-ref HEAD", shell=True).decode().strip()  # checked out
@@ -618,7 +618,7 @@ def download(url, dir=".", unzip=True, delete=True, curl=False, threads=1, retry
 
 def make_divisible(x, divisor):
     # Returns nearest x divisible by divisor
-    if isinstance(divisor, oneflow.Tensor):
+    if isinstance(divisor, flow.Tensor):
         divisor = int(divisor.max())  # to int
     return math.ceil(x / divisor) * divisor
 
@@ -663,7 +663,7 @@ def colorstr(*input):
 def labels_to_class_weights(labels, nc=80):
     # Get class weights (inverse frequency) from training labels
     if labels[0] is None:  # no labels loaded
-        return oneflow.Tensor()
+        return flow.Tensor()
 
     labels = np.concatenate(labels, 0)  # labels.shape = (866643, 5) for COCO
     classes = labels[:, 0].astype(int)  # labels = [class xywh]
@@ -676,7 +676,7 @@ def labels_to_class_weights(labels, nc=80):
     weights[weights == 0] = 1  # replace empty bins with 1
     weights = 1 / weights  # number of targets per class
     weights /= weights.sum()  # normalize
-    return oneflow.from_numpy(weights).float()
+    return flow.from_numpy(weights).float()
 
 
 def labels_to_image_weights(labels, nc=80, class_weights=np.ones(80)):
@@ -778,7 +778,7 @@ def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
 
 def xyxy2xywh(x):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, oneflow.Tensor) else np.copy(x)
+    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
     y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
     y[:, 2] = x[:, 2] - x[:, 0]  # width
@@ -788,7 +788,7 @@ def xyxy2xywh(x):
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, oneflow.Tensor) else np.copy(x)
+    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = x[:, 0] - x[:, 2] / 2  # top left x
     y[:, 1] = x[:, 1] - x[:, 3] / 2  # top left y
     y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
@@ -798,7 +798,7 @@ def xywh2xyxy(x):
 
 def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
     # Convert nx4 boxes from [x, y, w, h] normalized to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, oneflow.Tensor) else np.copy(x)
+    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = w * (x[:, 0] - x[:, 2] / 2) + padw  # top left x
     y[:, 1] = h * (x[:, 1] - x[:, 3] / 2) + padh  # top left y
     y[:, 2] = w * (x[:, 0] + x[:, 2] / 2) + padw  # bottom right x
@@ -810,7 +810,7 @@ def xyxy2xywhn(x, w=640, h=640, clip=False, eps=0.0):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] normalized where xy1=top-left, xy2=bottom-right
     if clip:
         clip_coords(x, (h - eps, w - eps))  # warning: inplace clip
-    y = x.clone() if isinstance(x, oneflow.Tensor) else np.copy(x)
+    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = ((x[:, 0] + x[:, 2]) / 2) / w  # x center
     y[:, 1] = ((x[:, 1] + x[:, 3]) / 2) / h  # y center
     y[:, 2] = (x[:, 2] - x[:, 0]) / w  # width
@@ -820,7 +820,7 @@ def xyxy2xywhn(x, w=640, h=640, clip=False, eps=0.0):
 
 def xyn2xy(x, w=640, h=640, padw=0, padh=0):
     # Convert normalized segments into pixel segments, shape (n,2)
-    y = x.clone() if isinstance(x, oneflow.Tensor) else np.copy(x)
+    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = w * x[:, 0] + padw  # top left x
     y[:, 1] = h * x[:, 1] + padh  # top left y
     return y
@@ -874,7 +874,7 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
 
 def clip_coords(boxes, shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
-    if isinstance(boxes, oneflow.Tensor):  # faster individually
+    if isinstance(boxes, flow.Tensor):  # faster individually
         boxes[:, 0].clamp_(0, shape[1])  # x1
         boxes[:, 1].clamp_(0, shape[0])  # y1
         boxes[:, 2].clamp_(0, shape[1])  # x2
@@ -918,7 +918,7 @@ def non_max_suppression(
     merge = False  # use merge-NMS
 
     t = time.time()
-    output = [oneflow.zeros((0, 6), device=prediction.device)] * bs
+    output = [flow.zeros((0, 6), device=prediction.device)] * bs
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
@@ -927,11 +927,11 @@ def non_max_suppression(
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]):
             lb = labels[xi]
-            v = oneflow.zeros((len(lb), nc + 5), device=x.device)
+            v = flow.zeros((len(lb), nc + 5), device=x.device)
             v[:, :4] = lb[:, 1:5]  # box
             v[:, 4] = 1.0  # conf
             v[range(len(lb)), lb[:, 0].long() + 5] = 1.0  # cls
-            x = oneflow.cat((x, v), 0)
+            x = flow.cat((x, v), 0)
 
         # If none remain process next image
         if not x.shape[0]:
@@ -946,18 +946,18 @@ def non_max_suppression(
         # Detections matrix nx6 (xyxy, conf, cls)
         if multi_label:
             i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
-            x = oneflow.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
+            x = flow.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
         else:  # best class only
             conf, j = x[:, 5:].max(1, keepdim=True)
-            x = oneflow.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
+            x = flow.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
 
         # Filter by class
         if classes is not None:
-            x = x[(x[:, 5:6] == oneflow.tensor(classes, device=x.device)).any(1)]
+            x = x[(x[:, 5:6] == flow.tensor(classes, device=x.device)).any(1)]
 
         # Apply finite constraint
-        # if not oneflow.isfinite(x).all():
-        #     x = x[oneflow.isfinite(x).all(1)]
+        # if not flow.isfinite(x).all():
+        #     x = x[flow.isfinite(x).all(1)]
 
         # Check shape
         n = x.shape[0]  # number of boxes
@@ -970,14 +970,14 @@ def non_max_suppression(
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
         # i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
-        i = oneflow.nms(boxes, scores, iou_thres)  # NMS
+        i = flow.nms(boxes, scores, iou_thres)  # NMS
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
         if merge and (1 < n < 3e3):  # Merge NMS (boxes merged using weighted mean)
             # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
             iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
             weights = iou * scores[None]  # box weights
-            x[i, :4] = oneflow.mm(weights, x[:, :4]).float() / weights.sum(1, keepdim=True)  # merged boxes
+            x[i, :4] = flow.mm(weights, x[:, :4]).float() / weights.sum(1, keepdim=True)  # merged boxes
             if redundant:
                 i = i[iou.sum(1) > 1]  # require redundancy
 
@@ -991,7 +991,7 @@ def non_max_suppression(
 
 def strip_optimizer(f="best.pt", s=""):  # from utils.general import *; strip_optimizer()
     # Strip optimizer from 'f' to finalize training, optionally save as 's'
-    x = oneflow.load(f, map_location=oneflow.device("cpu"))
+    x = flow.load(f, map_location=flow.device("cpu"))
     if x.get("ema"):
         x["model"] = x["ema"]  # replace model with ema
     for k in "optimizer", "best_fitness", "wandb_id", "ema", "updates":  # keys
@@ -1000,7 +1000,7 @@ def strip_optimizer(f="best.pt", s=""):  # from utils.general import *; strip_op
     x["model"].half()  # to FP16
     for p in x["model"].parameters():
         p.requires_grad = False
-    oneflow.save(x, s or f)
+    flow.save(x, s or f)
     mb = os.path.getsize(s or f) / 1e6  # filesize
     LOGGER.info(f"Optimizer stripped from {f},{f' saved as {s},' if s else ''} {mb:.1f}MB")
 
@@ -1083,7 +1083,7 @@ def apply_classifier(x, model, img, im0):
                 im /= 255  # 0 - 255 to 0.0 - 1.0
                 ims.append(im)
 
-            pred_cls2 = model(oneflow.Tensor(ims).to(d.device)).argmax(1)  # classifier prediction
+            pred_cls2 = model(flow.Tensor(ims).to(d.device)).argmax(1)  # classifier prediction
             x[i] = x[i][pred_cls1 == pred_cls2]  # retain matching class detections
 
     return x
