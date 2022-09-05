@@ -1,15 +1,13 @@
 # YOLOv5 🚀 by Ultralytics, GPL-3.0 license
 """
-Export a YOLOv5 PyTorch model to other formats. TensorFlow exports authored by https://github.com/zldrobit
+Export a YOLOv5 OneFlow model to other formats. TensorFlow exports authored by https://github.com/zldrobit
 
 Format                      | `export.py --include`         | Model
 ---                         | ---                           | ---
-PyTorch                     | -                             | yolov5s.pt
-TorchScript                 | `torchscript`                 | yolov5s.torchscript
+OneFlow                     | -                             | yolov5s_oneflow_model/
 ONNX                        | `onnx`                        | yolov5s.onnx
 OpenVINO                    | `openvino`                    | yolov5s_openvino_model/
 TensorRT                    | `engine`                      | yolov5s.engine
-CoreML                      | `coreml`                      | yolov5s.mlmodel
 TensorFlow SavedModel       | `saved_model`                 | yolov5s_saved_model/
 TensorFlow GraphDef         | `pb`                          | yolov5s.pb
 TensorFlow Lite             | `tflite`                      | yolov5s.tflite
@@ -21,15 +19,13 @@ Requirements:
     $ pip install -r requirements.txt coremltools onnx onnx-simplifier onnxruntime-gpu openvino-dev tensorflow  # GPU
 
 Usage:
-    $ python path/to/export.py --weights yolov5s.pt --include torchscript onnx openvino engine coreml tflite ...
+    $ python path/to/export.py --weights yolov5s_oneflow_model/ --include onnx openvino engine tflite ...
 
 Inference:
-    $ python path/to/detect.py --weights yolov5s.pt                 # PyTorch
-                                         yolov5s.torchscript        # TorchScript
+    $ python path/to/detect.py --weights yolov5s_oneflow_model/     # OneFlow
                                          yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                          yolov5s.xml                # OpenVINO
                                          yolov5s.engine             # TensorRT
-                                         yolov5s.mlmodel            # CoreML (macOS-only)
                                          yolov5s_saved_model        # TensorFlow SavedModel
                                          yolov5s.pb                 # TensorFlow GraphDef
                                          yolov5s.tflite             # TensorFlow Lite
@@ -50,18 +46,19 @@ import subprocess
 import sys
 import time
 import warnings
+import tempfile
 from pathlib import Path
 
 import pandas as pd
-import torch
+import oneflow as flow
 import yaml
-from oneflow.utils.mobile_optimizer import optimize_for_mobile
 
 from models.experimental import attempt_load
 from models.yolo import Detect
 from utils.dataloaders import LoadImages
 from utils.general import LOGGER, check_dataset, check_img_size, check_requirements, check_version, check_yaml, colorstr, file_size, print_args, url2file
-from utils.torch_utils import select_device
+from utils.oneflow_utils import select_device
+from oneflow_onnx.oneflow2onnx.util import convert_to_onnx_and_check
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -74,8 +71,7 @@ if platform.system() != "Windows":
 def export_formats():
     # YOLOv5 export formats
     x = [
-        ["PyTorch", "-", ".pt", True, True],
-        ["TorchScript", "torchscript", ".torchscript", True, True],
+        ["OneFlow", "-", "oneflow", True, True],
         ["ONNX", "onnx", ".onnx", True, True],
         ["OpenVINO", "openvino", "_openvino_model", True, False],
         ["TensorRT", "engine", ".engine", False, True],
@@ -89,25 +85,6 @@ def export_formats():
     return pd.DataFrame(x, columns=["Format", "Argument", "Suffix", "CPU", "GPU"])
 
 
-def export_torchscript(model, im, file, optimize, prefix=colorstr("TorchScript:")):
-    # YOLOv5 TorchScript model export
-    try:
-        LOGGER.info(f"\n{prefix} starting export with torch {torch.__version__}...")
-        f = file.with_suffix(".torchscript")
-
-        ts = torch.jit.trace(model, im, strict=False)
-        d = {"shape": im.shape, "stride": int(max(model.stride)), "names": model.names}
-        extra_files = {"config.txt": json.dumps(d)}  # torch._C.ExtraFilesMap()
-        if optimize:  # https://pytorch.org/tutorials/recipes/mobile_interpreter.html
-            optimize_for_mobile(ts)._save_for_lite_interpreter(str(f), _extra_files=extra_files)
-        else:
-            ts.save(str(f), _extra_files=extra_files)
-
-        LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
-        return f
-    except Exception as e:
-        LOGGER.info(f"{prefix} export failure: {e}")
-
 
 def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
@@ -118,23 +95,24 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
         LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
         f = file.with_suffix(".onnx")
 
-        torch.onnx.export(
-            model.cpu() if dynamic else model,  # --dynamic only compatible with cpu
-            im.cpu() if dynamic else im,
-            f,
-            verbose=False,
-            opset_version=opset,
-            training=torch.onnx.TrainingMode.TRAINING if train else torch.onnx.TrainingMode.EVAL,
-            do_constant_folding=not train,
-            input_names=["images"],
-            output_names=["output"],
-            dynamic_axes={
-                "images": {0: "batch", 2: "height", 3: "width"},  # shape(1,3,640,640)
-                "output": {0: "batch", 1: "anchors"},  # shape(1,25200,85)
-            }
-            if dynamic
-            else None,
-        )
+        class YOLOGraph(flow.nn.Graph):
+            def __init__(self, eager_model):
+                super().__init__()
+                self.model = eager_model
+
+            def build(self, x):
+                return self.model(x)
+        
+        yolo_graph = YOLOGraph()
+        yolo_graph._compile(flow.randn(im.size()))
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            flow.save(model.state_dict(), tmpdirname)
+            convert_to_onnx_and_check(yolo_graph, 
+                            flow_weight_dir=tmpdirname, 
+                            onnx_model_path=f, 
+                            print_outlier=True,
+                            dynamic_batch_size=True)
 
         # Checks
         model_onnx = onnx.load(f)  # load onnx model
@@ -150,7 +128,7 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
         # Simplify
         if simplify:
             try:
-                cuda = torch.cuda.is_available()
+                cuda = flow.cuda.is_available()
                 check_requirements(("onnxruntime-gpu" if cuda else "onnxruntime", "onnx-simplifier>=0.4.1"))
                 import onnxsim
 
@@ -184,35 +162,6 @@ def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):
         return f
     except Exception as e:
         LOGGER.info(f"\n{prefix} export failure: {e}")
-
-
-def export_coreml(model, im, file, int8, half, prefix=colorstr("CoreML:")):
-    # YOLOv5 CoreML export
-    try:
-        check_requirements(("coremltools",))
-        import coremltools as ct
-
-        LOGGER.info(f"\n{prefix} starting export with coremltools {ct.__version__}...")
-        f = file.with_suffix(".mlmodel")
-
-        ts = torch.jit.trace(model, im, strict=False)  # TorchScript model
-        ct_model = ct.convert(ts, inputs=[ct.ImageType("image", shape=im.shape, scale=1 / 255, bias=[0, 0, 0])])
-        bits, mode = (8, "kmeans_lut") if int8 else (16, "linear") if half else (32, None)
-        if bits < 32:
-            if platform.system() == "Darwin":  # quantization only supported on macOS
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=DeprecationWarning)  # suppress numpy==1.20 float warning
-                    ct_model = ct.models.neural_network.quantization_utils.quantize_weights(ct_model, bits, mode)
-            else:
-                print(f"{prefix} quantization only supported on macOS, skipping...")
-        ct_model.save(f)
-
-        LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
-        return ct_model, f
-    except Exception as e:
-        LOGGER.info(f"\n{prefix} export failure: {e}")
-        return None, None
-
 
 def export_engine(model, im, file, train, half, dynamic, simplify, workspace=4, verbose=False):
     # YOLOv5 TensorRT export https://developer.nvidia.com/tensorrt
@@ -463,14 +412,14 @@ def export_tfjs(file, prefix=colorstr("TensorFlow.js:")):
         LOGGER.info(f"\n{prefix} export failure: {e}")
 
 
-@torch.no_grad()
+@flow.no_grad()
 def run(
     data=ROOT / "data/coco128.yaml",  # 'dataset.yaml path'
     weights=ROOT / "yolov5s.pt",  # weights path
     imgsz=(640, 640),  # image (height, width)
     batch_size=1,  # batch size
     device="cpu",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-    include=("torchscript", "onnx"),  # include formats
+    include=("onnx"),  # include formats
     half=False,  # FP16 half-precision export
     inplace=False,  # set YOLOv5 Detect() inplace=True
     train=False,  # model.train() mode
@@ -525,7 +474,7 @@ def run(
     # Input
     gs = int(max(model.stride))  # grid size (max stride)
     imgsz = [check_img_size(x, gs) for x in imgsz]  # verify img_size are gs-multiples
-    im = torch.zeros(batch_size, 3, *imgsz).to(device)  # image size(1,3,320,192) BCHW iDetection
+    im = flow.zeros(batch_size, 3, *imgsz).to(device)  # image size(1,3,320,192) BCHW iDetection
 
     # Update model
     model.train() if train else model.eval()  # training mode = no Detect() layer grid construction
@@ -545,16 +494,12 @@ def run(
     # Exports
     f = [""] * 10  # exported filenames
     warnings.filterwarnings(action="ignore", category=torch.jit.TracerWarning)  # suppress TracerWarning
-    if jit:
-        f[0] = export_torchscript(model, im, file, optimize)
     if engine:  # TensorRT required before ONNX
         f[1] = export_engine(model, im, file, train, half, dynamic, simplify, workspace, verbose)
     if onnx or xml:  # OpenVINO requires ONNX
         f[2] = export_onnx(model, im, file, opset, train, dynamic, simplify)
     if xml:  # OpenVINO
         f[3] = export_openvino(model, file, half)
-    if coreml:
-        _, f[4] = export_coreml(model, im, file, int8, half)
 
     # TensorFlow Exports
     if any((saved_model, pb, tflite, edgetpu, tfjs)):
@@ -633,8 +578,8 @@ def parse_opt():
     parser.add_argument(
         "--include",
         nargs="+",
-        default=["torchscript", "onnx"],
-        help="torchscript, onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs",
+        default=["onnx"],
+        help="onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs",
     )
     opt = parser.parse_args()
     print_args(vars(opt))
