@@ -103,7 +103,7 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
             def build(self, x):
                 return self.model(x)
         
-        yolo_graph = YOLOGraph()
+        yolo_graph = YOLOGraph(model)
         yolo_graph._compile(flow.randn(im.size()))
 
         with tempfile.TemporaryDirectory() as tmpdirname:
@@ -444,7 +444,6 @@ def run(
     flags = [x in include for x in fmts]
     assert sum(flags) == len(include), f"ERROR: Invalid --include {include}, valid --include arguments are {fmts}"
     (
-        jit,
         onnx,
         xml,
         engine,
@@ -489,11 +488,10 @@ def run(
     if half and not coreml:
         im, model = im.half(), model.half()  # to FP16
     shape = tuple(y[0].shape)  # model output shape
-    LOGGER.info(f"\n{colorstr('PyTorch:')} starting from {file} with output shape {shape} ({file_size(file):.1f} MB)")
+    LOGGER.info(f"\n{colorstr('OneFlow:')} starting from {file} with output shape {shape} ({file_size(file):.1f} MB)")
 
     # Exports
     f = [""] * 10  # exported filenames
-    warnings.filterwarnings(action="ignore", category=torch.jit.TracerWarning)  # suppress TracerWarning
     if engine:  # TensorRT required before ONNX
         f[1] = export_engine(model, im, file, train, half, dynamic, simplify, workspace, verbose)
     if onnx or xml:  # OpenVINO requires ONNX
