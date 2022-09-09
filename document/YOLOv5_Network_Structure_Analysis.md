@@ -178,7 +178,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
     解析模型文件(字典形式)，并搭建网络结构
     这个函数其实主要做的就是: 更新当前层的args（参数）,计算c2（当前层的输出channel） =>
                           使用当前层的参数搭建当前层 =>
-                          生成 layers + save
+                          生成输入的module_dict字典对应的网络结构（用nn.Sequential来封装所有的网络层）以及保存网络层中from为-1的层的序号。（注意，这里的层是由yaml文件比如yolov5s.yaml描述的一层，比如Conv层中包含了Conv2d+BN+ReLU，并不单指一个算子）
     :params d: model_dict 模型文件 字典形式 {dict:7}  [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)中的6个元素 + ch
     :params ch: 记录模型每一层的输出channel 初始ch=[3] 后面会删除
     :return nn.Sequential(*layers): 网络的每一层的层结构
