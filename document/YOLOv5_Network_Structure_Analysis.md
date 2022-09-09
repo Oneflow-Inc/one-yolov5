@@ -167,7 +167,7 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 
 [文件地址](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py))
 
-文件主要包含 三大部分 Detect类， Modle类，和 parse_model 函数
+文件主要包含 三大部分 Detect类， Model类，和 parse_model 函数
 
 可以通过 **python models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) --cfg [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)** 运行该脚本进行观察
 
