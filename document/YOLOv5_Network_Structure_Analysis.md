@@ -250,7 +250,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         ch.append(c2)
     return nn.Sequential(*layers), sorted(save) # 将所有的层封装为nn.Sequential
 ```
-### Modle类解读
+### Model类解读
 ```
 class Model(nn.Module):
     # YOLOv5 model
