@@ -130,11 +130,12 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
  n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain 暂且将这段代码当作公式(1)
  ```
  其中gd就是depth_multiple的值，n的值就是backbone中列表的第二个参数：
-根据公示(1)  很容易看出gd影响 n 的大小，从而影响网络的结构大小。
+
+根据公示(1)  很容易看出 gd 影响 n 的大小，从而影响网络的结构大小。
 
 后面各层之间的模块数量、卷积核大小和数量等也都产生了变化，YOLOv5l 与 YOLOv5s 相比较起来训练参数的大小成倍数增长，
 
-其模型的深度和宽度也会大很多，这就使得 YOLOv5l 的学习能力要比 YOLOv5s好很多，因此在最终推理时的检测精度高，但是模型的推理速度更慢。
+其模型的深度和宽度也会大很多，这就使得 YOLOv5l 的 精度要比 YOLOv5s 好很多，因此在最终推理时的检测精度高，但是模型的推理速度更慢。
 
 所以 YOLOv5 提供了不同的选择，如果想要追求推理速度可选用较小一些的模型如 YOLOv5s、YOLOv5m，如果想要追求精度更高对推理速度要求不高的可以选择其他两个稍大的模型。
 
@@ -159,7 +160,7 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 通过export.py导出的onnx格式，并通过 https://netron.app/ 网站导出的图片(模型导出 将在第八章介绍)。
 
 
-2. 模块组件傍边参数 表示图片的的形状，比如 在 0 层 Conv 输入 图片形状 [ 3, 640, 640] ,关于这些参数，可以固定一个Images输入并通过[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)的文件参数计算得到，并且可以在工程 models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 通过代码进行print查看,详细数据可以参考附件表2.1。
+2. 模块组件右边参数 表示图片的的形状，比如 在 第 一 层( Conv )输入 图片形状 [ 3, 640, 640] ,关于这些参数，可以固定一个Images输入并通过[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)的文件参数计算得到，并且可以在工程 models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 通过代码进行print查看,详细数据可以参考附件表2.1。
 
 
 ## [yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 解读

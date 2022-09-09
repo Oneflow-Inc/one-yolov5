@@ -158,7 +158,6 @@ class Model(nn.Module):
 
     def _forward_once(self, x, profile=False, visualize=False):
         y, dt = [], []  # outputs
-        print('len: ',len(self.model))
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
@@ -355,7 +354,7 @@ if __name__ == "__main__":
 
     # Create model
     im = flow.rand(opt.batch_size, 3, 640, 640).to(device)
-    print(im.shape)
+
     model = Model(opt.cfg).to(device)
   
     # Options
