@@ -174,7 +174,7 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 ### parse_model函数解读
 ```
 def parse_model(d, ch):  # model_dict, input_channels(3)
-    """用在上面Model模块中
+    """用在下面Model模块中
     解析模型文件(字典形式)，并搭建网络结构
     这个函数其实主要做的就是: 更新当前层的args（参数）,计算c2（当前层的输出channel） =>
                           使用当前层的参数搭建当前层 =>
