@@ -7,19 +7,20 @@ YOLOv5针对不同大小（n, s, m, l, x）的网络整体架构都是一样的�
 
 还需要注意一点，官方除了n, s, m, l, x版本外还有n6, s6, m6, l6, x6，区别在于后者是针对更大分辨率的图片比如1280x1280,
 
-当然结构上也有些差异，后者会下采样64倍，采用4个预测特征层，而前者只会下采样到32倍且采用3个预测特征层。
+当然结构上也有些差异，前者只会下采样到32倍且采用3个预测特征层 , 而后者会下采样64倍，采用4个预测特征层。
 
-本章将以 yolov5s为例,从 配置文件yolov5s.yaml到modelyolo.py源码进行解读。
+本章将以 yolov5s为例 ，从配置文件 modeles/[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml) 到 models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 源码进行解读。
 
-## yolov5s.yaml文件内容如下:
+## [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)文件内容:
 
 ```
-nc: 80  # number of classes 数据集中的类别数.
+nc: 80  # number of classes 数据集中的类别数
 depth_multiple: 0.33  # model depth multiple  模型层数因子(用来调整网络的深度)
 width_multiple: 0.50  # layer channel multiple 模型通道数因子(用来调整网络的宽度)
 # 如何理解这个depth_multiple和width_multiple呢?它决定的是整个模型中的深度（层数）和宽度（通道数）,具体怎么调整的结合后面的backbone代码解释。
 
-anchors: # 9个anchor，其中P表示特征图的层级，P3/8该层特征图缩放为1/8,是第3层特征
+anchors: # 表示作用于当前特征图的Anchor大小为 xxx
+# 9个anchor，其中P表示特征图的层级，P3/8该层特征图缩放为1/8,是第3层特征
   - [10,13, 16,30, 33,23]  # P3/8， 表示[10,13],[16,30], [33,23]3个anchor
   - [30,61, 62,45, 59,119]  # P4/16
   - [116,90, 156,198, 373,326]  # P5/32
@@ -64,41 +65,79 @@ head:
   ]
 ```
 ## anchors 解读
-yolov5 初始化了 9 个 anchors，在三个 Detect 层使用（3个feature map）中使用，每个 feature map 的每个 grid cell 都有三个 anchor 进行预测。
+yolov5 初始化了 9 个 anchors，分别在三个特征图	（feature map）中使用，每个 feature map 的每个 grid cell 都有三个 anchor 进行预测。
 分配规则：
 
 - 尺度越大的 feature map 越靠前，相对原图的下采样率越小，感受野越小，
-  所以相对可以预测一些尺度比较小的物体，所以分配到的 anchors 越小；
+  所以相对可以预测一些尺度比较小的物体(小目标)，分配到的 anchors 越小。
 
 - 尺度越小的 feature map 越靠后，相对原图的下采样率越大，感受野越大，
-  所以可以预测一些尺度比较大的物体，所以分配到的 anchors 越大。
+  所以可以预测一些尺度比较大的物体(大目标)，所以分配到的 anchors 越大。
 
-- 即在小特征图（feature map）上检测大目标，在大特征图上检测小目标。
+- 即在小特征图（feature map）上检测大目标，中等大小的特征图上检测中等目标， 在大特征图上检测小目标。
 
-## backbone&head解读
+## backbone & head解读
 ###  [from, number, module, args] 参数
 四个参数的意义分别是：
 1. 第一个参数 from ：从哪一层获得输入，-1表示从上一层获得，[-1, 6]表示从上层和第6层两层获得。
 2. 第二个参数 number：表示有几个相同的模块，如果为9则表示有9个相同的模块。
 3. 第三个参数 module：模块的名称，这些模块写在common.py中。
-4. 第四个参数 args：**这个参数就与第一部分的"width_multiple"参数有关了**，上面把width_multiple设置为了0.5，那么第一个 [64, 6, 2, 2] 就会被解析为[3,64*0.5=32,6,2,2]，其中第一3为输入channel(因为输入)，32为输出channel。(具体可以通过第三个参数(module) 在common.py文件中找到对应传入参数。)
+4. 第四个参数 args：类的初始化参数，用于解析作为 moudle 的传入参数。
 
-在yolo.py的256行 有对yaml 文件的nc,depth_multiple等参数读取，具体代码如下:
+下面以第一个模块Conv 为例介绍下common.py中的模块
+
+Conv 模块定义如下: 
+```Python
+class Conv(nn.Module):
+    # Standard convolution
+    def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
+        """
+        @Pargm c1: 输入通道数
+        @Pargm c2: 输出通道数
+        @Pargm k : 卷积核大小(kernel_size)
+        @Pargm s : 卷积步长 (stride)
+        @Pargm p : 特征图填充宽度 (padding)
+        @Pargm g : 控制分组，必须整除输入的通道数(保证输入的通道能被正确分组)
+        """
+        super().__init__()
+        # https://oneflow.readthedocs.io/en/master/generated/oneflow.nn.Conv2d.html?highlight=Conv
+        self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)
+        self.bn = nn.BatchNorm2d(c2)
+        self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+
+    def forward(self, x):
+        return self.act(self.bn(self.conv(x)))
+
+    def forward_fuse(self, x):
+        return self.act(self.conv(x))
+```
+比如上面把width_multiple设置为了0.5，那么第一个 [64, 6, 2, 2] 就会被解析为 [3,64*0.5=32,6,2,2]，其中 第一 3为输入channel(因为输入)，32为输出channel。 
+
+
+
+
+### 关于调整网络大小的详解说明
+
+在[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py)的256行 有对yaml 文件的nc,depth_multiple等参数读取，具体代码如下:
 ```yaml
 anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
 ```
 
-### 关于调整网络大小详解
 "width_multiple"参数的作用前面介绍args参数中已经介绍过了，那么"depth_multiple"又是什么作用呢？
 
-在yolo.py的257行有对参数的具体定义：
+在[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py)的257行有对参数的具体定义：
 ```python
  n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain 暂且将这段代码当作公式(1)
  ```
  其中gd就是depth_multiple的值，n的值就是backbone中列表的第二个参数：
 根据公示(1)  很容易看出gd影响 n 的大小，从而影响网络的结构大小。
 
-后面各层之间的模块数量、卷积核大小和数量等也都产生了变化，YOLOv5l 与 YOLOv5s 相比较起来训练参数的大小成倍数增长，其模型的深度和宽度也会大很多，这就使得 YOLOv5l 的学习能力要比 YOLOv5s好很多，因此在最终推理时的模型也会比 YOLOv5s 大、推理速度慢，但是检测精度高。所以 YOLOv5 提供了不同的选择，如果想要追求推理速度可选用较小一些的模型如 YOLOv5s、YOLOv5m，如果想要追求精度更高对推理速度要求不高的可以选择其他两个稍大的模型。
+后面各层之间的模块数量、卷积核大小和数量等也都产生了变化，YOLOv5l 与 YOLOv5s 相比较起来训练参数的大小成倍数增长，
+
+其模型的深度和宽度也会大很多，这就使得 YOLOv5l 的学习能力要比 YOLOv5s好很多，因此在最终推理时的检测精度高，但是模型的推理速度更慢。
+
+所以 YOLOv5 提供了不同的选择，如果想要追求推理速度可选用较小一些的模型如 YOLOv5s、YOLOv5m，如果想要追求精度更高对推理速度要求不高的可以选择其他两个稍大的模型。
+
 如下面这张图： 
 
 <p align="center">
@@ -106,8 +145,10 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
   <caption> <u>图2.1</u>:yolov5 模型比较图 <br> 来源:https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data </caption>
 </p>
 
+
+### Conv模块解读
 ### 网络结构预览
-下面是根据yolov5s.yaml绘制的网络整体结构简化版。
+下面是根据[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)绘制的网络整体结构简化版。
 
 <p align="center">
   <img src="https://oneflow-static.oss-cn-beijing.aliyuncs.com/one-yolo/imgs/yolovs%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84%E6%A8%A1%E5%9E%8B.drawio.png" >
@@ -118,15 +159,16 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 通过export.py导出的onnx格式，并通过 https://netron.app/ 网站导出的图片(模型导出 将在第八章介绍)。
 
 
-2. 组件傍边参数 表示图片的的形状，比如 在 0 层 Conv 输入 图片形状 [ 3, 640, 640] ,关于这些参数，可以固定一个Images输入并通过yolov5s.yaml的文件参数计算得到，并且可以在工程 models/yolo.py 通过代码进行print查看,详细数据可以参考附件表2.1。
+2. 模块组件傍边参数 表示图片的的形状，比如 在 0 层 Conv 输入 图片形状 [ 3, 640, 640] ,关于这些参数，可以固定一个Images输入并通过[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)的文件参数计算得到，并且可以在工程 models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 通过代码进行print查看,详细数据可以参考附件表2.1。
 
 
-## yolo.py 解读
-[文件地址](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py)
+## [yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 解读
+
+[文件地址](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py))
 
 文件主要包含 三大部分 Detect类， Modle类，和 parse_model 函数
 
-可以通过 **python models/yolo.py --cfg yolov5s.yaml** 运行该脚本进行观察
+可以通过 **python models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) --cfg [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)** 运行该脚本进行观察
 
 ### parse_model函数解读
 ```
@@ -136,7 +178,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
     这个函数其实主要做的就是: 更新当前层的args（参数）,计算c2（当前层的输出channel） =>
                           使用当前层的参数搭建当前层 =>
                           生成 layers + save
-    :params d: model_dict 模型文件 字典形式 {dict:7}  yolov5s.yaml中的6个元素 + ch
+    :params d: model_dict 模型文件 字典形式 {dict:7}  [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)中的6个元素 + ch
     :params ch: 记录模型每一层的输出channel 初始ch=[3] 后面会删除
     :return nn.Sequential(*layers): 网络的每一层的层结构
     :return sorted(save): 把所有层结构中from不是-1的值记下 并排序 [4, 6, 10, 14, 17, 20, 23]
@@ -211,7 +253,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 ```
 class Model(nn.Module):
     # YOLOv5 model
-    def __init__(self, cfg='yolov5s.yaml', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
+    def __init__(self, cfg='[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
         super().__init__()
         if isinstance(cfg, dict): # 如果cfg是字典
             self.yaml = cfg  # model dict
@@ -477,7 +519,7 @@ class Detect(nn.Module):
 ## 附件
 
 <p align="center">
-  <caption> <u>表2.1 </u>: yolov5s.yaml解析表 </caption>
+  <caption> <u>表2.1 </u>: [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)解析表 </caption>
 
 |层数|form |moudule| arguments |  input   |  output  |
 |--- | ---| ---|---| ---|---|
