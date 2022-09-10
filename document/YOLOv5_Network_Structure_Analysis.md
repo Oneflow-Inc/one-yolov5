@@ -287,7 +287,7 @@ class Model(nn.Module):
 
         # Build strides, anchors  确定步长、步长对应的锚框
         m = self.model[-1]  # Detect()
-        if isinstance(m, Detect): # 检验模型的最后一层是detect模块
+        if isinstance(m, Detect): # 检验模型的最后一层是Detect模块
             s = 256  # 2x min stride
             m.inplace = self.inplace
             # 计算三个feature map下采样的倍率  [8, 16, 32]
