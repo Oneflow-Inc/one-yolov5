@@ -15,7 +15,7 @@ import sys
 from copy import deepcopy
 from pathlib import Path
 
-import oneflow
+import oneflow as flow
 import oneflow.nn as nn
 
 from models.common import C3, C3SPP, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C3Ghost, C3x, Concat, Contract, Conv, CrossConv, DWConv, DWConvTranspose2d, Expand, Focus, GhostBottleneck, GhostConv
@@ -49,9 +49,9 @@ class Detect(nn.Module):
         self.no = nc + 5  # number of outputs per anchor
         self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 2  # number of anchors
-        self.grid = [oneflow.zeros(1)] * self.nl  # init grid
-        self.anchor_grid = [oneflow.zeros(1)] * self.nl  # init anchor grid
-        self.register_buffer("anchors", oneflow.tensor(anchors).float().view(self.nl, -1, 2))  # shape(nl,na,2)
+        self.grid = [flow.zeros(1)] * self.nl  # init grid
+        self.anchor_grid = [flow.zeros(1)] * self.nl  # init anchor grid
+        self.register_buffer("anchors", flow.tensor(anchors).float().view(self.nl, -1, 2))  # shape(nl,na,2)
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)  # output conv
         self.inplace = inplace  # use inplace ops (e.g. slice assignment)
 
@@ -74,23 +74,23 @@ class Detect(nn.Module):
                     xy, wh, conf = y.split((2, 2, self.nc + 1), 4)  # y.tensor_split((2, 4, 5), 4)  # oneflow 1.8.0
                     xy = (xy * 2 + self.grid[i]) * self.stride[i]  # xy
                     wh = (wh * 2) ** 2 * self.anchor_grid[i]  # wh
-                    y = oneflow.cat((xy, wh, conf), 4)
+                    y = flow.cat((xy, wh, conf), 4)
                 z.append(y.view(bs, -1, self.no))
 
-        return x if self.training else (oneflow.cat(z, 1),) if self.export else (oneflow.cat(z, 1), x)
+        return x if self.training else (flow.cat(z, 1),) if self.export else (flow.cat(z, 1), x)
 
     def _make_grid(self, nx=20, ny=20, i=0):
 
         d = self.anchors[i].device
         t = self.anchors[i].dtype
         shape = 1, self.na, ny, nx, 2  # grid shape
-        y, x = oneflow.arange(ny, device=d, dtype=t), oneflow.arange(nx, device=d, dtype=t)
-        # if check_version(oneflow.__version__, '1.10.0'):  # torch>=1.10.0 meshgrid workaround for torch>=0.7 compatibility
-        #     yv, xv = oneflow.meshgrid(y, x, indexing='ij')
+        y, x = flow.arange(ny, device=d, dtype=t), flow.arange(nx, device=d, dtype=t)
+        # if check_version(flow.__version__, '1.10.0'):  # torch>=1.10.0 meshgrid workaround for torch>=0.7 compatibility
+        #     yv, xv = flow.meshgrid(y, x, indexing='ij')
         # else:
-        yv, xv = oneflow.meshgrid(y, x, indexing="ij")
+        yv, xv = flow.meshgrid(y, x, indexing="ij")
 
-        grid = oneflow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
+        grid = flow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
         anchor_grid = (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
         return grid, anchor_grid
 
@@ -125,7 +125,7 @@ class Model(nn.Module):
         if isinstance(m, Detect):
             s = 256  # 2x min stride
             m.inplace = self.inplace
-            m.stride = oneflow.tensor([s / x.shape[-2] for x in self.forward(oneflow.zeros(1, ch, s, s))])  # forward
+            m.stride = flow.tensor([s / x.shape[-2] for x in self.forward(flow.zeros(1, ch, s, s))])  # forward
             check_anchor_order(m)  # must be in pixel-space (not grid-space)
             m.anchors /= m.stride.view(-1, 1, 1)
             self.stride = m.stride
@@ -153,7 +153,7 @@ class Model(nn.Module):
             yi = self._descale_pred(yi, fi, si, img_size)
             y.append(yi)
         y = self._clip_augmented(y)  # clip augmented tails
-        return oneflow.cat(y, 1), None  # augmented inference, train
+        return flow.cat(y, 1), None  # augmented inference, train
 
     def _forward_once(self, x, profile=False, visualize=False):
         y, dt = [], []  # outputs
@@ -167,7 +167,7 @@ class Model(nn.Module):
 
             x = m(x)  # run
 
-            # if oneflow.is_tensor(x):
+            # if flow.is_tensor(x):
             #     my_path = '/home/fengwen/np_list/flow'+str(my_name)+'.txt'
             #     my_name = my_name + 1
             #     my_len = len(x.cpu().detach().numpy().flatten().tolist())
@@ -175,7 +175,7 @@ class Model(nn.Module):
             #         np.savetxt(my_path, x.cpu().detach().numpy().flatten()[0:1000000].tolist())
             #     else:
             #         np.savetxt(my_path, x.cpu().detach().numpy().flatten().tolist())
-            #     print(x.dtype) #  oneflow.float32
+            #     print(x.dtype) #  flow.float32
             #     print(str(my_name))
             #     print("=d"*40)
 
@@ -198,7 +198,7 @@ class Model(nn.Module):
                 y = img_size[0] - y  # de-flip ud
             elif flips == 3:
                 x = img_size[1] - x  # de-flip lr
-            p = oneflow.cat((x, y, wh, p[..., 4:]), -1)
+            p = flow.cat((x, y, wh, p[..., 4:]), -1)
         return p
 
     def _clip_augmented(self, y):
@@ -232,8 +232,8 @@ class Model(nn.Module):
         for mi, s in zip(m.m, m.stride):  # from
             b = mi.bias.view(m.na, -1).detach()  # conv.bias(255) to (3,85)
             b[:, 4] = b[:, 4] + math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
-            b[:, 5:] = b[:, 5:] + math.log(0.6 / (m.nc - 0.999999)) if cf is None else oneflow.log(cf / cf.sum())  # cls
-            mi.bias = oneflow.nn.Parameter(b.view(-1), requires_grad=True)
+            b[:, 5:] = b[:, 5:] + math.log(0.6 / (m.nc - 0.999999)) if cf is None else flow.log(cf / cf.sum())  # cls
+            mi.bias = flow.nn.Parameter(b.view(-1), requires_grad=True)
 
     def _print_biases(self):
         m = self.model[-1]  # Detect() module
@@ -356,7 +356,7 @@ if __name__ == "__main__":
     device = select_device(opt.device)
 
     # Create model
-    im = oneflow.rand(opt.batch_size, 3, 640, 640).to(device)
+    im = flow.rand(opt.batch_size, 3, 640, 640).to(device)
     model = Model(opt.cfg).to(device)
 
     # Options

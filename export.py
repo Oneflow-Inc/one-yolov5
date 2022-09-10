@@ -58,7 +58,7 @@ from models.yolo import Detect
 from utils.dataloaders import LoadImages
 from utils.general import LOGGER, check_dataset, check_img_size, check_requirements, check_version, check_yaml, colorstr, file_size, print_args, url2file
 from utils.oneflow_utils import select_device
-from oneflow_onnx.oneflow2onnx.util import convert_to_onnx_and_check
+from oneflow_onnx.oneflow2onnx.util import export_onnx_model
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -88,31 +88,28 @@ def export_formats():
 
 def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
-    try:
+    # try:
         check_requirements(("onnx",))
         import onnx
-
         LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
         f = file.with_suffix(".onnx")
 
         class YOLOGraph(flow.nn.Graph):
-            def __init__(self, eager_model):
+            def __init__(self):
                 super().__init__()
-                self.model = eager_model
+                self.model = model
 
             def build(self, x):
                 return self.model(x)
         
-        yolo_graph = YOLOGraph(model)
+        yolo_graph = YOLOGraph()
         yolo_graph._compile(flow.randn(im.size()))
 
         with tempfile.TemporaryDirectory() as tmpdirname:
             flow.save(model.state_dict(), tmpdirname)
-            convert_to_onnx_and_check(yolo_graph, 
+            export_onnx_model(yolo_graph, 
                             flow_weight_dir=tmpdirname, 
-                            onnx_model_path=f, 
-                            print_outlier=True,
-                            dynamic_batch_size=True)
+                            onnx_model_path=str(f))
 
         # Checks
         model_onnx = onnx.load(f)  # load onnx model
@@ -121,7 +118,7 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
         # Metadata
         d = {"stride": int(max(model.stride)), "names": model.names}
         for k, v in d.items():
-            meta = model_onnx.metadata_props.add()
+            meta = model_onnx.metadata_props.d()
             meta.key, meta.value = k, str(v)
         onnx.save(model_onnx, f)
 
@@ -140,8 +137,8 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
                 LOGGER.info(f"{prefix} simplifier failure: {e}")
         LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
         return f
-    except Exception as e:
-        LOGGER.info(f"{prefix} export failure: {e}")
+    # except Exception as e:
+    #     LOGGER.info(f"{prefix} export failure: {e}")
 
 
 def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):
