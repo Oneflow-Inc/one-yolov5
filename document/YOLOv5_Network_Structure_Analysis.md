@@ -294,7 +294,7 @@ class Model(nn.Module):
             m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s))])  # forward
             # 检查anchor顺序与stride顺序是否一致 anchor的顺序应该是从小到大，这里排一下序
             check_anchor_order(m)  # must be in pixel-space (not grid-space)
-            # 对于的anchor进行缩放操作，原因：得到anchor在实际的特征图中的位置，因为加载的原始anchor大小是相对于原图的像素，但是经过卷积池化之后，图片也就缩放了。
+            # 对于的anchor进行缩放操作，原因：得到anchor在实际的特征图中的位置，因为加载的原始anchor大小是相对于原图的像素，但是经过卷积池化之后，特征图的长宽变小了。
             m.anchors /= m.stride.view(-1, 1, 1)
             self.stride = m.stride
             self._initialize_biases() # only run once  初始化偏置 
