@@ -263,7 +263,7 @@ class Model(nn.Module):
         if isinstance(cfg, dict): 
             self.yaml = cfg  # model dict
         else:  # is *.yaml  加载yaml模块
-            import yaml  # for torch hub 
+            import yaml  # for flow hub 
             self.yaml_file = Path(cfg).name
             with open(cfg, encoding='ascii', errors='ignore') as f:
                 self.yaml = yaml.safe_load(f)  # model dict  从yaml文件中加载出字典
@@ -282,7 +282,7 @@ class Model(nn.Module):
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names 初始化类名列表，默认为[0,1,2...]
         
-        # self.inplace=True  默认True  不使用加速推理
+        # self.inplace=True  默认True  节省内存
         self.inplace = self.yaml.get('inplace', True)
 
         # Build strides, anchors  确定步长、步长对应的锚框
@@ -291,7 +291,7 @@ class Model(nn.Module):
             s = 256  # 2x min stride
             m.inplace = self.inplace
             # 计算三个feature map下采样的倍率  [8, 16, 32]
-            m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s))])  # forward
+            m.stride = flow.tensor([s / x.shape[-2] for x in self.forward(flow.zeros(1, ch, s, s))])  # forward
             # 检查anchor顺序与stride顺序是否一致 anchor的顺序应该是从小到大，这里排一下序
             check_anchor_order(m)  # must be in pixel-space (not grid-space)
             # 对于的anchor进行缩放操作，原因：得到anchor在实际的特征图中的位置，因为加载的原始anchor大小是相对于原图的像素，但是经过卷积池化之后，特征图的长宽变小了。
@@ -300,7 +300,7 @@ class Model(nn.Module):
             self._initialize_biases() # only run once  初始化偏置 
 
         # Init weights, biases
-        # 调用torch_utils.py下initialize_weights初始化模型权重
+        # 调用oneflow_utils.py下initialize_weights初始化模型权重
         initialize_weights(self)
         self.info() # 打印模型信息
         LOGGER.info('')
@@ -322,7 +322,7 @@ class Model(nn.Module):
             yi = self._descale_pred(yi, fi, si, img_size)
             y.append(yi)
         y = self._clip_augmented(y)  # clip augmented tails
-        return torch.cat(y, 1), None  # augmented inference, train
+        return flow.cat(y, 1), None  # augmented inference, train
 
     def _forward_once(self, x, profile=False, visualize=False):
         """
@@ -367,7 +367,7 @@ class Model(nn.Module):
                 y = img_size[0] - y  # de-flip ud
             elif flips == 3:
                 x = img_size[1] - x  # de-flip lr
-            p = torch.cat((x, y, wh, p[..., 4:]), -1)
+            p = flow.cat((x, y, wh, p[..., 4:]), -1)
         return p
     
     def _clip_augmented(self, y):
@@ -396,13 +396,13 @@ class Model(nn.Module):
     # initialize biases into Detect(), cf is class frequency
     def _initialize_biases(self, cf=None): 
         # https://arxiv.org/abs/1708.02002 section 3.3
-        # cf = torch.bincount(torch.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1.
+        # cf = flow.bincount(flow.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1.
         m = self.model[-1]  # Detect() module
         for mi, s in zip(m.m, m.stride):  # from
             b = mi.bias.view(m.na, -1).detach()  # conv.bias(255) to (3,85)
             b[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
-            b[:, 5:] += math.log(0.6 / (m.nc - 0.999999)) if cf is None else torch.log(cf / cf.sum())  # cls
-            mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
+            b[:, 5:] += math.log(0.6 / (m.nc - 0.999999)) if cf is None else flow.log(cf / cf.sum())  # cls
+            mi.bias = flow.nn.Parameter(b.view(-1), requires_grad=True)
     #  打印模型中最后Detect层的偏置biases信息(也可以任选哪些层biases信息)
     def _print_biases(self):
         """
@@ -426,7 +426,7 @@ class Model(nn.Module):
     def fuse(self):  # fuse model Conv2d() + BatchNorm2d() layers
         """用在detect.py、val.py
         fuse model Conv2d() + BatchNorm2d() layers
-        调用torch_utils.py中的fuse_conv_and_bn函数和common.py中Conv模块的fuseforward函数
+        调用oneflow_utils.py中的fuse_conv_and_bn函数和common.py中Conv模块的fuseforward函数
         """
         LOGGER.info('Fusing layers... ')
         for m in self.model.modules():
@@ -474,10 +474,10 @@ class Detect(nn.Module):
         #  na:anchors的数量，此次为3
         self.na = len(anchors[0]) // 2  # number of anchors
         #  grid:格子坐标系，左上角为(1,1),右下角为(input.w/stride,input.h/stride)
-        self.grid = [torch.zeros(1)] * self.nl  # init grid
-        self.anchor_grid = [torch.zeros(1)] * self.nl  # init anchor grid
+        self.grid = [flow.zeros(1)] * self.nl  # init grid
+        self.anchor_grid = [flow.zeros(1)] * self.nl  # init anchor grid
         # 写入缓存中，并命名为anchors
-        self.register_buffer('anchors', torch.tensor(anchors).float().view(self.nl, -1, 2))  # shape(nl,na,2)
+        self.register_buffer('anchors', flow.tensor(anchors).float().view(self.nl, -1, 2))  # shape(nl,na,2)
         # 将输出通过卷积到 self.no * self.na 的通道，达到全连接的作用
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)  # output conv
         self.inplace = inplace  # use inplace ops (e.g. slice assignment)
@@ -498,25 +498,23 @@ class Detect(nn.Module):
                     y[..., 0:2] = (y[..., 0:2] * 2 + self.grid[i]) * self.stride[i]  # xy
                     y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
                 else:  # for YOLOv5 on AWS Inferentia https://github.com/ultralytics/yolov5/pull/2953
-                    xy, wh, conf = y.split((2, 2, self.nc + 1), 4)  # y.tensor_split((2, 4, 5), 4)  # torch 1.8.0
+                    xy, wh, conf = y.split((2, 2, self.nc + 1), 4)  # y.tensor_split((2, 4, 5), 4)  
                     xy = (xy * 2 + self.grid[i]) * self.stride[i]  # xy
                     wh = (wh * 2) ** 2 * self.anchor_grid[i]  # wh
-                    y = torch.cat((xy, wh, conf), 4)
+                    y = flow.cat((xy, wh, conf), 4)
                 z.append(y.view(bs, -1, self.no))
 
-        return x if self.training else (torch.cat(z, 1),) if self.export else (torch.cat(z, 1), x)
+        return x if self.training else (flow.cat(z, 1),) if self.export else (flow.cat(z, 1), x)
     
     # 相对坐标转换到grid绝对坐标系
     def _make_grid(self, nx=20, ny=20, i=0):
         d = self.anchors[i].device
         t = self.anchors[i].dtype
         shape = 1, self.na, ny, nx, 2  # grid shape
-        y, x = torch.arange(ny, device=d, dtype=t), torch.arange(nx, device=d, dtype=t)
-        if check_version(torch.__version__, '1.10.0'):  # torch>=1.10.0 meshgrid workaround for torch>=0.7 compatibility
-            yv, xv = torch.meshgrid(y, x, indexing='ij')
-        else:
-            yv, xv = torch.meshgrid(y, x)
-        grid = torch.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
+        y, x = flow.arange(ny, device=d, dtype=t), flow.arange(nx, device=d, dtype=t)
+       
+        yv, xv = flow.meshgrid(y, x, indexing="ij")
+        grid = flow.stack((xv, yv), 2).expand(shape) - 0.5  # add grid offset, i.e. y = 2.0 * x - 0.5
         anchor_grid = (self.anchors[i] * self.stride[i]).view((1, self.na, 1, 1, 2)).expand(shape)
         return grid, anchor_grid
 ```
