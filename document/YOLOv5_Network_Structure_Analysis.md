@@ -278,7 +278,7 @@ class Model(nn.Module):
         if anchors: # anchors  先验框的配置
             LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
-        # 得到模型，以及对应的包存的特征图列表。    
+        # 得到模型，以及对应的保存的特征图列表。    
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names 初始化类名列表，默认为[0,1,2...]
         
