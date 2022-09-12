@@ -330,7 +330,7 @@ class Model(nn.Module):
         @params profile: True 可以做一些性能评估
         @params feature_vis: True 可以做一些特征可视化
         """
-        # y: 存放着self.save=True的每一层的输出，因为后面的层结构concat等操作要用到
+        # y: 存放着self.save=True的每一层的输出，因为后面的特征融合操作要用到这些特征图
         y, dt = [], []  # outputs
         # 前向推理每一层结构   m.i=index   m.f=from   m.type=类名   m.np=number of params
         for m in self.model:
