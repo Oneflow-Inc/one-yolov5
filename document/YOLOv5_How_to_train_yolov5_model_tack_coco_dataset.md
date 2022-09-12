@@ -76,7 +76,11 @@ labelimg
 
 即可打开运行：
 
-![imgs](data/images/labelimg.png)
+
+<p align="center">
+  <img src="https://github.com/Oneflow-Inc/one-yolov5/blob/how-to-prepare-yolov5-model-training-data/data/images/labelimg.png">
+</p>
+
 
 
 
