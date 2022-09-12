@@ -44,8 +44,10 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
 - 框坐标必须采用标准化xywh格式（从0到1）。如果框以像素为单位，则将x_center和width除以图像宽度，将y_centre和height除以图像高度。
 - 类号为零索引的编号（从0开始计数）。
 
-![imgs](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f5106cf39a3f44fe997d488b67d5da83~tplv-k3u1fbpfcp-zoom-1.image)
 
+<p align="center">
+  <img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f5106cf39a3f44fe997d488b67d5da83~tplv-k3u1fbpfcp-zoom-1.image">
+</p>
 与上述图像相对应的标签文件包含2个人（class 0）和 一个领带（class 27）：
 
 
@@ -102,3 +104,8 @@ labelimg
   <img src="https://user-images.githubusercontent.com/26833433/109398377-82b0ac00-78f1-11eb-9c76-cc7820669d0d.png">
   </a>
 </p>
+
+
+## 参考文章
+https://github.com/ultralytics/yolov5/wiki/Tips-for-Best-Training-Results
+https://docs.ultralytics.com/tutorials/train-custom-datasets/#weights-biases-logging-new
