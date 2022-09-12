@@ -107,5 +107,5 @@ labelimg
 
 
 ## 参考文章
-https://github.com/ultralytics/yolov5/wiki/Tips-for-Best-Training-Results
-https://docs.ultralytics.com/tutorials/train-custom-datasets/#weights-biases-logging-new
+- https://github.com/ultralytics/yolov5/wiki/Tips-for-Best-Training-Results
+- https://docs.ultralytics.com/tutorials/train-custom-datasets/#weights-biases-logging-new
