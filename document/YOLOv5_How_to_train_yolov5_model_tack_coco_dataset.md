@@ -46,7 +46,7 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
 
 
 <p align="center">
-  <img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f5106cf39a3f44fe997d488b67d5da83~tplv-k3u1fbpfcp-zoom-1.image">
+  <img src="https://user-images.githubusercontent.com/26833433/91506361-c7965000-e886-11ea-8291-c72b98c25eec.jpg">
 </p>
 与上述图像相对应的标签文件包含2个人（class 0）和 一个领带（class 27）：
 
