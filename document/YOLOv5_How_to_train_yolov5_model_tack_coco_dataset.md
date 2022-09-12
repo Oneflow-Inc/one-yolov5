@@ -1,42 +1,7 @@
 # 三 如何准备yolov5模型训练数据(以coco数据集和自定义数据集为例)
+## 前言
+本章主要以介绍 训练在自定义数据集，到如何进行数据集制作能获得更好的训练结果进行概述。
 
-# Custom Training with YOLOv5
-
-在本教程中，我们组装了一个数据集，并训练了一个自定义的YOLOv5模型来识别数据集中的对象。为此，我们将采取以下步骤：
-
-* Gather a dataset of images and label our dataset
-* Export our dataset to YOLOv5
-* Train YOLOv5 to recognize the objects in our dataset
-* Evaluate our YOLOv5 model's performance
-* Run test inference to view our model at work
-
-
-
-![](https://uploads-ssl.webflow.com/5f6bc60e665f54545a1e52a5/615627e5824c9c6195abfda9_computer-vision-cycle.png)
-
-
-## coco数据集介绍
-- 目录结构
-- 一些细节
-                                                                                                                                                                                                                                                                                       
-## 参考文章
-- https://blog.roboflow.com/train-yolov5-classification-custom-data/#prepare-a-custom-dataset-for-classification
-- https://colab.research.google.com/github/roboflow-ai/yolov5-custom-training-tutorial/blob/main/yolov5-custom-training.ipynb#scrollTo=hrsaDfdVHzxt
-
-
-
-# 训练自定义数据 📌
-📚 本指南介绍如何使用YOLOv5训练您自己的自定义数据集 🚀.
-
-# 开始之前
-
-克隆此仓库，下载教程数据集， 和安装 [requirements](https://github.com/ultralytics/yolov5/blob/master/requirements.txt) 依赖,包括 **Python>=3.8 and PyTorch>=1.7** 
-
-```shell
-$ git clone https://github.com/ultralytics/yolov5  # clone repo
-$ cd yolov5
-$ pip install -r requirements.txt  # install
-```
 # 训练在自定义数据集
 ## 1.创建dataset.yaml
 COCO128是官方给的一个小的数据集 由[COCO](https://cocodataset.org/#home)数据集前128张图片组成。
@@ -71,7 +36,7 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
 
    ```
 ## 2.创建 Labels
-使用工具比如 [CVAT](https://github.com/opencv/cvat) , [makesense.ai](https://www.makesense.ai/), [Labelbox](https://labelbox.com/) 去做标签在你自己的图片上，将标签导出为YOLO格式，带一个*.txt 的图像文件 （如果图像中没有对象，则不需要*.txt文件）。
+使用工具例如 [CVAT](https://github.com/opencv/cvat) , [makesense.ai](https://www.makesense.ai/), [Labelbox](https://labelbox.com/) ，labelimg(在本章如何制作数据集中介绍labelimg工具使用) 等，去做标签在你自己的图片上，将标签导出为YOLO格式，带一个*.txt 的图像文件 （如果图像中没有对象，则不需要*.txt文件）。
 
 *.txt文件规范如下所示:
 - 每一行 一个对象。
@@ -79,12 +44,12 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
 - 框坐标必须采用标准化xywh格式（从0到1）。如果框以像素为单位，则将x_center和width除以图像宽度，将y_centre和height除以图像高度。
 - 类号为零索引的编号（从0开始计数）。
 
-![imgs](https://user-images.githubusercontent.com/26833433/91506361-c7965000-e886-11ea-8291-c72b98c25eec.jpg)
+![imgs](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f5106cf39a3f44fe997d488b67d5da83~tplv-k3u1fbpfcp-zoom-1.image)
 
 与上述图像相对应的标签文件包含2个人（class 0）和 一个领带（class 27）：
 
 
-![imgs](https://user-images.githubusercontent.com/26833433/112467037-d2568c00-8d66-11eb-8796-55402ac0d62f.png)
+![imgs](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/270bc6d3bb0b406fa12f4a83a763819b~tplv-k3u1fbpfcp-zoom-1.image)
 
 ## 3.目录结构
 
@@ -93,56 +58,43 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
 dataset/images/im0.jpg  # image
 dataset/labels/im0.txt  # label
 ```
-![imgs](https://user-images.githubusercontent.com/26833433/112467887-e18a0980-8d67-11eb-93af-6505620ff8aa.png)
+![imgs](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cf60a753e49b4982a212f0e28b727df9~tplv-k3u1fbpfcp-zoom-1.image)
 
-4.选择模型
 
-选择要开始训练的预训练模型。在这里，我们选择了[YOLOv5s](https://github.com/ultralytics/yolov5/blob/master/models/yolov5s.yaml)，这是可用的最小和最快的型号。有关所有模型的完整比较，具体请参阅[所以模型的比较表](https://github.com/ultralytics/yolov5#pretrained-checkpoints)。
+# 制作数据集
 
-![img](https://github.com/ultralytics/yolov5/releases/download/v1.0/model_comparison.png)
+## 数据集标注工具
+这里主要介绍 labelimg: 是一种矩形标注工具，常用于目标识别和目标检测,可直接生成yolo读取的txt标签格式，但其只能进行矩形框标注。(当然也可以选用其它的工具进行标注并且网上都有大量关于标注工具的教程。)
 
-## 5. Train
-在COCO128上训练YOLOv5s模型 通过指定数据集、批量大小、图像大小和预训练的 **--weights yolov5s.pt** (推荐),或随机初始化 **--weights  ' ' --cfg yolov5s.yaml** （不推荐）。预训练重量自动从[最新的YOLOv5版本下载](https://github.com/ultralytics/yolov5/releases)。
-
-```python
-# Train YOLOv5s on COCO128 for 5 epochs 
-$ python train.py --img 640 --batch 16 --epochs 5 --data coco128.yaml --weights yolov5s.pt
+首先labelimg的安装十分简单，直接使用cmd中的pip进行安装，在cmd中输入命令行：
+```python3
+pip install labelimg
 ```
+安装后直接输入命令：
+
+labelimg
+
+即可打开运行：
+
+![imgs](data/images/labelimg.png)
 
 
-所有训练结果都保存到 **runs/train/** 中，并带有递增的运行目录，即 **runs/train/exp2** 、**runs/train/exp3** 等。有关更多详细信息，请参阅我们的Google Colab笔记本的培训部分。[在Colab开放](https://colab.research.google.com/github/ultralytics/yolov5/blob/master/tutorial.ipynb)，[在Kaggle开放](https://colab.research.google.com/github/roboflow-ai/yolov5-custom-training-tutorial/blob/main/yolov5-custom-training.ipynb#scrollTo=ZbUn4_b9GCKO)
 
-# 可视化(Visualize)
-## Weights & Biases Logging (🚀 NEW)
-Weights & Biases (W&B)现在与YOLOv5集成，用于实时可视化和训练运行的云记录。这允许更好的运行比较和内省，以及提高团队成员之间的可见性和协作。要启用W&B日志记录，请i**nstall wandb**，然后正常培训（第一次使用时将引导您进行设置）。
-```Python
-$ pip install wandb
-```
-在训练期间，您将在网页位置看到实时运行结果：https://wandb.ai，您可以使用 [W&B报告工具](https://wandb.ai/glenn-jocher/yolov5_tutorial/reports/YOLOv5-COCO128-Tutorial-Results--VmlldzozMDI5OTY) 创建结果的详细报告。
-
-![img](https://user-images.githubusercontent.com/26833433/112469341-a8eb2f80-8d69-11eb-959a-dd85d3997bcf.jpg)
-
-## 本地日志(Local Logging)
-
-默认情况下，所有结果都记录为runs/train，并为每个新训练创建一个新的训练结果目录，如runs/train/exp2、runs/train/exp3等。查看训练和测试JPG以查看 mosaics, labels, predictions and augmentation 效果。
-注意：Mosaic Dataloader 用于训练（如下所示），这是Ultralytics发表的新概念，首次出现在[YOLOv4](https://arxiv.org/abs/2004.10934)中。
-
-**train_batch0.jpg** 显示 batch 为 0 的 (mosaics and labels):
-
-![img](https://user-images.githubusercontent.com/26833433/83667642-90fcb200-a583-11ea-8fa3-338bbf7da194.jpeg)
+## 一个好的数据集
+- 每个类的图像。 >= 1500 张图片。
+- 每个类的实例。≥ 建议每个类10000个实例（标记对象）
+- 图片形象多样。必须代表已部署的环境。对于现实世界的使用案例，我们推荐来自一天中不同时间、不同季节、不同天气、不同照明、不同角度、不同来源（在线采集、本地采集、不同摄像机）等的图像。
+- 标签一致性。必须标记所有图像中所有类的所有实例。部分标记将不起作用。
+- 标签准确性。
+- 标签必须紧密地包围每个对象。对象与其边界框之间不应存在任何空间。任何对象都不应缺少标签。
+- 标签验证。查看train_batch*.jpg 在 训练开始验证标签是否正确，即参见 mosaic。
+- 背景图像。背景图像是没有添加到数据集以减少 False Positives（FP）的对象的图像。我们建议使用大约0-10%的背景图像来帮助减少FPs（COCO有1000个背景图像供参考，占总数的1%）。背景图像不需要标签。
 
 
-test_batch0_labels.jpg 展示测试 batch 为 0 labels:
-
-![img](https://user-images.githubusercontent.com/26833433/83667626-8c37fe00-a583-11ea-997b-0923fe59b29b.jpeg)
-
-test_batch0_pred.jpg 展示测试 batch 为 0 predictions(预测):
-![img](https://user-images.githubusercontent.com/26833433/83667635-90641b80-a583-11ea-8075-606316cebb9c.jpeg)
 
 
-训练训损失和性能指标也记录到Tensorboard和自定义结果中**results.txt日志文件**，训练训完成后作为结果绘制 results.png如下。在这里，我们展示了在COCO128上训练的YOLOV5
-- 从零开始训练 (蓝色)。
-- 加载预训练权重 --weights yolov5s.pt (橙色)。
-
-![img](https://user-images.githubusercontent.com/26833433/97808309-8182b180-1c66-11eb-8461-bffe1a79511d.png)
-
+<p align="center">
+  <a href= "https://arxiv.org/abs/1405.0312">
+  <img src="https://user-images.githubusercontent.com/26833433/109398377-82b0ac00-78f1-11eb-9c76-cc7820669d0d.png">
+  </a>
+</p>
