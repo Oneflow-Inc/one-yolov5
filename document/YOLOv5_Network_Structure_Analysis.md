@@ -304,12 +304,12 @@ class Model(nn.Module):
         initialize_weights(self)
         self.info() # 打印模型信息
         LOGGER.info('')
-
+    # 管理前向传播函数
     def forward(self, x, augment=False, profile=False, visualize=False):
         if augment:# 是否在测试时也使用数据增强  Test Time Augmentation(TTA)
             return self._forward_augment(x)  # augmented inference, None
         return self._forward_once(x, profile, visualize)  # single-scale inference, train
-
+    # 带数据增强的前向传播
     def _forward_augment(self, x):
         img_size = x.shape[-2:]  # height, width
         s = [1, 0.83, 0.67]  # scales
@@ -323,7 +323,7 @@ class Model(nn.Module):
             y.append(yi)
         y = self._clip_augmented(y)  # clip augmented tails
         return flow.cat(y, 1), None  # augmented inference, train
-
+    # 前向传播
     def _forward_once(self, x, profile=False, visualize=False):
         """
         @params x: 输入图像
