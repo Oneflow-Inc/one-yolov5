@@ -152,7 +152,7 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 下面是根据[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)绘制的网络整体结构简化版。
 
 <p align="center">
-  <img src="https://oneflow-static.oss-cn-beijing.aliyuncs.com/one-yolo/imgs/yolovs%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84%E6%A8%A1%E5%9E%8B.drawio.png" >
+  <img src="https://github.com/Oneflow-Inc/one-yolov5/tree/main/data/images/yolovs%E7%BD%91%E7%BB%9C%E7%BB%93%E6%9E%84%E6%A8%A1%E5%9E%8B.drawio.png" >
   <caption> <u>图2.2</u>:yolov5s 网络整体结构 <br> </caption>
 </p>
 
@@ -172,17 +172,17 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 可以通过 **python models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) --cfg [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)** 运行该脚本进行观察
 
 ### parse_model函数解读
-```
+```python
 def parse_model(d, ch):  # model_dict, input_channels(3)
-    """用在上面Model模块中
+    """用在下面Model模块中
     解析模型文件(字典形式)，并搭建网络结构
     这个函数其实主要做的就是: 更新当前层的args（参数）,计算c2（当前层的输出channel） =>
                           使用当前层的参数搭建当前层 =>
                           生成 layers + save
-    :params d: model_dict 模型文件 字典形式 {dict:7}  [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)中的6个元素 + ch
-    :params ch: 记录模型每一层的输出channel 初始ch=[3] 后面会删除
-    :return nn.Sequential(*layers): 网络的每一层的层结构
-    :return sorted(save): 把所有层结构中from不是-1的值记下 并排序 [4, 6, 10, 14, 17, 20, 23]
+    @Params d: model_dict 模型文件 字典形式 {dict:7}  [yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)中的6个元素 + ch
+    #Params ch: 记录模型每一层的输出channel 初始ch=[3] 后面会删除
+    @return nn.Sequential(*layers): 网络的每一层的层结构
+    @return sorted(save): 把所有层结构中from不是-1的值记下 并排序 [4, 6, 10, 14, 17, 20, 23]
     """
     LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
     # 读取d字典中的anchors和parameters(nc、depth_multiple、width_multiple)
@@ -202,23 +202,25 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             # args是一个列表，这一步把列表中的内容取出来
             with contextlib.suppress(NameError):
                 args[j] = eval(a) if isinstance(a, str) else a  # eval strings
-
-        n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain
+        
         # 将深度与深度因子相乘，计算层深度。深度最小为1. 
+        n = n_ = max(round(n * gd), 1) if n > 1 else n  # depth gain
+        
+        # 如果当前的模块m在本项目定义的模块类型中，就可以处理这个模块
         if m in (Conv, GhostConv, Bottleneck, GhostBottleneck, SPP, SPPF, DWConv, MixConv2d, Focus, CrossConv,
                  BottleneckCSP, C3, C3TR, C3SPP, C3Ghost, nn.ConvTranspose2d, DWConvTranspose2d, C3x):
-                 # 假如module名字正确，则开始加载
-            c1, c2 = ch[f], args[0]
             # c1: 输入通道数 c2：输出通道数
+            c1, c2 = ch[f], args[0] 
+            # 该层不是最后一层，则将通道数乘以宽度因子 也就是说，宽度因子作用于除了最后一层之外的所有层
             if c2 != no:  # if not output
-                # 该层不是最后一层，则将通道数乘以宽度因子 也就是说，宽度因子作用于除了最后一层之外的所有层
+                # make_divisible的作用，使得原始的通道数乘以宽度因子之后取整到8的倍数，这样处理一般是让模型的并行性和推理性能更好。
                 c2 = make_divisible(c2 * gw, 8)
 
-            args = [c1, c2, *args[1:]] 
             # 将前面的运算结果保存在args中，它也就是最终的方法参数。
-        
-            if m in [BottleneckCSP, C3, C3TR, C3Ghost, C3x]:# 根据每层网络参数的不同，分别处理参数
-                #具体各个类的参数是什么请参考它们的__init__方法,这里不再详细解释了
+            args = [c1, c2, *args[1:]] 
+            # 根据每层网络参数的不同，分别处理参数 具体各个类的参数是什么请参考它们的__init__方法这里不再详细解释了
+            if m in [BottleneckCSP, C3, C3TR, C3Ghost, C3x]:
+                # 这里的意思就是重复n次，比如conv这个模块重复n次，这个n 是上面算出来的 depth 
                 args.insert(2, n)  # number of repeats
                 n = 1
         elif m is nn.BatchNorm2d:
@@ -235,28 +237,30 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c2 = ch[f] // args[0] ** 2
         else:
             c2 = ch[f]
-        
+        # 构建整个网络模块 这里就是根据模块的重复次数n以及模块本身和它的参数来构建这个模块和参数对应的网络
         m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
-        # 构建整个网络模块
+        # 获取模块具体名例如 models.common.Conv , models.common.C3 , models.common.SPPF 等。
         t = str(m)[8:-2].replace('__main__.', '')  # module type
         np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
         LOGGER.info(f'{i:>3}{str(f):>18}{n_:>3}{np:10.0f}  {t:<40}{str(args):<30}')  # print
-        save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         #如果x不是-1，则将其保存在save列表中，表示该层需要保存特征图
+        save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0: # 如果是初次迭代，则新创建一个ch（因为形参ch在创建第一个网络模块时需要用到，所以创建网络模块之后再初始化ch）
             ch = []
         ch.append(c2)
-    return nn.Sequential(*layers), sorted(save) # 将所有的层封装为nn.Sequential
+    # 将所有的层封装为nn.Sequential , 对保存的特征图排序
+    return nn.Sequential(*layers), sorted(save) 
 ```
 ### Modle类解读
-```
+```python
 class Model(nn.Module):
     # YOLOv5 model
     def __init__(self, cfg='[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
         super().__init__()
-        if isinstance(cfg, dict): # 如果cfg是字典
+        # 如果cfg已经是字典，则直接赋值，否则先加载cfg路径的文件为字典并赋值给模型。
+        if isinstance(cfg, dict): 
             self.yaml = cfg  # model dict
         else:  # is *.yaml  加载yaml模块
             import yaml  # for torch hub 
@@ -265,41 +269,40 @@ class Model(nn.Module):
                 self.yaml = yaml.safe_load(f)  # model dict  从yaml文件中加载出字典
 
         # Define model
-        ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
         # ch: 输入通道数。 假如self.yaml有键‘ch’，则将该键对应的值赋给内部变量ch。假如没有‘ch’，则将形参ch赋给内部变量ch
+        ch = self.yaml['ch'] = self.yaml.get('ch', ch)  # input channels
+        # 假如yaml中的nc和方法形参中的nc不一致，则覆盖yaml中的nc。
         if nc and nc != self.yaml['nc']:
-            # 假如yaml中的nc和方法形参中的nc不一致，则覆盖yaml中的nc。
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
         if anchors: # anchors  先验框的配置
             LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
+        # 得到模型，以及对应的包存的特征图列表。    
         self.model, self.save = parse_model(deepcopy(self.yaml), ch=[ch])  # model, savelist
-        # 得到模型，以及对应的特征图保存标签。
         self.names = [str(i) for i in range(self.yaml['nc'])]  # default names 初始化类名列表，默认为[0,1,2...]
-        self.inplace = self.yaml.get('inplace', True)
+        
         # self.inplace=True  默认True  不使用加速推理
+        self.inplace = self.yaml.get('inplace', True)
 
-        # Build strides, anchors     确定步长、步长对应的锚框
+        # Build strides, anchors  确定步长、步长对应的锚框
         m = self.model[-1]  # Detect()
-        if isinstance(m, Detect): # 模型的最后一层是detect模块
+        if isinstance(m, Detect): # 检验模型的最后一层是detect模块
             s = 256  # 2x min stride
             m.inplace = self.inplace
             # 计算三个feature map下采样的倍率  [8, 16, 32]
             m.stride = torch.tensor([s / x.shape[-2] for x in self.forward(torch.zeros(1, ch, s, s))])  # forward
             # 检查anchor顺序与stride顺序是否一致 anchor的顺序应该是从小到大，这里排一下序
             check_anchor_order(m)  # must be in pixel-space (not grid-space)
+            # 对于的anchor进行缩放操作，原因：得到anchor在实际的特征图中的位置，因为加载的原始anchor大小是相对于原图的像素，但是经过卷积池化之后，图片也就缩放了。
             m.anchors /= m.stride.view(-1, 1, 1)
-            # 得到anchor在实际的特征图中的位置
-            # 因为加载的原始anchor大小是相对于原图的像素，但是经过卷积池化之后，图片也就缩放了
-            # 对于的anchor也需要缩放操作
             self.stride = m.stride
-            self._initialize_biases()  # only run once  初始化偏置
+            self._initialize_biases() # only run once  初始化偏置 
 
         # Init weights, biases
         # 调用torch_utils.py下initialize_weights初始化模型权重
         initialize_weights(self)
-        self.info()
+        self.info() # 打印模型信息
         LOGGER.info('')
 
     def forward(self, x, augment=False, profile=False, visualize=False):
@@ -329,8 +332,8 @@ class Model(nn.Module):
         """
         # y: 存放着self.save=True的每一层的输出，因为后面的层结构concat等操作要用到
         y, dt = [], []  # outputs
+        # 前向推理每一层结构   m.i=index   m.f=from   m.type=类名   m.np=number of params
         for m in self.model:
-            # 前向推理每一层结构   m.i=index   m.f=from   m.type=类名   m.np=number of params
             # if not from previous layer   m.f=当前层的输入来自哪一层的输出  s的m.f都是-1
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
@@ -341,7 +344,7 @@ class Model(nn.Module):
             if visualize:
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
         return x
-
+    # 将推理结果恢复到原图图片尺寸(逆操作)
     def _descale_pred(self, p, flips, scale, img_size):
         # de-scale predictions following augmented inference (inverse operation)
         """用在上面的__init__函数上
@@ -366,7 +369,7 @@ class Model(nn.Module):
                 x = img_size[1] - x  # de-flip lr
             p = torch.cat((x, y, wh, p[..., 4:]), -1)
         return p
-
+    
     def _clip_augmented(self, y):
         # Clip YOLOv5 augmented inference tails
         nl = self.model[-1].nl  # number of detection layers (P3-P5)
@@ -390,8 +393,8 @@ class Model(nn.Module):
         LOGGER.info(f'{dt[-1]:10.2f} {o:10.2f} {m.np:10.0f}  {m.type}')
         if c:
             LOGGER.info(f"{sum(dt):10.2f} {'-':>10s} {'-':>10s}  Total")
-
-    def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
+    # initialize biases into Detect(), cf is class frequency
+    def _initialize_biases(self, cf=None): 
         # https://arxiv.org/abs/1708.02002 section 3.3
         # cf = torch.bincount(torch.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1.
         m = self.model[-1]  # Detect() module
@@ -400,10 +403,10 @@ class Model(nn.Module):
             b[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
             b[:, 5:] += math.log(0.6 / (m.nc - 0.999999)) if cf is None else torch.log(cf / cf.sum())  # cls
             mi.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
-
+    #  打印模型中最后Detect层的偏置biases信息(也可以任选哪些层biases信息)
     def _print_biases(self):
         """
-        打印模型中最后Detect层的偏置bias信息(也可以任选哪些层bias信息)
+        打印模型中最后Detect层的偏置biases信息(也可以任选哪些层biases信息)
         """
         m = self.model[-1]  # Detect() module
         for mi in m.m:  # from
@@ -434,7 +437,7 @@ class Model(nn.Module):
                 m.forward = m.forward_fuse  # update forward 更新前向传播 update forward (反向传播不用管, 因为这种推理只用在推理阶段)
         self.info()  # 打印conv+bn融合后的模型信息
         return self
-
+    # 打印模型结构信息 在当前类__init__函数结尾处有调用
     def info(self, verbose=False, img_size=640):  # print model information
         model_info(self, verbose, img_size)
 
@@ -451,7 +454,7 @@ class Model(nn.Module):
 ```
 
 ###  Detect类解读
-```
+```python
 class Detect(nn.Module):
     """
     Detect模块是用来构建Detect层的，将输入feature map 通过一个卷积操作和公式计算到我们想要的shape, 为后面的计算损失或者NMS作准备
