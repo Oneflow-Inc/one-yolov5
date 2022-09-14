@@ -18,25 +18,24 @@ from pathlib import Path
 import oneflow as flow
 import oneflow.nn as nn
 
+try:
+    import thop  # for FLOPs computation
+except ImportError:
+    thop = None
+
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 if platform.system() != "Windows":
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
-    
+
 from models.common import C3, C3SPP, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C3Ghost, C3x, Concat, Contract, Conv, CrossConv, DWConv, DWConvTranspose2d, Expand, Focus, GhostBottleneck, GhostConv
 from models.experimental import MixConv2d
 from utils.autoanchor import check_anchor_order
 from utils.general import LOGGER, check_yaml, make_divisible, print_args
 from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
 from utils.plots import feature_visualization
-
-try:
-    import thop  # for FLOPs computation
-except ImportError:
-    thop = None
-
 
 
 class Detect(nn.Module):
@@ -158,13 +157,16 @@ class Model(nn.Module):
 
     def _forward_once(self, x, profile=False, visualize=False):
         y, dt = [], []  # outputs
+
         for m in self.model:
+
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             if profile:
                 self._profile_one_layer(m, x, dt)
-           
+
             x = m(x)  # run
+
             # if flow.is_tensor(x):
             #     my_path = '/home/fengwen/np_list/flow'+str(my_name)+'.txt'
             #     my_name = my_name + 1
@@ -251,6 +253,7 @@ class Model(nn.Module):
                 m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
                 delattr(m, "bn")  # remove batchnorm
                 m.forward = m.forward_fuse  # update forward
+                m.is_fuse = True
         self.info()
         return self
 
@@ -354,9 +357,8 @@ if __name__ == "__main__":
 
     # Create model
     im = flow.rand(opt.batch_size, 3, 640, 640).to(device)
-
     model = Model(opt.cfg).to(device)
-  
+
     # Options
     if opt.line_profile:  # profile layer by layer
         _ = model(im, profile=True)

@@ -556,6 +556,7 @@ def parse_opt(known=False):
 
     return parser.parse_known_args()[0] if known else parser.parse_args()
 
+
 def main(opt, callbacks=Callbacks()):
     # Checks
     if RANK in {-1, 0}:
@@ -564,7 +565,7 @@ def main(opt, callbacks=Callbacks()):
         check_requirements(exclude=["thop"])
 
     # Resume
-    if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last        
+    if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last
         last = Path(check_file(opt.resume) if isinstance(opt.resume, str) else get_latest_run())
         opt_yaml = last.parent.parent / "opt.yaml"  # train options yaml
         # opt_data = opt.data  # original dataset
