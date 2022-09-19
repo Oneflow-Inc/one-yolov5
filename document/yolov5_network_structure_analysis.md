@@ -26,7 +26,7 @@ anchors: # 表示作用于当前特征图的Anchor大小为 xxx
   - [116,90, 156,198, 373,326]  # P5/32
 
 
-# YOLOv5 v6.0 backbone
+# YOLOv5s v6.0 backbone
 backbone:
   # [from, number, module, args]
   [[-1, 1, Conv, [64, 6, 2, 2]],  # 0-P1/2
