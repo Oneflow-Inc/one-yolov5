@@ -160,7 +160,7 @@ anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multi
 通过export.py导出的onnx格式，并通过 https://netron.app/ 网站导出的图片(模型导出 将在第八章介绍)。
 
 
-2. 模块组件右边参数 表示图片的的形状，比如 在 第 一 层( Conv )输入 图片形状 [ 3, 640, 640] ,关于这些参数，可以固定一张图片输入到网络并通过[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)的文件参数计算得到，并且可以在工程 models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 通过代码进行print查看,详细数据可以参考附件表2.1。
+2. 模块组件右边参数 表示特征图的的形状，比如 在 第 一 层( Conv )输入 图片形状为 [ 3, 640, 640] ,关于这些参数，可以固定一张图片输入到网络并通过[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)的模型参数计算得到，并且可以在工程 models/[yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 通过代码进行print查看,详细数据可以参考附件表2.1。
 
 
 ## [yolo.py](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolo.py) 解读
