@@ -457,7 +457,7 @@ class Model(nn.Module):
 ```python
 class Detect(nn.Module):
     """
-    Detect模块是用来构建Detect层的，将输入feature map 通过一个卷积操作和公式计算到我们想要的shape, 为后面的计算损失或者NMS作准备
+    Detect模块是用来构建Detect层的，将输入feature map 通过一个卷积操作和公式计算到我们想要的shape, 为后面的计算损失或者NMS后处理作准备
     """
     stride = None  # strides computed during build
     onnx_dynamic = False  # ONNX export parameter
