@@ -7,8 +7,7 @@ Usage:
 
 Usage - formats:
     $ python path/to/val.py --weights \
-        yolov5s.pt                 # PyTorch
-        yolov5s.torchscript        # TorchScript
+        yolov5s/                   # OneFlow
         yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
         yolov5s.xml                # OpenVINO
         yolov5s.engine             # TensorRT
@@ -143,10 +142,9 @@ def run(
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
-        device, pt, jit, engine = (
+        device, of, engine = (
             next(model.parameters()).device,
             True,
-            False,
             False,
         )  # get model device, PyTorch model
         half &= device.type != "cpu"  # half precision only supported on CUDA
@@ -160,16 +158,16 @@ def run(
 
         # Load model
         model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
-        stride, pt, jit, engine = model.stride, model.pt, model.jit, model.engine
+        stride, of, engine = model.stride, model.of, model.engine
         imgsz = check_img_size(imgsz, s=stride)  # check image size
         half = model.fp16  # FP16 supported on limited backends with CUDA
         if engine:
             batch_size = model.batch_size
         else:
             device = model.device
-            if not (pt or jit):
+            if not of:
                 batch_size = 1  # export.py models default to batch-size 1
-                LOGGER.info(f"Forcing --batch-size 1 inference (1,3,{imgsz},{imgsz}) for non-PyTorch models")
+                LOGGER.info(f"Forcing --batch-size 1 inference (1,3,{imgsz},{imgsz}) for non-OneFlow models")
 
         # Data
         data = check_dataset(data)  # check
@@ -184,14 +182,14 @@ def run(
 
     # Dataloader
     if not training:
-        if pt and not single_cls:  # check --weights are trained on --data
+        if of and not single_cls:  # check --weights are trained on --data
             ncm = model.model.nc
             assert ncm == nc, (
                 f"{weights} ({ncm} classes) trained on different --data than what you passed ({nc} " f"classes). Pass correct combination of" f" --weights and --data that are trained together."
             )
-        model.warmup(imgsz=(1 if pt else batch_size, 3, imgsz, imgsz))  # warmup
+        model.warmup(imgsz=(1 if of else batch_size, 3, imgsz, imgsz))  # warmup
         pad = 0.0 if task in ("speed", "benchmark") else 0.5
-        rect = False if task == "benchmark" else pt  # square inference for benchmarks
+        rect = False if task == "benchmark" else of  # square inference for benchmarks
         task = task if task in ("train", "val", "test") else "val"  # path to train/val/test images
         dataloader = create_dataloader(
             data[task],
