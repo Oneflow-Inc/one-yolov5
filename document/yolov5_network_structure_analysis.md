@@ -406,7 +406,7 @@ class Model(nn.Module):
     #  打印模型中最后Detect层的偏置biases信息(也可以任选哪些层biases信息)
     def _print_biases(self):
         """
-        打印模型中最后Detect层的偏置biases信息(也可以任选哪些层biases信息)
+        打印模型中最后Detect模块里面的卷积层的偏置biases信息(也可以任选哪些层biases信息)
         """
         m = self.model[-1]  # Detect() module
         for mi in m.m:  # from
