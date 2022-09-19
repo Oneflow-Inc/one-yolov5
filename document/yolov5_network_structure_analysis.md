@@ -239,12 +239,19 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c2 = ch[f]
         # 构建整个网络模块 这里就是根据模块的重复次数n以及模块本身和它的参数来构建这个模块和参数对应的Module
         m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
-        # 获取模块具体名例如 models.common.Conv , models.common.C3 , models.common.SPPF 等。
-        t = str(m)[8:-2].replace('__main__.', '')  # module type
+        # 获取模块(module type)具体名例如 models.common.Conv , models.common.C3 , models.common.SPPF 等。
+        t = str(m)[8:-2].replace('__main__.', '')  #  replace函数作用是字符串"__main__"替换为''，在当前项目没有用到这个替换。
         np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
         LOGGER.info(f'{i:>3}{str(f):>18}{n_:>3}{np:10.0f}  {t:<40}{str(args):<30}')  # print
-        #如果x不是-1，则将其保存在save列表中，表示该层需要保存特征图
+        """
+        如果x不是-1，则将其保存在save列表中，表示该层需要保存特征图。
+        这里 x % i 与 x 等价例如在最后一层 : 
+        f = [17,20,23] , i = 24 
+        y = [ x % i for x in ([f] if isinstance(f, int) else f) if x != -1 ]
+        print(y) # [17, 20, 23] 
+        # 写成x % i 可能因为：i - 1 = -1 % i (比如 f = [-1]，则 [x % i for x in f] 代表 [11] )
+        """
         save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
         layers.append(m_)
         if i == 0: # 如果是初次迭代，则新创建一个ch（因为形参ch在创建第一个网络模块时需要用到，所以创建网络模块之后再初始化ch）
