@@ -259,7 +259,7 @@ class Model(nn.Module):
     # YOLOv5 model
     def __init__(self, cfg='[yolov5s.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/main/models/yolov5s.yaml)', ch=3, nc=None, anchors=None):  # model, input channels, number of classes
         super().__init__()
-        # 如果cfg已经是字典，则直接赋值，否则先加载cfg路径的文件为字典并赋值给模型。
+        # 如果cfg已经是字典，则直接赋值，否则先加载cfg路径的文件为字典并赋值给self.yaml。
         if isinstance(cfg, dict): 
             self.yaml = cfg  # model dict
         else:  # is *.yaml  加载yaml模块
