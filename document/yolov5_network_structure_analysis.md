@@ -216,7 +216,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
                 # make_divisible的作用，使得原始的通道数乘以宽度因子之后取整到8的倍数，这样处理一般是让模型的并行性和推理性能更好。
                 c2 = make_divisible(c2 * gw, 8)
 
-            # 将前面的运算结果保存在args中，它也就是最终的方法参数。
+            # 将前面的运算结果保存在args中，它也就是这个模块最终的输入参数。
             args = [c1, c2, *args[1:]] 
             # 根据每层网络参数的不同，分别处理参数 具体各个类的参数是什么请参考它们的__init__方法这里不再详细解释了
             if m in [BottleneckCSP, C3, C3TR, C3Ghost, C3x]:
