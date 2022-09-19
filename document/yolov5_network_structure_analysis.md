@@ -41,7 +41,7 @@ backbone:
    [-1, 1, SPPF, [1024, 5]],  # 9
   ]
 
-# YOLOv5 v6.0 head
+# YOLOv5s v6.0 head
 head:
   [[-1, 1, Conv, [512, 1, 1]],
    [-1, 1, nn.Upsample, [None, 2, 'nearest']],
