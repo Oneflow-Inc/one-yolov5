@@ -376,7 +376,7 @@ class Model(nn.Module):
                 x = img_size[1] - x  # de-flip lr
             p = flow.cat((x, y, wh, p[..., 4:]), -1)
         return p
-    
+    # 这个是TTA的时候对原图片进行裁剪，也是一种数据增强方式，用在TTA测试的时候。
     def _clip_augmented(self, y):
         # Clip YOLOv5 augmented inference tails
         nl = self.model[-1].nl  # number of detection layers (P3-P5)
@@ -498,8 +498,8 @@ class Detect(nn.Module):
 
             if not self.training:  # inference
                 if self.onnx_dynamic or self.grid[i].shape[2:4] != x[i].shape[2:4]:
+                    # 向前传播时需要将相对坐标转换到grid绝对坐标系中
                     self.grid[i], self.anchor_grid[i] = self._make_grid(nx, ny, i)
-                # 	向前传播时需要将相对坐标转换到grid绝对坐标系中
                 y = x[i].sigmoid()
                 if self.inplace:
                     y[..., 0:2] = (y[..., 0:2] * 2 + self.grid[i]) * self.stride[i]  # xy
