@@ -253,7 +253,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
     # 将所有的层封装为nn.Sequential , 对保存的特征图排序
     return nn.Sequential(*layers), sorted(save) 
 ```
-### Modle类解读
+### Model 类解读
 ```python
 class Model(nn.Module):
     # YOLOv5 model
