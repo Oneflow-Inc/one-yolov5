@@ -111,7 +111,7 @@ class Conv(nn.Module):
     def forward_fuse(self, x):
         return self.act(self.conv(x))
 ```
-比如上面把width_multiple设置为了0.5，那么第一个 [64, 6, 2, 2] 就会被解析为 [3,64*0.5=32,6,2,2]，其中 第一 3为输入channel(因为输入)，32为输出channel。 
+比如上面把width_multiple设置为了0.5，那么第一个 [64, 6, 2, 2] 就会被解析为 [3,64*0.5=32,6,2,2]，其中第一个 3 为输入channel(因为输入)，32 为输出channel。 
 
 
 
