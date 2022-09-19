@@ -237,7 +237,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c2 = ch[f] // args[0] ** 2
         else:
             c2 = ch[f]
-        # 构建整个网络模块 这里就是根据模块的重复次数n以及模块本身和它的参数来构建这个模块和参数对应的网络
+        # 构建整个网络模块 这里就是根据模块的重复次数n以及模块本身和它的参数来构建这个模块和参数对应的Module
         m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
         # 获取模块具体名例如 models.common.Conv , models.common.C3 , models.common.SPPF 等。
         t = str(m)[8:-2].replace('__main__.', '')  # module type
