@@ -323,7 +323,7 @@ class Model(nn.Module):
             y.append(yi)
         y = self._clip_augmented(y)  # clip augmented tails
         return flow.cat(y, 1), None  # augmented inference, train
-    # 前向传播
+    # 前向传播具体实现
     def _forward_once(self, x, profile=False, visualize=False):
         """
         @params x: 输入图像
