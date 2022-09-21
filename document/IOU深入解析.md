@@ -178,7 +178,8 @@ $\large\mathcal{L}_{D I o U}=1-I o U+\frac{\rho^{2}\left(\mathbf{b}, \mathbf{b}^
 
 如图5所示, $DIoU$损失的惩罚项直接使两个中心点之间的距离最小化, 而  $\mathrm{GIoU}$  损失的目的是减少  $C-B \cup B^{g t}$ 的面积。
    
-### Comparison with IoU and GIoU losses 
+### IoU和GIoU损失比较
+
 *提出的DIoU损失 继承IoU和GIoU损失的一些属性*
 1. $DIoU损失$对回归问题的尺度仍夗是不变的
 2. 与$GIoU损失$类似, $DIoU损失$可以在与目标框不重叠时为边界框提供移动方向。
