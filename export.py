@@ -39,14 +39,11 @@ TensorFlow.js:
 """
 
 import argparse
-import json
 import os
 import platform
 import subprocess
 import sys
 import time
-import warnings
-import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -85,56 +82,58 @@ def export_formats():
     return pd.DataFrame(x, columns=["Format", "Argument", "Suffix", "CPU", "GPU"])
 
 
-
 def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
     # try:
-        check_requirements(("onnx",))
-        import onnx
-        LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
-        f = file.with_suffix(".onnx")
+    check_requirements(("onnx",))
+    import onnx
 
-        class YOLOGraph(flow.nn.Graph):
-            def __init__(self):
-                super().__init__()
-                self.model = model
+    LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
+    f = file.with_suffix(".onnx")
 
-            def build(self, x):
-                return self.model(x)
-        
-        yolo_graph = YOLOGraph()
-        yolo_graph._compile(flow.randn(im.size()))
+    class YOLOGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.model = model
 
-        convert_to_onnx_and_check(yolo_graph, onnx_model_path=str(f), opset=opset)
+        def build(self, x):
+            return self.model(x)
 
-        # Checks
-        model_onnx = onnx.load(f)  # load onnx model
-        onnx.checker.check_model(model_onnx)  # check onnx model
+    yolo_graph = YOLOGraph()
+    yolo_graph._compile(flow.randn(im.size()))
 
-        # Metadata
-        d = {"stride": int(max(model.stride)), "names": model.names}
-        for k, v in d.items():
-            meta = model_onnx.metadata_props.add()
-            meta.key, meta.value = k, str(v)
-        onnx.save(model_onnx, f)
+    convert_to_onnx_and_check(yolo_graph, onnx_model_path=str(f), opset=opset)
 
-        # Simplify
-        if simplify:
-            try:
-                cuda = flow.cuda.is_available()
-                check_requirements(("onnxruntime-gpu" if cuda else "onnxruntime", "onnx-simplifier>=0.4.1"))
-                import onnxsim
+    # Checks
+    model_onnx = onnx.load(f)  # load onnx model
+    onnx.checker.check_model(model_onnx)  # check onnx model
 
-                LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
-                model_onnx, check = onnxsim.simplify(model_onnx)
-                assert check, "assert check failed"
-                onnx.save(model_onnx, f)
-            except Exception as e:
-                LOGGER.info(f"{prefix} simplifier failure: {e}")
-        LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
-        return f
-    # except Exception as e:
-    #     LOGGER.info(f"{prefix} export failure: {e}")
+    # Metadata
+    d = {"stride": int(max(model.stride)), "names": model.names}
+    for k, v in d.items():
+        meta = model_onnx.metadata_props.add()
+        meta.key, meta.value = k, str(v)
+    onnx.save(model_onnx, f)
+
+    # Simplify
+    if simplify:
+        try:
+            cuda = flow.cuda.is_available()
+            check_requirements(("onnxruntime-gpu" if cuda else "onnxruntime", "onnx-simplifier>=0.4.1"))
+            import onnxsim
+
+            LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
+            model_onnx, check = onnxsim.simplify(model_onnx)
+            assert check, "assert check failed"
+            onnx.save(model_onnx, f)
+        except Exception as e:
+            LOGGER.info(f"{prefix} simplifier failure: {e}")
+    LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
+    return f
+
+
+# except Exception as e:
+#     LOGGER.info(f"{prefix} export failure: {e}")
 
 
 def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):
@@ -155,6 +154,7 @@ def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):
         return f
     except Exception as e:
         LOGGER.info(f"\n{prefix} export failure: {e}")
+
 
 def export_engine(model, im, file, train, half, dynamic, simplify, workspace=4, verbose=False):
     # YOLOv5 TensorRT export https://developer.nvidia.com/tensorrt
