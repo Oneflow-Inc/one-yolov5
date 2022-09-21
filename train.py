@@ -125,7 +125,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     plots = not evolve and not opt.noplots  # create plots
     cuda = device.type != "cpu"
 
-    init_seeds(1, deterministic=True)
+    init_seeds(opt.seed + 1 + RANK, deterministic=True)
 
     # with torch_distributed_zero_first(LOCAL_RANK): # 这个是上下文管理器
     data_dict = data_dict or check_dataset(data)  # check if None
@@ -136,19 +136,42 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     assert len(names) == nc, f"{len(names)} names found for nc={nc} dataset in {data}"  # check
     is_coco = isinstance(val_path, str) and val_path.endswith("coco/val2017.txt")  # COCO dataset
 
-    pretrained = os.path.exists(weights)
+    pretrained = True
+    weights = "/home/fengwen/datasets/yolov5n.pt"
+    # save_dir = 'path/to/yolov5s6'
+    import torch
 
-    if pretrained:
-        # ---------------------------------------------------------#
-        ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
-        model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
-        exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
-        csd = ckpt["model"]  # checkpoint state_dict as FP32
-        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
-        model.load_state_dict(csd, strict=False)  # load
-        LOGGER.info(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")  # report
-    else:
-        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
+    ckpt = torch.load(weights, map_location="cpu")
+    print(ckpt.keys())
+    new_parameters = dict()
+    import oneflow
+
+    for key, value in ckpt["model"].state_dict().items():
+        if value.detach().cpu().numpy().dtype == np.float16:
+            value = oneflow.tensor(value.detach().cpu().numpy().astype(np.float32))
+        else:
+            value = oneflow.tensor(value.detach().cpu().numpy())
+        new_parameters[key] = value
+
+    model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
+    exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
+    csd = intersect_dicts(new_parameters, new_parameters, exclude=exclude)  # intersect
+    model.load_state_dict(csd, strict=False)  # load
+    ckpt["model"] = model
+
+    # pretrained = os.path.exists(weights)
+
+    # if pretrained:
+    #     # ---------------------------------------------------------#
+    #     ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
+    #     model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
+    #     exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
+    #     csd = ckpt["model"]  # checkpoint state_dict as FP32
+    #     csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+    #     model.load_state_dict(csd, strict=False)  # load
+    #     LOGGER.info(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")  # report
+    # else:
+    #     model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
     # amp = check_amp(model)  # check AMP
     amp = False
 
@@ -556,6 +579,7 @@ def parse_opt(known=False):
 
     return parser.parse_known_args()[0] if known else parser.parse_args()
 
+
 def main(opt, callbacks=Callbacks()):
     # Checks
     if RANK in {-1, 0}:
@@ -564,7 +588,7 @@ def main(opt, callbacks=Callbacks()):
         check_requirements(exclude=["thop"])
 
     # Resume
-    if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last        
+    if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last
         last = Path(check_file(opt.resume) if isinstance(opt.resume, str) else get_latest_run())
         opt_yaml = last.parent.parent / "opt.yaml"  # train options yaml
         # opt_data = opt.data  # original dataset

@@ -131,6 +131,7 @@ def exif_transpose(image):
 def seed_worker(worker_id):
     # Set dataloader worker seed https://pyflow.org/docs/stable/notes/randomness.html#dataloader
     worker_seed = flow.initial_seed() % 2 ** 32
+    worker_seed = 2546248239 + worker_id
     np.random.seed(worker_seed)
     random.seed(worker_seed)
 
