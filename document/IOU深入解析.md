@@ -2,7 +2,8 @@
 ## 摘要
 来源:https://github.com/Zzh-tju/DIoU/blob/master/README.md#introduction
 
-**边界框回归是目标检测的关键步骤**，在现有方法中，虽然$\ell_n$-norm loss 被广泛用于边界框回归，它不是针对评估指标量身定制的，即 Intersection over Union (IoU)。最近，已经提出了 IoU 损失和generalized IoU (GIoU) 损失作为评估的IoU指标 ，但仍然存在收敛速度慢和回归不准确的问题。在本文中，我们通过结合预测框和目标框之间的归一化距离来提出距离-IoU (DIoU) 损失，它在训练中的收敛速度比 IoU 和 GIoU 损失快得多。
+**边界框回归是目标检测的关键步骤**，在现有方法中，虽然$\ell_n$-norm loss 被广泛用于边界框回归，但它不是针对评估指标量身定制的，即 Intersection over Union (IoU)。最近，已经提出了 IoU 损失和generalized IoU (GIoU) Loss作为评估IoU的指标 ，但仍然存在收敛速度慢和回归不准确的问题。在本文中，我们通过结合预测框和目标框之间的归一化距离来提出距离-IoU (DIoU) Loss，它在训练中的收敛速度比 IoU 和 GIoU Loss快得多。
+
 
 **此外，本文总结了边界框回归中的三个几何因素，即**
 
