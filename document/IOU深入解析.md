@@ -8,7 +8,7 @@
 **此外，本文总结了边界框回归中的三个几何因素，即**
 
 **重叠面积（overlap area）、中心点距离（central point
-distance）和高宽比（aspect ratio）**，在此基础上提出了完全 $IoU (CIoU)$ 损失，从而促进了更快的收敛和更优的性能。通过将 $DIoU 和 CIoU 损失$结合到最先进的目标检测算法中，例如 YOLO v3、SSD 和 Faster RCNN，我们不仅在 IoU 指标方面而且在 GIoU 指标方面都获得了显着的性能提升。此外，DIoU 可以很容易地用于非最大抑制（NMS）作为标准，进一步促进性能提升。 
+distance）和高宽比（aspect ratio）**，在此基础上提出了完全 $IoU (CIoU)$ 损失，从而促进了更快的收敛和更优的性能。通过将 $DIoU 和 CIoU 损失$结合到最先进的目标检测算法中，例如 YOLO v3、SSD 和 Faster RCNN，我们不仅在 IoU 指标方面而且在 GIoU 指标方面都获得了显着的性能提升。此外，DIoU 可以很容易地用于非最大抑制（NMS）作为标准，进一步促进性能提升。 *注释:这里IOU指标方面和GIOU指标方面指的是在：目标检测精度测量(mAP值),IOU损失计算稳定性等一些方面。*
 
 
 **目标检测是计算机视觉任务中的关键问题之一**，几十
@@ -27,6 +27,7 @@ R-CNN (Cai and Vasconcelos 2018). 尽管存在这些不
 同的检测框架，但边界框回归预测一个矩形框来定位目标对象仍然是其中关键步骤。
 ## 前言 
 本文主要是结合论文[Distance-IoU Loss: Faster and Better Learning for Bounding Box Regression](https://arxiv.org/pdf/1911.08287.pdf) 进行对iou的解析学习。
+
 ## IOU
 ### IOU介绍
 Intersection over Union (IoU) 
