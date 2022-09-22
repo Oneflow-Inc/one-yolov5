@@ -53,7 +53,8 @@ $\Large\mathcal{L}_{I o U}=1-\frac{\left|B \cap B^{g t}\right|}{\left|B \cup B^{
 <a style = "float:right">(2)</a>
 </center>
 
-### IOU 优缺点分析
+### IOU Loss 优缺点分析
+
 
 有明显的缺陷 IoU loss只在边界框有重叠时才能工作, 对于不重
 叠的情况不会提供任何移动梯度。( *即无法衡量完全不相交的两个框所产生的的损失（iou固定为0），和两个不同形状的预测框可能产生相同的loss（相同的iou）分别如下图的左边和右边所示。*)
