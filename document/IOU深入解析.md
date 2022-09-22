@@ -183,7 +183,10 @@ $\large\mathcal{L}_{D I o U}=1-I o U+\frac{\rho^{2}\left(\mathbf{b}, \mathbf{b}^
 </center>
 
 如图5所示, $DIoU$损失的惩罚项直接使两个中心点之间的距离最小化, 而  $\mathrm{GIoU}$  损失的目的是减少  $C-B \cup B^{g t}$ 的面积。
-   
+
+![imgs](chapter_4_imgs/图片05.png)
+
+              
 ### IoU和GIoU损失比较
 
 *提出的DIoU损失 继承IoU和GIoU损失的一些属性*
