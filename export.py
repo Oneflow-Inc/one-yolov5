@@ -71,7 +71,7 @@ if platform.system() != "Windows":
 def export_formats():
     # YOLOv5 export formats
     x = [
-        ["OneFlow", "-", "oneflow", True, True],
+        ["OneFlow", "oneflow", "", True, True],
         ["ONNX", "onnx", ".onnx", True, True],
         ["OpenVINO", "openvino", "_openvino_model", True, False],
         ["TensorRT", "engine", ".engine", False, True],
@@ -88,7 +88,7 @@ def export_formats():
 
 def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
-    # try:
+    try:
         check_requirements(("onnx",))
         import onnx
         LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
@@ -133,8 +133,8 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
                 LOGGER.info(f"{prefix} simplifier failure: {e}")
         LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
         return f
-    # except Exception as e:
-    #     LOGGER.info(f"{prefix} export failure: {e}")
+    except Exception as e:
+        LOGGER.info(f"{prefix} export failure: {e}")
 
 
 def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):

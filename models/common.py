@@ -538,7 +538,7 @@ class DetectMultiBackend(nn.Module):
                 self.forward(im)  # warmup
 
     @staticmethod
-    def model_type(p="path/to/model.pt"):
+    def model_type(p="path/to/model"):
         # Return model type from model path, i.e. path='path/to/model.onnx' -> type=onnx
         from export import export_formats
 
