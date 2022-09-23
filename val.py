@@ -75,12 +75,7 @@ def save_one_json(predn, jdict, path, class_map):
     box[:, :2] -= box[:, 2:] / 2  # xy center to top-left corner
     for p, b in zip(predn.tolist(), box.tolist()):
         jdict.append(
-            {
-                "image_id": image_id,
-                "category_id": class_map[int(p[5])],
-                "bbox": [round(x, 3) for x in b],
-                "score": round(p[4], 5),
-            }
+            {"image_id": image_id, "category_id": class_map[int(p[5])], "bbox": [round(x, 3) for x in b], "score": round(p[4], 5),}
         )
 
 
@@ -191,17 +186,7 @@ def run(
         pad = 0.0 if task in ("speed", "benchmark") else 0.5
         rect = False if task == "benchmark" else of  # square inference for benchmarks
         task = task if task in ("train", "val", "test") else "val"  # path to train/val/test images
-        dataloader = create_dataloader(
-            data[task],
-            imgsz,
-            batch_size,
-            stride,
-            single_cls,
-            pad=pad,
-            rect=rect,
-            workers=workers,
-            prefix=colorstr(f"{task}: "),
-        )[0]
+        dataloader = create_dataloader(data[task], imgsz, batch_size, stride, single_cls, pad=pad, rect=rect, workers=workers, prefix=colorstr(f"{task}: "),)[0]
 
     seen = 0
     confusion_matrix = ConfusionMatrix(nc=nc)
@@ -235,7 +220,6 @@ def run(
         # Loss
         if compute_loss:
             loss += compute_loss([x.float() for x in train_out], targets)[1]  # box, obj, cls
-
 
         # NMS
         targets[:, 2:] *= flow.tensor((width, height, width, height), device=device)  # to pixels

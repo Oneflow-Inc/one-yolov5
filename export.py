@@ -87,6 +87,7 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
     try:
         check_requirements(("onnx",))
         import onnx
+
         LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
         f = file.with_suffix(".onnx")
 
@@ -97,7 +98,7 @@ def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorst
 
             def build(self, x):
                 return self.model(x)
-        
+
         yolo_graph = YOLOGraph()
         yolo_graph._compile(flow.randn(im.size()))
 
@@ -207,10 +208,7 @@ def export_engine(model, im, file, train, half, dynamic, simplify, workspace=4, 
             profile = builder.create_optimization_profile()
             for inp in inputs:
                 profile.set_shape(
-                    inp.name,
-                    (1, *im.shape[1:]),
-                    (max(1, im.shape[0] // 2), *im.shape[1:]),
-                    im.shape,
+                    inp.name, (1, *im.shape[1:]), (max(1, im.shape[0] // 2), *im.shape[1:]), im.shape,
                 )
             config.add_optimization_profile(profile)
 
@@ -226,18 +224,7 @@ def export_engine(model, im, file, train, half, dynamic, simplify, workspace=4, 
 
 
 def export_saved_model(
-    model,
-    im,
-    file,
-    dynamic,
-    tf_nms=False,
-    agnostic_nms=False,
-    topk_per_class=100,
-    topk_all=100,
-    iou_thres=0.45,
-    conf_thres=0.25,
-    keras=False,
-    prefix=colorstr("TensorFlow SavedModel:"),
+    model, im, file, dynamic, tf_nms=False, agnostic_nms=False, topk_per_class=100, topk_all=100, iou_thres=0.45, conf_thres=0.25, keras=False, prefix=colorstr("TensorFlow SavedModel:"),
 ):
     # YOLOv5 TensorFlow SavedModel export
     try:
@@ -269,9 +256,7 @@ def export_saved_model(
             tfm.__call__ = tf.function(lambda x: frozen_func(x)[:4] if tf_nms else frozen_func(x)[0], [spec])
             tfm.__call__(im)
             tf.saved_model.save(
-                tfm,
-                f,
-                options=tf.saved_model.SaveOptions(experimental_custom_gradients=False) if check_version(tf.__version__, "2.6") else tf.saved_model.SaveOptions(),
+                tfm, f, options=tf.saved_model.SaveOptions(experimental_custom_gradients=False) if check_version(tf.__version__, "2.6") else tf.saved_model.SaveOptions(),
             )
         LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
         return keras_model, f
@@ -433,17 +418,7 @@ def run(
     fmts = tuple(export_formats()["Argument"][1:])  # --include arguments
     flags = [x in include for x in fmts]
     assert sum(flags) == len(include), f"ERROR: Invalid --include {include}, valid --include arguments are {fmts}"
-    (
-        onnx,
-        xml,
-        engine,
-        coreml,
-        saved_model,
-        pb,
-        tflite,
-        edgetpu,
-        tfjs,
-    ) = flags  # export booleans
+    (onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs,) = flags  # export booleans
     file = Path(url2file(weights) if str(weights).startswith(("http:/", "https:/")) else weights)  # PyTorch weights
 
     # Load PyTorch model
@@ -528,7 +503,7 @@ def run(
             f"\nOneFlow Hub:     model = flow.hub.load('ultralytics/yolov5', 'custom', '{f[-1]}')"
             f"\nVisualize:       https://netron.app"
         )
-        
+
     return f  # return list of exported files/dirs
 
 
@@ -537,13 +512,7 @@ def parse_opt():
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
     parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model.pt path(s)")
     parser.add_argument(
-        "--imgsz",
-        "--img",
-        "--img-size",
-        nargs="+",
-        type=int,
-        default=[640, 640],
-        help="image (h, w)",
+        "--imgsz", "--img", "--img-size", nargs="+", type=int, default=[640, 640], help="image (h, w)",
     )
     parser.add_argument("--batch-size", type=int, default=1, help="batch size")
     parser.add_argument("--device", default="cpu", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
@@ -565,10 +534,7 @@ def parse_opt():
     parser.add_argument("--iou-thres", type=float, default=0.45, help="TF.js NMS: IoU threshold")
     parser.add_argument("--conf-thres", type=float, default=0.25, help="TF.js NMS: confidence threshold")
     parser.add_argument(
-        "--include",
-        nargs="+",
-        default=["onnx"],
-        help="onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs",
+        "--include", nargs="+", default=["onnx"], help="onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs",
     )
     opt = parser.parse_args()
     print_args(vars(opt))
