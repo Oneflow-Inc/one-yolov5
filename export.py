@@ -39,14 +39,11 @@ TensorFlow.js:
 """
 
 import argparse
-import json
 import os
 import platform
 import subprocess
 import sys
 import time
-import warnings
-import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -83,7 +80,6 @@ def export_formats():
         ["TensorFlow.js", "tfjs", "_web_model", False, False],
     ]
     return pd.DataFrame(x, columns=["Format", "Argument", "Suffix", "CPU", "GPU"])
-
 
 
 def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorstr("ONNX:")):
@@ -155,6 +151,7 @@ def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):
         return f
     except Exception as e:
         LOGGER.info(f"\n{prefix} export failure: {e}")
+
 
 def export_engine(model, im, file, train, half, dynamic, simplify, workspace=4, verbose=False):
     # YOLOv5 TensorRT export https://developer.nvidia.com/tensorrt

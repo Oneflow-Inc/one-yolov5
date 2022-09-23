@@ -22,7 +22,7 @@ from oneflow.nn.parallel import DistributedDataParallel as DDP
 from utils.general import LOGGER, colorstr, file_date, git_describe
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
-RANK = int(os.getenv('RANK', -1))
+RANK = int(os.getenv("RANK", -1))
 WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 
 try:
@@ -61,9 +61,7 @@ def select_device(device="", batch_size=0, newline=True):
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # force flow.cuda.is_available() = False
     elif device:  # non-cpu device requested
         os.environ["CUDA_VISIBLE_DEVICES"] = device  # set environment variable - must be before assert is_available()
-        assert flow.cuda.is_available() and flow.cuda.device_count() >= len(
-            device.replace(",", "")
-        ), f"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)"
+        assert flow.cuda.is_available() and flow.cuda.device_count() >= len(device.replace(",", "")), f"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)"
 
     if not (cpu or mps) and flow.cuda.is_available():  # prefer GPU if available
         devices = device.split(",") if device else "0"  # range(flow.cuda.device_count())  # i.e. 0,1,6,7
