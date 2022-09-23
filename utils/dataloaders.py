@@ -175,8 +175,6 @@ def create_dataloader(
     batch_size = min(batch_size, len(dataset))
     nd = flow.cuda.device_count()  # number of CUDA devices
     nw = min([os.cpu_count() // max(nd, 1), batch_size if batch_size > 1 else 0, workers])  # number of workers
-    print("nw " * 50)
-    print(nw)
     sampler = None if rank == -1 else distributed.DistributedSampler(dataset, shuffle=shuffle)
     loader = DataLoader if image_weights else InfiniteDataLoader  # only DataLoader allows for attribute updates
     generator = flow.Generator()

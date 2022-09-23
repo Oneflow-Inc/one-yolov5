@@ -53,7 +53,18 @@ import yaml
 from models.experimental import attempt_load
 from models.yolo import Detect
 from utils.dataloaders import LoadImages
-from utils.general import LOGGER, check_dataset, check_img_size, check_requirements, check_version, check_yaml, colorstr, file_size, print_args, url2file
+from utils.general import (
+    LOGGER,
+    check_dataset,
+    check_img_size,
+    check_requirements,
+    check_version,
+    check_yaml,
+    colorstr,
+    file_size,
+    print_args,
+    url2file,
+)
 from utils.oneflow_utils import select_device
 from oneflow_onnx.oneflow2onnx.util import convert_to_onnx_and_check
 
@@ -68,7 +79,7 @@ if platform.system() != "Windows":
 def export_formats():
     # YOLOv5 export formats
     x = [
-        ["OneFlow", "-", "oneflow", True, True],
+        ["OneFlow", "oneflow", "", True, True],
         ["ONNX", "onnx", ".onnx", True, True],
         ["OpenVINO", "openvino", "_openvino_model", True, False],
         ["TensorRT", "engine", ".engine", False, True],
@@ -84,56 +95,59 @@ def export_formats():
 
 def export_onnx(model, im, file, opset, train, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
-    # try:
-    check_requirements(("onnx",))
-    import onnx
+    try:
+        check_requirements(("onnx",))
+        import onnx
 
-    LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
-    f = file.with_suffix(".onnx")
+        LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
+        f = file.with_suffix(".onnx")
 
-    class YOLOGraph(flow.nn.Graph):
-        def __init__(self):
-            super().__init__()
-            self.model = model
+        class YOLOGraph(flow.nn.Graph):
+            def __init__(self):
+                super().__init__()
+                self.model = model
 
-        def build(self, x):
-            return self.model(x)
+            def build(self, x):
+                return self.model(x)
 
-    yolo_graph = YOLOGraph()
-    yolo_graph._compile(flow.randn(im.size()))
+        yolo_graph = YOLOGraph()
+        yolo_graph._compile(flow.randn(im.size()))
 
-    convert_to_onnx_and_check(yolo_graph, onnx_model_path=str(f), opset=opset)
+        convert_to_onnx_and_check(yolo_graph, onnx_model_path=str(f), opset=opset)
 
-    # Checks
-    model_onnx = onnx.load(f)  # load onnx model
-    onnx.checker.check_model(model_onnx)  # check onnx model
+        # Checks
+        model_onnx = onnx.load(f)  # load onnx model
+        onnx.checker.check_model(model_onnx)  # check onnx model
 
-    # Metadata
-    d = {"stride": int(max(model.stride)), "names": model.names}
-    for k, v in d.items():
-        meta = model_onnx.metadata_props.add()
-        meta.key, meta.value = k, str(v)
-    onnx.save(model_onnx, f)
+        # Metadata
+        d = {"stride": int(max(model.stride)), "names": model.names}
+        for k, v in d.items():
+            meta = model_onnx.metadata_props.add()
+            meta.key, meta.value = k, str(v)
+        onnx.save(model_onnx, f)
 
-    # Simplify
-    if simplify:
-        try:
-            cuda = flow.cuda.is_available()
-            check_requirements(("onnxruntime-gpu" if cuda else "onnxruntime", "onnx-simplifier>=0.4.1"))
-            import onnxsim
+        # Simplify
+        if simplify:
+            try:
+                cuda = flow.cuda.is_available()
+                check_requirements(
+                    (
+                        "onnxruntime-gpu" if cuda else "onnxruntime",
+                        "onnx-simplifier>=0.4.1",
+                    )
+                )
+                import onnxsim
 
-            LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
-            model_onnx, check = onnxsim.simplify(model_onnx)
-            assert check, "assert check failed"
-            onnx.save(model_onnx, f)
-        except Exception as e:
-            LOGGER.info(f"{prefix} simplifier failure: {e}")
-    LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
-    return f
-
-
-# except Exception as e:
-#     LOGGER.info(f"{prefix} export failure: {e}")
+                LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
+                model_onnx, check = onnxsim.simplify(model_onnx)
+                assert check, "assert check failed"
+                onnx.save(model_onnx, f)
+            except Exception as e:
+                LOGGER.info(f"{prefix} simplifier failure: {e}")
+        LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
+        return f
+    except Exception as e:
+        LOGGER.info(f"{prefix} export failure: {e}")
 
 
 def export_openvino(model, file, half, prefix=colorstr("OpenVINO:")):
@@ -165,7 +179,10 @@ def export_engine(model, im, file, train, half, dynamic, simplify, workspace=4, 
             import tensorrt as trt
         except Exception:
             if platform.system() == "Linux":
-                check_requirements(("nvidia-tensorrt",), cmds=("-U --index-url https://pypi.ngc.nvidia.com",))
+                check_requirements(
+                    ("nvidia-tensorrt",),
+                    cmds=("-U --index-url https://pypi.ngc.nvidia.com",),
+                )
             import tensorrt as trt
 
         if trt.__version__[0] == "7":  # TensorRT 7 handling https://github.com/ultralytics/yolov5/issues/6012
@@ -245,7 +262,9 @@ def export_saved_model(
     # YOLOv5 TensorFlow SavedModel export
     try:
         import tensorflow as tf
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+        from tensorflow.python.framework.convert_to_constants import (
+            convert_variables_to_constants_v2,
+        )
 
         from models.tf import TFModel
 
@@ -257,7 +276,15 @@ def export_saved_model(
         im = tf.zeros((batch_size, *imgsz, ch))  # BHWC order for TensorFlow
         _ = tf_model.predict(im, tf_nms, agnostic_nms, topk_per_class, topk_all, iou_thres, conf_thres)
         inputs = tf.keras.Input(shape=(*imgsz, ch), batch_size=None if dynamic else batch_size)
-        outputs = tf_model.predict(inputs, tf_nms, agnostic_nms, topk_per_class, topk_all, iou_thres, conf_thres)
+        outputs = tf_model.predict(
+            inputs,
+            tf_nms,
+            agnostic_nms,
+            topk_per_class,
+            topk_all,
+            iou_thres,
+            conf_thres,
+        )
         keras_model = tf.keras.Model(inputs=inputs, outputs=outputs)
         keras_model.trainable = False
         keras_model.summary()
@@ -287,7 +314,9 @@ def export_pb(keras_model, file, prefix=colorstr("TensorFlow GraphDef:")):
     # YOLOv5 TensorFlow GraphDef *.pb export https://github.com/leimao/Frozen_Graph_TensorFlow
     try:
         import tensorflow as tf
-        from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+        from tensorflow.python.framework.convert_to_constants import (
+            convert_variables_to_constants_v2,
+        )
 
         LOGGER.info(f"\n{prefix} starting export with tensorflow {tf.__version__}...")
         f = file.with_suffix(".pb")
@@ -296,7 +325,12 @@ def export_pb(keras_model, file, prefix=colorstr("TensorFlow GraphDef:")):
         m = m.get_concrete_function(tf.TensorSpec(keras_model.inputs[0].shape, keras_model.inputs[0].dtype))
         frozen_func = convert_variables_to_constants_v2(m)
         frozen_func.graph.as_graph_def()
-        tf.io.write_graph(graph_or_graph_def=frozen_func.graph, logdir=str(f.parent), name=f.name, as_text=False)
+        tf.io.write_graph(
+            graph_or_graph_def=frozen_func.graph,
+            logdir=str(f.parent),
+            name=f.name,
+            as_text=False,
+        )
 
         LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
         return f
@@ -304,7 +338,16 @@ def export_pb(keras_model, file, prefix=colorstr("TensorFlow GraphDef:")):
         LOGGER.info(f"\n{prefix} export failure: {e}")
 
 
-def export_tflite(keras_model, im, file, int8, data, nms, agnostic_nms, prefix=colorstr("TensorFlow Lite:")):
+def export_tflite(
+    keras_model,
+    im,
+    file,
+    int8,
+    data,
+    nms,
+    agnostic_nms,
+    prefix=colorstr("TensorFlow Lite:"),
+):
     # YOLOv5 TensorFlow Lite export
     try:
         import tensorflow as tf
@@ -513,7 +556,15 @@ def run(
         if pb or tfjs:  # pb prerequisite to tfjs
             f[6] = export_pb(model, file)
         if tflite or edgetpu:
-            f[7] = export_tflite(model, im, file, int8=int8 or edgetpu, data=data, nms=nms, agnostic_nms=agnostic_nms)
+            f[7] = export_tflite(
+                model,
+                im,
+                file,
+                int8=int8 or edgetpu,
+                data=data,
+                nms=nms,
+                agnostic_nms=agnostic_nms,
+            )
         if edgetpu:
             f[8] = export_edgetpu(file)
         if tfjs:
@@ -528,16 +579,23 @@ def run(
             f"\nResults saved to {colorstr('bold', file.parent.resolve())}"
             f"\nDetect:          python detect.py --weights {f[-1]} {h}"
             f"\nValidate:        python val.py --weights {f[-1]} {h}"
-            f"\nPyTorch Hub:     model = torch.hub.load('ultralytics/yolov5', 'custom', '{f[-1]}')"
+            f"\nOneFlow Hub:     model = flow.hub.load('ultralytics/yolov5', 'custom', '{f[-1]}')"
             f"\nVisualize:       https://netron.app"
         )
+
     return f  # return list of exported files/dirs
 
 
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
-    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model.pt path(s)")
+    parser.add_argument(
+        "--weights",
+        nargs="+",
+        type=str,
+        default=ROOT / "yolov5s.pt",
+        help="model.pt path(s)",
+    )
     parser.add_argument(
         "--imgsz",
         "--img",
@@ -562,8 +620,18 @@ def parse_opt():
     parser.add_argument("--workspace", type=int, default=4, help="TensorRT: workspace size (GB)")
     parser.add_argument("--nms", action="store_true", help="TF: add NMS to model")
     parser.add_argument("--agnostic-nms", action="store_true", help="TF: add agnostic NMS to model")
-    parser.add_argument("--topk-per-class", type=int, default=100, help="TF.js NMS: topk per class to keep")
-    parser.add_argument("--topk-all", type=int, default=100, help="TF.js NMS: topk for all classes to keep")
+    parser.add_argument(
+        "--topk-per-class",
+        type=int,
+        default=100,
+        help="TF.js NMS: topk per class to keep",
+    )
+    parser.add_argument(
+        "--topk-all",
+        type=int,
+        default=100,
+        help="TF.js NMS: topk for all classes to keep",
+    )
     parser.add_argument("--iou-thres", type=float, default=0.45, help="TF.js NMS: IoU threshold")
     parser.add_argument("--conf-thres", type=float, default=0.25, help="TF.js NMS: confidence threshold")
     parser.add_argument(

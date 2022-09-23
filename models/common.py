@@ -318,8 +318,7 @@ class DetectMultiBackend(nn.Module):
         fuse=True,
     ):
         # Usage:
-        #   Pyoneflow:              weights = *.pt
-        #   oneflowScript:                    *.oneflowscript
+        #   OneFlow:              weights  = *./
         #   ONNX Runtime:                   *.onnx
         #   ONNX OpenCV DNN:                *.onnx with --dnn
         #   OpenVINO:                       *.xml
@@ -333,30 +332,22 @@ class DetectMultiBackend(nn.Module):
 
         super().__init__()
         w = str(weights[0] if isinstance(weights, list) else weights)
-        (pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs,) = self.model_type(
+        (of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs,) = self.model_type(
             w
         )  # get backend
         w = attempt_download(w)  # download if not local
-        fp16 &= (pt or jit or onnx or engine) and device.type != "cpu"  # FP16
+        fp16 &= (of or onnx or engine) and device.type != "cpu"  # FP16
         stride, names = 32, [f"class{i}" for i in range(1000)]  # assign defaults
         if data:  # assign class names (optional)
             with open(data, errors="ignore") as f:
                 names = yaml.safe_load(f)["names"]
 
-        if pt:  # PyTorch
+        if of:  # OneFlow
             model = attempt_load(weights if isinstance(weights, list) else w, device=device, inplace=True, fuse=fuse)
             stride = max(int(model.stride.max()), 32)  # model stride
             names = model.module.names if hasattr(model, "module") else model.names  # get class names
             model.half() if fp16 else model.float()
             self.model = model  # explicitly assign for to(), cpu(), cuda(), half()
-        # elif jit:  # TorchScript
-        #     LOGGER.info(f'Loading {w} for TorchScript inference...')
-        #     extra_files = {'config.txt': ''}  # model metadata
-        #     model = torch.jit.load(w, _extra_files=extra_files)
-        #     model.half() if fp16 else model.float()
-        #     if extra_files['config.txt']:
-        #         d = json.loads(extra_files['config.txt'])  # extra_files dict
-        #         stride, names = int(d['stride']), d['names']
         elif dnn:  # ONNX OpenCV DNN
             LOGGER.info(f"Loading {w} for ONNX OpenCV DNN inference...")
             check_requirements(("opencv-python>=4.5.4",))
@@ -479,10 +470,8 @@ class DetectMultiBackend(nn.Module):
         if self.fp16 and im.dtype != flow.float16:
             im = im.half()  # to FP16
 
-        if self.pt:  # PyTorch
+        if self.of:  # OneFlow
             y = self.model(im, augment=augment, visualize=visualize)[0]
-        elif self.jit:  # TorchScript
-            y = self.model(im)[0]
         elif self.dnn:  # ONNX OpenCV DNN
             im = im.cpu().numpy()  # torch to numpy
             self.net.setInput(im)
@@ -542,24 +531,24 @@ class DetectMultiBackend(nn.Module):
 
     def warmup(self, imgsz=(1, 3, 640, 640)):
         # Warmup model by running inference once
-        warmup_types = self.pt, self.jit, self.onnx, self.engine, self.saved_model, self.pb
+        warmup_types = self.of, self.onnx, self.engine, self.saved_model, self.pb
         if any(warmup_types) and self.device.type != "cpu":
             im = flow.zeros(*imgsz, dtype=flow.half if self.fp16 else flow.float, device=self.device)  # input
-            for _ in range(2 if self.jit else 1):  #
+            for _ in range(1):  #
                 self.forward(im)  # warmup
 
     @staticmethod
-    def model_type(p="path/to/model.pt"):
+    def model_type(p="path/to/model"):
         # Return model type from model path, i.e. path='path/to/model.onnx' -> type=onnx
         from export import export_formats
 
         suffixes = list(export_formats().Suffix) + [".xml"]  # export suffixes
         check_suffix(p, suffixes)  # checks
         p = Path(p).name  # eliminate trailing separators
-        pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, xml2 = (s in p for s in suffixes)
+        of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, xml2 = (s in p for s in suffixes)
         xml |= xml2  # *_openvino_model or *.xml
         tflite &= not edgetpu  # *.tflite
-        return pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs
+        return of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs
 
     @staticmethod
     def _load_metadata(f="path/to/meta.yaml"):
@@ -586,7 +575,7 @@ class AutoShape(nn.Module):
             LOGGER.info("Adding AutoShape... ")
         copy_attr(self, model, include=("yaml", "nc", "hyp", "names", "stride", "abc"), exclude=())  # copy attributes
         self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
-        self.pt = not self.dmb or model.pt  # PyTorch model
+        self.of = not self.dmb or model.of  # OneFlow model
         self.model = model.eval()
         if self.pt:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
@@ -595,7 +584,7 @@ class AutoShape(nn.Module):
     def _apply(self, fn):
         # Apply to(), cpu(), cuda(), half() to model tensors that are not parameters or registered buffers
         self = super()._apply(fn)
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.stride = fn(m.stride)
             m.grid = list(map(fn, m.grid))
@@ -615,7 +604,7 @@ class AutoShape(nn.Module):
         #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
 
         t = [time_sync()]
-        p = next(self.model.parameters()) if self.pt else flow.zeros(1, device=self.model.device)  # for device, type
+        p = next(self.model.parameters()) if self.of else flow.zeros(1, device=self.model.device)  # for device, type
         # autocast = self.amp and (
         #     p.device.type != "cpu"
         # )  # Automatic Mixed Precision (AMP) inference
@@ -645,7 +634,7 @@ class AutoShape(nn.Module):
             g = size / max(s)  # gain
             shape1.append([y * g for y in s])
             imgs[i] = im if im.data.contiguous else np.ascontiguousarray(im)  # update
-        shape1 = [make_divisible(x, self.stride) if self.pt else size for x in np.array(shape1).max(0)]  # inf shape
+        shape1 = [make_divisible(x, self.stride) if self.of else size for x in np.array(shape1).max(0)]  # inf shape
         x = [letterbox(im, shape1, auto=False)[0] for im in imgs]  # pad
         x = np.ascontiguousarray(np.array(x).transpose((0, 3, 1, 2)))  # stack and BHWC to BCHW
         x = flow.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32

@@ -7,8 +7,7 @@ Usage:
 
 Usage - formats:
     $ python path/to/val.py --weights \
-        yolov5s.pt                 # PyTorch
-        yolov5s.torchscript        # TorchScript
+        yolov5s/                   # OneFlow
         yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
         yolov5s.xml                # OpenVINO
         yolov5s.engine             # TensorRT
@@ -143,10 +142,9 @@ def run(
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
-        device, pt, jit, engine = (
+        device, of, engine = (
             next(model.parameters()).device,
             True,
-            False,
             False,
         )  # get model device, PyTorch model
         half &= device.type != "cpu"  # half precision only supported on CUDA
@@ -160,16 +158,16 @@ def run(
 
         # Load model
         model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
-        stride, pt, jit, engine = model.stride, model.pt, model.jit, model.engine
+        stride, of, engine = model.stride, model.of, model.engine
         imgsz = check_img_size(imgsz, s=stride)  # check image size
         half = model.fp16  # FP16 supported on limited backends with CUDA
         if engine:
             batch_size = model.batch_size
         else:
             device = model.device
-            if not (pt or jit):
+            if not of:
                 batch_size = 1  # export.py models default to batch-size 1
-                LOGGER.info(f"Forcing --batch-size 1 inference (1,3,{imgsz},{imgsz}) for non-PyTorch models")
+                LOGGER.info(f"Forcing --batch-size 1 inference (1,3,{imgsz},{imgsz}) for non-OneFlow models")
 
         # Data
         data = check_dataset(data)  # check
@@ -184,14 +182,14 @@ def run(
 
     # Dataloader
     if not training:
-        if pt and not single_cls:  # check --weights are trained on --data
+        if of and not single_cls:  # check --weights are trained on --data
             ncm = model.model.nc
             assert ncm == nc, (
                 f"{weights} ({ncm} classes) trained on different --data than what you passed ({nc} " f"classes). Pass correct combination of" f" --weights and --data that are trained together."
             )
-        model.warmup(imgsz=(1 if pt else batch_size, 3, imgsz, imgsz))  # warmup
+        model.warmup(imgsz=(1 if of else batch_size, 3, imgsz, imgsz))  # warmup
         pad = 0.0 if task in ("speed", "benchmark") else 0.5
-        rect = False if task == "benchmark" else pt  # square inference for benchmarks
+        rect = False if task == "benchmark" else of  # square inference for benchmarks
         task = task if task in ("train", "val", "test") else "val"  # path to train/val/test images
         dataloader = create_dataloader(
             data[task],
@@ -209,8 +207,25 @@ def run(
     confusion_matrix = ConfusionMatrix(nc=nc)
     names = dict(enumerate(model.names if hasattr(model, "names") else model.module.names))
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
-    s = ("%20s" + "%11s" * 6) % ("Class", "Images", "Labels", "P", "R", "mAP@.5", "mAP@.5:.95")
-    dt, p, r, f1, mp, mr, map50, map = [0.0, 0.0, 0.0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    s = ("%20s" + "%11s" * 6) % (
+        "Class",
+        "Images",
+        "Labels",
+        "P",
+        "R",
+        "mAP@.5",
+        "mAP@.5:.95",
+    )
+    dt, p, r, f1, mp, mr, map50, map = (
+        [0.0, 0.0, 0.0],
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    )
     loss = flow.zeros(3, device=device)
     jdict, stats, ap, ap_class = [], [], [], []
     callbacks.run("on_val_start")
@@ -278,7 +293,12 @@ def run(
 
             # Save/log
             if save_txt:
-                save_one_txt(predn, save_conf, shape, file=save_dir / "labels" / f"{path.stem}.txt")
+                save_one_txt(
+                    predn,
+                    save_conf,
+                    shape,
+                    file=save_dir / "labels" / f"{path.stem}.txt",
+                )
             if save_json:
                 save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
             callbacks.run("on_val_image_end", pred, predn, path, names, im[si])
@@ -286,7 +306,13 @@ def run(
         # Plot images
         if plots and batch_i < 3:
             plot_images(im, targets, paths, save_dir / f"val_batch{batch_i}_labels.jpg", names)  # labels
-            plot_images(im, output_to_target(out), paths, save_dir / f"val_batch{batch_i}_pred.jpg", names)  # pred
+            plot_images(
+                im,
+                output_to_target(out),
+                paths,
+                save_dir / f"val_batch{batch_i}_pred.jpg",
+                names,
+            )  # pred
 
         callbacks.run("on_val_batch_end")
 
@@ -360,24 +386,50 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
-    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model.pt path(s)")
+    parser.add_argument(
+        "--weights",
+        nargs="+",
+        type=str,
+        default=ROOT / "yolov5s.pt",
+        help="model.pt path(s)",
+    )
     parser.add_argument("--batch-size", type=int, default=32, help="batch size")
-    parser.add_argument("--imgsz", "--img", "--img-size", type=int, default=640, help="inference size (pixels)")
+    parser.add_argument(
+        "--imgsz",
+        "--img",
+        "--img-size",
+        type=int,
+        default=640,
+        help="inference size (pixels)",
+    )
     parser.add_argument("--conf-thres", type=float, default=0.001, help="confidence threshold")
     parser.add_argument("--iou-thres", type=float, default=0.6, help="NMS IoU threshold")
     parser.add_argument("--task", default="val", help="train, val, test, speed or study")
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
-    parser.add_argument("--workers", type=int, default=8, help="max dataloader workers (per RANK in DDP mode)")
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=8,
+        help="max dataloader workers (per RANK in DDP mode)",
+    )
     parser.add_argument("--single-cls", action="store_true", help="treat as single-class dataset")
     parser.add_argument("--augment", action="store_true", help="augmented inference")
     parser.add_argument("--verbose", action="store_true", help="report mAP by class")
     parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
-    parser.add_argument("--save-hybrid", action="store_true", help="save label+prediction hybrid results to *.txt")
+    parser.add_argument(
+        "--save-hybrid",
+        action="store_true",
+        help="save label+prediction hybrid results to *.txt",
+    )
     parser.add_argument("--save-conf", action="store_true", help="save confidences in --save-txt labels")
     parser.add_argument("--save-json", action="store_true", help="save a COCO-JSON results file")
     parser.add_argument("--project", default=ROOT / "runs/val", help="save to project/name")
     parser.add_argument("--name", default="exp", help="save to project/name")
-    parser.add_argument("--exist-ok", action="store_true", help="existing project/name ok, do not increment")
+    parser.add_argument(
+        "--exist-ok",
+        action="store_true",
+        help="existing project/name ok, do not increment",
+    )
     parser.add_argument("--half", action="store_true", help="use FP16 half-precision inference")
     parser.add_argument("--dnn", action="store_true", help="use OpenCV DNN for ONNX inference")
     opt = parser.parse_args()
@@ -411,7 +463,10 @@ def main(opt):
             #                --iou 0.7 --weights yolov5n.pt yolov5s.pt...
             for opt.weights in weights:
                 f = f"study_{Path(opt.data).stem}_{Path(opt.weights).stem}.txt"
-                x, y = list(range(256, 1536 + 128, 128)), []  # x axis (image sizes), y axis
+                x, y = (
+                    list(range(256, 1536 + 128, 128)),
+                    [],
+                )  # x axis (image sizes), y axis
                 for opt.imgsz in x:  # img-size
                     LOGGER.info(f"\nRunning {f} --imgsz {opt.imgsz}...")
                     r, _, t = run(**vars(opt), plots=False)
