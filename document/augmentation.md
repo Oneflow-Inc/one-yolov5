@@ -129,7 +129,8 @@ YOLOv5 🚀 集成了Albumentations(一个流行的开源图像增强包)。
         # 循环遍历这些图片
         for i, index in enumerate(indices):
             # Load image
-            # 加载图片和高宽
+            # 加载图片并返回高宽
+
             img, _, (h, w) = self.load_image(index)
 
             # place img in img4 放置图片
