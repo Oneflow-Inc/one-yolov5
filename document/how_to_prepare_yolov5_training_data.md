@@ -38,7 +38,7 @@ download: https://ultralytics.com/assets/coco128.zip
  1. 修改训练和验证图像的路径为自定义数据集路径
  2. 修改类别数和类名列表
 ## 2.创建 Labels
-使用工具例如 [CVAT](https://github.com/opencv/cvat) , [makesense.ai](https://www.makesense.ai/), [Labelbox](https://labelbox.com/) ，labelimg(在本章如何制作数据集中介绍labelimg工具使用) 等，去做标签在你自己的图片上，将标签导出为YOLO格式，带一个*.txt 的图像文件 （如果图像中没有对象，则不需要*.txt文件）。
+使用工具例如 [CVAT](https://github.com/opencv/cvat) , [makesense.ai](https://www.makesense.ai/), [Labelbox](https://labelbox.com/) ，labelimg(在本章如何制作数据集中介绍labelimg工具使用) 等，在你自己的数据集提供的图片上做目标框的标注，将标注信息导出为一个txt后缀结尾的文件。（如果图像中没有对象，则不需要*.txt文件）。
 
 *.txt文件规范如下所示:
 - 每一行 一个对象。
@@ -49,6 +49,7 @@ download: https://ultralytics.com/assets/coco128.zip
 
 <p align="center">
   <img src="https://user-images.githubusercontent.com/26833433/91506361-c7965000-e886-11ea-8291-c72b98c25eec.jpg">
+  这里假设以coco数据集的目标类别约定来标注
 </p>
 与上述图像相对应的标签文件包含2个人（class 0）和 一个领带（class 27）：
 
