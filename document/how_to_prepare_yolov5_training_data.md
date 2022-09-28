@@ -8,20 +8,15 @@ COCO128是官方给的一个小的数据集 由[COCO](https://cocodataset.org/#h
 这128幅图像用于训练和验证，以验证我们的训练是否能够过正常进行。[coco128.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/master/data/coco128.yaml) 。
 [数据集配置文件 coco128.yaml](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml)定义了如下的配置选项： 
 
-1) 用于自动下载的可选下载命令/URL 。 
-2) 指向训练图像目录的路径（或指向包含训练图像列表的*.txt文件的路径
-3) 验证图像的路径相同
-4) 类数
-5) 类名列表；
 ```coco128.yaml
 # train and val data as 1) directory: path/images/, 2) file: path/images.txt, or 3) list: [path1/images/, path2/images/]
 
-
-train: ../coco128/images/train2017/
+# 训练和验证图像的路径相同
+train: ../coco128/images/train2017/ 
 val: ../coco128/images/train2017/
 
 # number of classes
-nc: 80 # 类数
+nc: 80 # 类别数
 
 # class names 类名列表
 names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
@@ -34,7 +29,11 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
         'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 
         'teddy bear', 'hair drier', 'toothbrush']
 
-   ```
+
+# Download script/URL (optional) 用于自动下载的可选下载命令/URL 。 
+download: https://ultralytics.com/assets/coco128.zip
+ ```
+ 
 ## 2.创建 Labels
 使用工具例如 [CVAT](https://github.com/opencv/cvat) , [makesense.ai](https://www.makesense.ai/), [Labelbox](https://labelbox.com/) ，labelimg(在本章如何制作数据集中介绍labelimg工具使用) 等，去做标签在你自己的图片上，将标签导出为YOLO格式，带一个*.txt 的图像文件 （如果图像中没有对象，则不需要*.txt文件）。
 
