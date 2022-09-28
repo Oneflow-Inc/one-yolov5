@@ -34,6 +34,9 @@ names: ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 't
 download: https://ultralytics.com/assets/coco128.zip
  ```
  
+ 注意：如果是自定义数据集的话按自己需求修改这个yaml文件。主要修改以下两点。
+ 1. 修改训练和验证图像的路径为自定义数据集路径
+ 2. 修改类别数和类名列表
 ## 2.创建 Labels
 使用工具例如 [CVAT](https://github.com/opencv/cvat) , [makesense.ai](https://www.makesense.ai/), [Labelbox](https://labelbox.com/) ，labelimg(在本章如何制作数据集中介绍labelimg工具使用) 等，去做标签在你自己的图片上，将标签导出为YOLO格式，带一个*.txt 的图像文件 （如果图像中没有对象，则不需要*.txt文件）。
 
