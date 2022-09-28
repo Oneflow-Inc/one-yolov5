@@ -6,7 +6,7 @@
 ## 1.创建dataset.yaml
 COCO128是官方给的一个小的数据集 由[COCO](https://cocodataset.org/#home)数据集前128张图片组成。
 这128幅图像用于训练和验证，以验证我们的训练是否能够过正常进行。[data/coco128.yaml](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml) 。
-如下所示，数据集配置文件定义了选项 
+[数据集配置文件 coco128.yaml](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml)定义了如下的配置选项： 
 
 1) 用于自动下载的可选下载命令/URL 。 
 2) 指向训练图像目录的路径（或指向包含训练图像列表的*.txt文件的路径
