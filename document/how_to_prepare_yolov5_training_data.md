@@ -58,7 +58,7 @@ download: https://ultralytics.com/assets/coco128.zip
 
 ## 3.目录结构
 
-组织你的train和val图片和标签 根据下面的示例。在本例中，我们假设 **/coco128**是位于 **/yolov5** 目录附近。YOLOv5通过将每个图像路径中的 **/images/** 的最后一个实例替换为 **/labels/** 来自动定位每个图像的标签。例如：
+根据下面的示例组织训练集合验证集的图片和标签 。在本例中，我们的**/coco128**是位于 **/yolov5** 目录附近。YOLOv5通过将每个图像路径 **xx/images/xx.jpg** 替换为 **xx/labels/xx.txt** 来自动定位每个图像的标签。例如：
 ```Python
 dataset/images/im0.jpg  # image
 dataset/labels/im0.txt  # label
