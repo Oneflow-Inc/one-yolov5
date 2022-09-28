@@ -108,6 +108,17 @@ labelimg
   <a href= "https://arxiv.org/abs/1405.0312">
   <img src="https://user-images.githubusercontent.com/26833433/109398377-82b0ac00-78f1-11eb-9c76-cc7820669d0d.png">
   </a>
+        
+- lnstances per category 每个类别的情况
+- Categories per image 每幅图像类别
+- (a) lnstances per image 每幅图像的内容
+- (b) Number of categories vs. number of instances 类别数目 vs 实例数目
+- (c) lnstance size 干扰大小
+- (d) Number of categories 类别数
+- (e) Percent of image size 图像大小百分比
+
+
+        
 </p>
 
 
