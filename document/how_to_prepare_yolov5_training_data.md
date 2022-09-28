@@ -2,7 +2,7 @@
 ## 前言
 本章主要以介绍 训练在自定义数据集，到如何进行数据集制作能获得更好的训练结果进行概述。
 
-# 训练在自定义数据集
+# 在自定义数据集上训练
 ## 1.创建dataset.yaml
 COCO128是官方给的一个小的数据集 由[COCO](https://cocodataset.org/#home)数据集前128张图片组成。
 这128幅图像用于训练和验证，以验证我们的训练是否能够过正常进行。[coco128.yaml](https://github.com/ultralytics/yolov5/blob/master/data/coco128.yaml) 。
