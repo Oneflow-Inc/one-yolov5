@@ -126,7 +126,8 @@ YOLOv5 🚀 集成了Albumentations(一个流行的开源图像增强包)。
         indices = [index] + random.choices(self.indices, k=3)  # 3 additional image indices
         # 对这些索引值随机排序
         random.shuffle(indices)
-        # 循环遍历这些图片
+        # 遍历这4张图片
+
         for i, index in enumerate(indices):
             # Load image
             # 加载图片并返回高宽
