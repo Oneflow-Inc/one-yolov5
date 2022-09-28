@@ -104,7 +104,8 @@ YOLOv5 🚀 集成了Albumentations(一个流行的开源图像增强包)。
 
 这样可以丰富图片的背景，而且四张图片拼接在一起变相提高了batch_size，在进行batch normalization（归一化）的时候也会计算四张图片。
 
-这样让YOLOv5对本身batch_size不是很依赖。
+这样让YOLOv5对本身的batch_size不是很敏感。
+
 
 下面对于[utils/dataloaders.py中Mosaic实现](https://github.com/Oneflow-Inc/one-yolov5/blob/ef218b95d4f6780b3a1d092f7fdc64fd447c9674/utils/dataloaders.py#L764-L832)进行源码逐行解读。
 
