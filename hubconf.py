@@ -39,14 +39,14 @@ def _create(name, pretrained=True, channels=3, classes=80, autoshape=True, verbo
         LOGGER.setLevel(logging.WARNING)
     check_requirements(exclude=("tensorboard", "thop", "opencv-python"))
     name = Path(name)
-    path = name.with_suffix(".pt") if name.suffix == "" and not name.is_dir() else name  # checkpoint path
+    path = name  # checkpoint path
     try:
         device = select_device(device)
         if pretrained and channels == 3 and classes == 80:
             try:
                 model = DetectMultiBackend(path, device=device, fuse=autoshape)  # detection model
                 if autoshape:
-                    if model.pt and isinstance(model.model, ClassificationModel):
+                    if model.of and isinstance(model.model, ClassificationModel):
                         LOGGER.warning("WARNING: ⚠️ YOLOv5 v6.2 ClassificationModel is not yet AutoShape compatible. " "You must pass oneflow tensors in BCHW to this model, i.e. shape(1,3,224,224).")
                     else:
                         model = AutoShape(model)  # for file/URI/PIL/cv2/np inputs and NMS
@@ -72,7 +72,7 @@ def _create(name, pretrained=True, channels=3, classes=80, autoshape=True, verbo
         raise Exception(s) from e
 
 
-def custom(path="path/to/model.pt", autoshape=True, _verbose=True, device=None):
+def custom(path="path/to/model", autoshape=True, _verbose=True, device=None):
     # YOLOv5 custom or local model
     return _create(path, autoshape=autoshape, verbose=_verbose, device=device)
 

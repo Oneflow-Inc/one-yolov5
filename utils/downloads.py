@@ -100,7 +100,7 @@ def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
         print("")
 
 
-def attempt_download(file, repo="ultralytics/yolov5"):  # from utils.downloads import *; attempt_download()
+def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloads import *; attempt_download()
     # Attempt file download if does not exist
     file = Path(str(file).strip().replace("'", ""))
 
@@ -120,20 +120,20 @@ def attempt_download(file, repo="ultralytics/yolov5"):  # from utils.downloads i
         file.parent.mkdir(parents=True, exist_ok=True)  # make parent dir (if required)
         try:
             response = requests.get(f"https://api.github.com/repos/{repo}/releases/latest").json()  # github api
-            assets = [x["name"] for x in response["assets"]]  # release assets, i.e. ['yolov5s.pt', 'yolov5m.pt', ...]
+            assets = [x["name"] for x in response["assets"]]  # release assets, i.e. ['yolov5s', 'yolov5m', ...]
             tag = response["tag_name"]  # i.e. 'v1.0'
         except:  # fallback plan
             assets = [
-                "yolov5n.pt",
-                "yolov5s.pt",
-                "yolov5m.pt",
-                "yolov5l.pt",
-                "yolov5x.pt",
-                "yolov5n6.pt",
-                "yolov5s6.pt",
-                "yolov5m6.pt",
-                "yolov5l6.pt",
-                "yolov5x6.pt",
+                "yolov5n",
+                "yolov5s",
+                "yolov5m",
+                "yolov5l",
+                "yolov5x",
+                "yolov5n6",
+                "yolov5s6",
+                "yolov5m6",
+                "yolov5l6",
+                "yolov5x6",
             ]
             try:
                 tag = subprocess.check_output("git tag", shell=True, stderr=subprocess.STDOUT).decode().split()[-1]
