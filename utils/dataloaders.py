@@ -76,7 +76,7 @@ VID_FORMATS = (
 )  # include video suffixes
 BAR_FORMAT = "{l_bar}{bar:10}{r_bar}{bar:-10b}"  # tqdm bar format
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
-
+RANK = int(os.getenv('RANK', -1))
 # Get orientation exif tag
 for orientation in ExifTags.TAGS.keys():
     if ExifTags.TAGS[orientation] == "Orientation":
@@ -178,7 +178,7 @@ def create_dataloader(
     sampler = None if rank == -1 else distributed.DistributedSampler(dataset, shuffle=shuffle)
     loader = DataLoader if image_weights else InfiniteDataLoader  # only DataLoader allows for attribute updates
     generator = flow.Generator()
-    generator.manual_seed(0)
+    generator.manual_seed(6148914691236517205 + RANK)
     return (
         loader(
             dataset,
