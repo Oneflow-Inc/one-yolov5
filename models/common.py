@@ -36,7 +36,8 @@ def autopad(k, p=None):  # kernel, padding
 
 class Conv(nn.Module):
     # Standard convolution
-    default_act = nn.SiLU() # default activation
+    default_act = nn.SiLU()  # default activation
+
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
         super().__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)

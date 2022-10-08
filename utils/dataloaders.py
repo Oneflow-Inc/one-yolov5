@@ -76,7 +76,7 @@ VID_FORMATS = (
 )  # include video suffixes
 BAR_FORMAT = "{l_bar}{bar:10}{r_bar}{bar:-10b}"  # tqdm bar format
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
-RANK = int(os.getenv('RANK', -1))
+RANK = int(os.getenv("RANK", -1))
 # Get orientation exif tag
 for orientation in ExifTags.TAGS.keys():
     if ExifTags.TAGS[orientation] == "Orientation":
