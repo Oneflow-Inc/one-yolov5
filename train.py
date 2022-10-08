@@ -125,7 +125,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     plots = not evolve and not opt.noplots  # create plots
     cuda = device.type != "cpu"
 
-    init_seeds(1, deterministic=True)
+    init_seeds(opt.seed + 1 + RANK, deterministic=True)
 
     # with torch_distributed_zero_first(LOCAL_RANK): # 这个是上下文管理器
     data_dict = data_dict or check_dataset(data)  # check if None

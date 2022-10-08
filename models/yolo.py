@@ -21,7 +21,7 @@ import oneflow.nn as nn
 from models.common import C3, C3SPP, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C3Ghost, C3x, Concat, Contract, Conv, CrossConv, DWConv, DWConvTranspose2d, Expand, Focus, GhostBottleneck, GhostConv
 from models.experimental import MixConv2d
 from utils.autoanchor import check_anchor_order
-from utils.general import LOGGER, check_yaml, make_divisible, print_args
+from utils.general import LOGGER, check_yaml, colorstr, make_divisible, print_args
 from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
 from utils.plots import feature_visualization
 
@@ -271,7 +271,10 @@ class Model(nn.Module):
 
 def parse_model(d, ch):  # model_dict, input_channels(3)
     LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
-    anchors, nc, gd, gw = d["anchors"], d["nc"], d["depth_multiple"], d["width_multiple"]
+    anchors, nc, gd, gw, act = d["anchors"], d["nc"], d["depth_multiple"], d["width_multiple"], d.get("activation")
+    if act:
+        Conv.default_act = eval(act)  # redefine default activation, i.e. Conv.default_act = nn.SiLU()
+        LOGGER.info(f"{colorstr('activation:')} {act}")  # print
     na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
     no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
 
