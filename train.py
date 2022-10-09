@@ -41,7 +41,7 @@ from utils.autoanchor import check_anchors
 from utils.callbacks import Callbacks
 from utils.dataloaders import create_dataloader
 
-from utils.downloads import attempt_download, is_url
+from utils.downloads import is_url  # , attempt_download
 from utils.general import check_img_size  # check_suffix,
 from utils.general import (
     LOGGER,
