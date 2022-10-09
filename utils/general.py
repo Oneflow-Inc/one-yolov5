@@ -563,17 +563,18 @@ def check_dataset(data, autodownload=True):
 #         LOGGER.warning(f'{prefix}checks failed ❌, disabling Automatic Mixed Precision. See {help_url}')
 #         return False
 
-def yaml_load(file='data.yaml'):
+
+def yaml_load(file="data.yaml"):
     # Single-line safe yaml loading
-    with open(file, errors='ignore') as f:
+    with open(file, errors="ignore") as f:
         return yaml.safe_load(f)
 
 
-def yaml_save(file='data.yaml', data={}):
+def yaml_save(file="data.yaml", data={}):
     # Single-line safe yaml saving
-    with open(file, 'w') as f:
+    with open(file, "w") as f:
         yaml.safe_dump({k: str(v) if isinstance(v, Path) else v for k, v in data.items()}, f, sort_keys=False)
-        
+
 
 def url2file(url):
     # Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt

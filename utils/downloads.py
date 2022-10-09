@@ -16,6 +16,7 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
+
 def is_url(url, check=True):
     # Check if string is URL and check if URL exists
     try:
