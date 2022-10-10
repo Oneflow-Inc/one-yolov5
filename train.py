@@ -399,7 +399,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     single_cls=single_cls,
                     dataloader=val_loader,
                     save_dir=save_dir,
-                    plots=plots,
+                    plots=False,
                     callbacks=callbacks,
                     compute_loss=compute_loss,
                 )
@@ -464,7 +464,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         save_dir=save_dir,
                         save_json=is_coco,
                         verbose=True,
-                        plots=False,
+                        plots=plots,
                         callbacks=callbacks,
                         compute_loss=compute_loss,
                     )  # val best model with plots
