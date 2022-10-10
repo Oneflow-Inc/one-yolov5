@@ -41,7 +41,7 @@ from utils.autoanchor import check_anchors
 from utils.callbacks import Callbacks
 from utils.dataloaders import create_dataloader
 
-# from utils.downloads import attempt_download
+from utils.downloads import is_url  # , attempt_download
 from utils.general import check_img_size  # check_suffix,
 from utils.general import (
     LOGGER,
@@ -62,6 +62,7 @@ from utils.general import (
     print_args,
     print_mutation,
     strip_optimizer,
+    yaml_save,
 )
 from utils.loggers import Loggers
 from utils.loggers.wandb.wandb_utils import check_wandb_resume
@@ -112,6 +113,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     LOGGER.info(colorstr("hyperparameters: ") + ", ".join(f"{k}={v}" for k, v in hyp.items()))
     opt.hyp = hyp.copy()  # for saving hyps to checkpoints
 
+    # Save run settings
+    if not evolve:
+        yaml_save(save_dir / "hyp.yaml", hyp)
+        yaml_save(save_dir / "opt.yaml", vars(opt))
+
     # Loggers
     data_dict = None
     if RANK in {-1, 0}:
@@ -143,7 +149,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
         exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
-        csd = ckpt["model"]  # checkpoint state_dict as FP32
+        csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")  # report
@@ -181,6 +187,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             return (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]
 
         lf = f  # linear
+
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
@@ -189,7 +196,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Resume
     best_fitness, start_epoch = 0.0, 0
     if pretrained:
-        best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
+        if resume:
+            best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
         del ckpt, csd
 
     # SyncBatchNorm
@@ -213,7 +221,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         image_weights=opt.image_weights,
         quad=opt.quad,
         prefix=colorstr("train: "),
-        shuffle=False,
+        shuffle=True,
     )
     labels = np.concatenate(dataset.labels, 0)
     mlc = int(labels[:, 0].max())  # max label class
@@ -318,6 +326,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Warmup
             if ni <= nw:
                 xi = [0, nw]  # x interp
+                # compute_loss.gr = np.interp(ni, xi, [0.0, 1.0])  # iou loss ratio (obj_loss = 1.0 or iou)
                 accumulate = max(1, np.interp(ni, xi, [1, nbs / batch_size]).round())
                 for j, x in enumerate(optimizer.param_groups):
                     # bias lr falls from 0.1 to lr0, all other lrs rise from 0.0 to lr0
@@ -390,7 +399,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     single_cls=single_cls,
                     dataloader=val_loader,
                     save_dir=save_dir,
-                    plots=plots,
+                    plots=False,
                     callbacks=callbacks,
                     compute_loss=compute_loss,
                 )
@@ -568,7 +577,7 @@ def main(opt, callbacks=Callbacks()):
     if opt.resume and not (check_wandb_resume(opt) or opt.evolve):  # resume from specified or most recent last
         last = Path(check_file(opt.resume) if isinstance(opt.resume, str) else get_latest_run())
         opt_yaml = last.parent.parent / "opt.yaml"  # train options yaml
-        # opt_data = opt.data  # original dataset
+        opt_data = opt.data  # original dataset
         if opt_yaml.is_file():
             with open(opt_yaml, errors="ignore") as f:
                 d = yaml.safe_load(f)
@@ -576,8 +585,8 @@ def main(opt, callbacks=Callbacks()):
             d = flow.load(last, map_location="cpu")["opt"]
         opt = argparse.Namespace(**d)  # replace
         opt.cfg, opt.weights, opt.resume = "", str(last), True  # reinstate
-        # if is_url(opt_data):
-        #     opt.data = check_file(opt_data)  # avoid HUB resume auth timeout
+        if is_url(opt_data):
+            opt.data = check_file(opt_data)  # avoid HUB resume auth timeout
     else:
         opt.data, opt.cfg, opt.hyp, opt.weights, opt.project = (
             check_file(opt.data),
