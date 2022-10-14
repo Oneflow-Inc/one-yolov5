@@ -564,6 +564,18 @@ def check_dataset(data, autodownload=True):
 #         return False
 
 
+def yaml_load(file="data.yaml"):
+    # Single-line safe yaml loading
+    with open(file, errors="ignore") as f:
+        return yaml.safe_load(f)
+
+
+def yaml_save(file="data.yaml", data={}):
+    # Single-line safe yaml saving
+    with open(file, "w") as f:
+        yaml.safe_dump({k: str(v) if isinstance(v, Path) else v for k, v in data.items()}, f, sort_keys=False)
+
+
 def url2file(url):
     # Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt
     url = str(Path(url)).replace(":/", "://")  # Pathlib turns :// -> :/
@@ -899,6 +911,9 @@ def non_max_suppression(
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
+    if isinstance(prediction, (list, tuple)):  # YOLOv5 model in validation model, output = (inference_out, loss_out)
+        prediction = prediction[0]  # select only inference output
+
     bs = prediction.shape[0]  # batch size
     nc = prediction.shape[2] - 5  # number of classes
     xc = prediction[..., 4] > conf_thres  # candidates
@@ -910,7 +925,7 @@ def non_max_suppression(
     # Settings
     # min_wh = 2  # (pixels) minimum box width and height
     max_wh = 7680  # (pixels) maximum box width and height
-    max_nms = 30000  # maximum number of boxes into oneflowvision.ops.nms()
+    max_nms = 30000  # maximum number of boxes into flow.nms()
     time_limit = 0.3 + 0.03 * bs  # seconds to quit after
     redundant = True  # require redundant detections
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
