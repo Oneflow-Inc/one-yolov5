@@ -899,7 +899,6 @@ def non_max_suppression(
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
-
     bs = prediction.shape[0]  # batch size
     nc = prediction.shape[2] - 5  # number of classes
     xc = prediction[..., 4] > conf_thres  # candidates
@@ -989,7 +988,7 @@ def non_max_suppression(
     return output
 
 
-def strip_optimizer(f="best.pt", s=""):  # from utils.general import *; strip_optimizer()
+def strip_optimizer(f="best", s=""):  # from utils.general import *; strip_optimizer()
     # Strip optimizer from 'f' to finalize training, optionally save as 's'
     x = flow.load(f, map_location=flow.device("cpu"))
     if x.get("ema"):

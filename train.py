@@ -282,6 +282,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         f"Logging results to {colorstr('bold', save_dir)}\n"
         f"Starting training for {epochs} epochs..."
     )
+    flow._oneflow_internal.profiler.RangePush('epoch begin!')
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run("on_train_epoch_start")
         model.train()
@@ -305,6 +306,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         optimizer.zero_grad()
 
+        flow._oneflow_internal.profiler.RangePush('batch begin!')
         for i, (
             imgs,
             targets,
@@ -340,9 +342,13 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Forward
             # imgs = flow.FloatTensor(np.ones([16,3,640,640])).cuda()
 
+            flow._oneflow_internal.profiler.RangePush('forward')
             pred = model(imgs)  # forward
+            flow._oneflow_internal.profiler.RangePop()
 
+            flow._oneflow_internal.profiler.RangePush('compute loss')
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
+            flow._oneflow_internal.profiler.RangePop()
 
             if RANK != -1:
                 loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
@@ -351,7 +357,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Backward
             # scaler.scale(loss).backward()
+            flow._oneflow_internal.profiler.RangePush('backward')
             loss.backward()
+            flow._oneflow_internal.profiler.RangePop()
 
             # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
@@ -369,7 +377,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *t, targets.shape[0], imgs.shape[-1]))
 
             # end batch ----------------------------------------------------------------
-
+        flow._oneflow_internal.profiler.RangePop()
         # Scheduler
         lr = [x["lr"] for x in optimizer.param_groups]  # for loggers
         scheduler.step()
@@ -380,6 +388,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             ema.update_attr(model, include=["yaml", "nc", "hyp", "names", "stride", "class_weights"])
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
 
+            flow._oneflow_internal.profiler.RangePush('cal map begin')
             if not noval or final_epoch:  # Calculate mAP
                 results, maps, _ = val.run(
                     data_dict,
@@ -390,10 +399,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     single_cls=single_cls,
                     dataloader=val_loader,
                     save_dir=save_dir,
-                    plots=plots,
+                    plots=False,
                     callbacks=callbacks,
                     compute_loss=compute_loss,
                 )
+            flow._oneflow_internal.profiler.RangePop()
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
             # stop = stopper(epoch=epoch, fitness=fi)  # early stop check
@@ -407,8 +417,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 ckpt = {
                     "epoch": epoch,
                     "best_fitness": best_fitness,
-                    "model": deepcopy(de_parallel(model)).state_dict(),
-                    "ema": deepcopy(ema.ema).state_dict(),
+                    "model": deepcopy(de_parallel(model)).half(),
+                    "ema": deepcopy(ema.ema).half(),
                     "updates": ema.updates,
                     "optimizer": optimizer.state_dict(),
                     "wandb_id": loggers.wandb.wandb_run.id if loggers.wandb else None,
@@ -436,6 +446,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         # end epoch --------------------------------------------------------------------------
     # end training ---------------------------------------------------------------------------
+    flow._oneflow_internal.profiler.RangePop()
 
     if RANK in {-1, 0}:
         LOGGER.info(f"\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours")

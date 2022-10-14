@@ -204,7 +204,9 @@ def run(
         )[0]
 
     seen = 0
+    flow._oneflow_internal.profiler.RangePush('confusion_matrix')
     confusion_matrix = ConfusionMatrix(nc=nc)
+    flow._oneflow_internal.profiler.RangePop()
     names = dict(enumerate(model.names if hasattr(model, "names") else model.module.names))
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
     s = ("%20s" + "%11s" * 6) % (
@@ -230,15 +232,18 @@ def run(
     jdict, stats, ap, ap_class = [], [], [], []
     callbacks.run("on_val_start")
     pbar = tqdm(dataloader, desc=s, bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}")  # progress bar
+    flow._oneflow_internal.profiler.RangePush('val dataloader')
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
         callbacks.run("on_val_batch_start")
         t1 = time_sync()
+        flow._oneflow_internal.profiler.RangePush('to cuda')
         if cuda:
 
             # im = im.to(device, non_blocking=True)
             im = im.to(device)
 
             targets = targets.to(device)
+        flow._oneflow_internal.profiler.RangePop()
         im = im.half() if half else im.float()  # uint8 to fp16/32
         im /= 255  # 0 - 255 to 0.0 - 1.0
         nb, _, height, width = im.shape  # batch size, channels, height, width
@@ -246,20 +251,26 @@ def run(
         dt[0] += t2 - t1
 
         # Inference
+        flow._oneflow_internal.profiler.RangePush('infer begin')
         out, train_out = model(im) if training else model(im, augment=augment, val=True)  # inference, loss outputs
+        flow._oneflow_internal.profiler.RangePop()
         dt[1] += time_sync() - t2
 
         # Loss
+        flow._oneflow_internal.profiler.RangePush('compute loss')
         if compute_loss:
             loss += compute_loss([x.float() for x in train_out], targets)[1]  # box, obj, cls
-
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('nms')
         # NMS
         targets[:, 2:] *= flow.tensor((width, height, width, height), device=device)  # to pixels
         lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
         t3 = time_sync()
         out = non_max_suppression(out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
         dt[2] += time_sync() - t3
+        flow._oneflow_internal.profiler.RangePop()
 
+        flow._oneflow_internal.profiler.RangePush('metrics')
         # Metrics
         for si, pred in enumerate(out):
             labels = targets[targets[:, 0] == si, 1:]
@@ -302,7 +313,8 @@ def run(
             if save_json:
                 save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
             callbacks.run("on_val_image_end", pred, predn, path, names, im[si])
-
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('plot images')
         # Plot images
         if plots and batch_i < 3:
             plot_images(im, targets, paths, save_dir / f"val_batch{batch_i}_labels.jpg", names)  # labels
@@ -313,9 +325,12 @@ def run(
                 save_dir / f"val_batch{batch_i}_pred.jpg",
                 names,
             )  # pred
+        flow._oneflow_internal.profiler.RangePop()
 
         callbacks.run("on_val_batch_end")
 
+    flow._oneflow_internal.profiler.RangePop()
+    flow._oneflow_internal.profiler.RangePush('Compute metrics')
     # Compute metrics
     stats = [flow.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
@@ -380,6 +395,7 @@ def run(
     maps = np.zeros(nc) + map
     for i, c in enumerate(ap_class):
         maps[c] = ap[i]
+    flow._oneflow_internal.profiler.RangePop()
     return (mp, mr, map50, map, *(loss.cpu() / len(dataloader)).tolist()), maps, t
 
 
