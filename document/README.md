@@ -38,7 +38,8 @@
 
 ### 🌟9. YOLOv5中的参数搜索
 
-### 🌟10. torch_utils/ 文件夹下的其它trick介绍，还可以做2-3期。
+### 🌟10. oneflow_utils/ 文件夹下的其它trick介绍。
+
 ## 论文解读 📚
 - [yolov1论文解读](https://start.oneflow.org/oneflow-yolo-doc/thesis_interpretation/01_yolo.html)
 - [yolov2论文解读](https://start.oneflow.org/oneflow-yolo-doc/thesis_interpretation/02_yolo.html)
