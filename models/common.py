@@ -313,7 +313,7 @@ class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
     def __init__(
         self,
-        weights="yolov5s.pt",
+        weights="yolov5s/",
         device=flow.device("cpu"),
         dnn=False,
         data=None,
@@ -321,7 +321,7 @@ class DetectMultiBackend(nn.Module):
         fuse=True,
     ):
         # Usage:
-        #   OneFlow:              weights  = *./
+        #   OneFlow:              weights  = *_oneflow_model
         #   ONNX Runtime:                   *.onnx
         #   ONNX OpenCV DNN:                *.onnx with --dnn
         #   OpenVINO:                       *.xml
