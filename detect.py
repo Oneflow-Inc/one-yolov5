@@ -30,6 +30,7 @@ import platform
 import sys
 from pathlib import Path
 
+import numpy as np
 import oneflow as flow
 import oneflow.backends.cudnn as cudnn
 
@@ -153,7 +154,6 @@ def run(
                 det = det.detach().cpu().numpy()
 
                 # Print results
-                import numpy as np
                 for c in np.unique(det[:, -1]):
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
