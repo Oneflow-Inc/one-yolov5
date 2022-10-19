@@ -79,7 +79,7 @@ if platform.system() != "Windows":
 def export_formats():
     # YOLOv5 export formats
     x = [
-        ["OneFlow", "oneflow", "_oneflow_model", True, True],
+        ["OneFlow", "oneflow", "", True, True],
         ["ONNX", "onnx", ".onnx", True, True],
         ["OpenVINO", "openvino", "_openvino_model", True, False],
         ["TensorRT", "engine", ".engine", False, True],
