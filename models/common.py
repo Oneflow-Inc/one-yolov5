@@ -551,6 +551,8 @@ class DetectMultiBackend(nn.Module):
         of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, xml2 = (s in p for s in suffixes)
         xml |= xml2  # *_openvino_model or *.xml
         tflite &= not edgetpu  # *.tflite
+        if onnx or xml or engine or coreml or saved_model or pb or tflite or edgetpu or tfjs:
+            of = False
         return of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs
 
     @staticmethod
