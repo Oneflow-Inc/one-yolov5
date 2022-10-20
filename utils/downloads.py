@@ -172,7 +172,7 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
             # ZipFile(new_file).extractall(path=file.parent)  # unzip
             f = ZipFile(file)
             f.extractall(new_dir)
-            shutil.rmtree(file)  # remove zip
+            os.remove(file)  # remove zip
             tmp_dir = "/tmp/oneyolov5"
             if os.path.isdir(tmp_dir):
                 shutil.rmtree(tmp_dir)
