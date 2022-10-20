@@ -44,7 +44,7 @@ import oneflow as flow
 model = flow.hub.load('Oneflow-Inc/one-yolov5', 'yolov5s')  # or yolov5n - yolov5x6, custom
 
 # 图像
-img = 'https://ultralytics.com/images/zidane.jpg'  # or file, Path, PIL, OpenCV, numpy, list
+img = 'https://github.com/Oneflow-Inc/one-yolov5/tree/main/data/images/zidane.jpg'  # or file, Path, PIL, OpenCV, numpy, list
 
 # 推理
 results = model(img)
@@ -76,7 +76,7 @@ python detect.py --source 0  # 网络摄像头
 <summary>训练</summary>
 
 以下指令再现了 YOLOv5 [COCO](https://github.com/Oneflow-Inc/one-yolov5/blob/main/data/scripts/get_coco.sh)
-数据集结果. [模型](https://github.com/Oneflow-Inc/one-yolov5/tree/main/models) 和 [数据集](https://github.com/Oneflow-Inc/one-yolov5/tree/main/data) 自动从最新的YOLOv5 [版本](https://github.com/Oneflow-Inc/one-yolov5/releases) 中下载。YOLOv5n/s/m/l/x的训练时间在V100 GPU上是 1/2/4/6/8天（多GPU倍速）. 尽可能使用最大的 `--batch-size`, 或通过 `--batch-size -1` 来实现 YOLOv5 [自动批处理](https://github.com/ultralytics/yolov5/pull/5092). 批量大小显示为 V100-16GB。
+数据集结果. [模型](https://github.com/Oneflow-Inc/one-yolov5/tree/main/models) 和 [数据集](https://github.com/Oneflow-Inc/one-yolov5/tree/main/data) 自动从最新的YOLOv5 [版本](https://github.com/Oneflow-Inc/one-yolov5/releases) 中下载。YOLOv5n/s/m/l/x的训练时间在V100 GPU上是 1/2/4/6/8天（多GPU倍速）. 尽可能使用最大的 `--batch-size`, 或通过 `--batch-size -1` 来实现 YOLOv5 [自动批处理](https://github.com/Oneflow-Inc/one-yolov5/blob/main/utils/autobatch.py#L21) 批量大小显示为 V100-16GB。
 
 ```bash
 python train.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 128
@@ -122,35 +122,35 @@ python train.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 12
 - **COCO AP val** 表示 mAP@0.5:0.95 在5000张图像的[COCO val2017](http://cocodataset.org)数据集上，在256到1536的不同推理大小上测量的指标。
 - **GPU Speed** 衡量的是在 [COCO val2017](http://cocodataset.org) 数据集上使用 [AWS p3.2xlarge](https://aws.amazon.com/ec2/instance-types/p3/) V100实例在批量大小为32时每张图像的平均推理时间。
 - **EfficientDet** 数据来自 [google/automl](https://github.com/google/automl) ，批量大小设置为 8。
-- 复现 mAP 方法: `python val.py --task study --data coco.yaml --iou 0.7 --weights yolov5n6.pt yolov5s6.pt yolov5m6.pt yolov5l6.pt yolov5x6.pt`
+- 复现 mAP 方法: `python val.py --task study --data coco.yaml --iou 0.7 --weights yolov5n6 yolov5s6 yolov5m6 yolov5l6 yolov5x6`
 
 </details>
 
 ### 预训练检查点
 
-| 模型                                                                                                | 规模<br><sup>(像素) | mAP<sup>验证<br>0.5:0.95 | mAP<sup>验证<br>0.5 | 速度<br><sup>CPU b1<br>(ms) | 速度<br><sup>V100 b1<br>(ms) | 速度<br><sup>V100 b32<br>(ms) | 参数<br><sup>(M) | 浮点运算<br><sup>@640 (B) |
-|------------------------------------------------------------------------------------------------------|-----------------------|-------------------------|--------------------|------------------------------|-------------------------------|--------------------------------|--------------------|------------------------|
-| [YOLOv5n](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5n.pt)                   | 640                   | 28.0                    | 45.7               | **45**                       | **6.3**                       | **0.6**                        | **1.9**            | **4.5**                |
-| [YOLOv5s](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5s.pt)                   | 640                   | 37.4                    | 56.8               | 98                           | 6.4                           | 0.9                            | 7.2                | 16.5                   |
-| [YOLOv5m](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5m.pt)                   | 640                   | 45.4                    | 64.1               | 224                          | 8.2                           | 1.7                            | 21.2               | 49.0                   |
-| [YOLOv5l](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5l.pt)                   | 640                   | 49.0                    | 67.3               | 430                          | 10.1                          | 2.7                            | 46.5               | 109.1                  |
-| [YOLOv5x](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5x.pt)                   | 640                   | 50.7                    | 68.9               | 766                          | 12.1                          | 4.8                            | 86.7               | 205.7                  |
-|                                                                                                      |                       |                         |                    |                              |                               |                                |                    |                        |
-| [YOLOv5n6](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5n6.pt)                 | 1280                  | 36.0                    | 54.4               | 153                          | 8.1                           | 2.1                            | 3.2                | 4.6                    |
-| [YOLOv5s6](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5s6.pt)                 | 1280                  | 44.8                    | 63.7               | 385                          | 8.2                           | 3.6                            | 12.6               | 16.8                   |
-| [YOLOv5m6](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5m6.pt)                 | 1280                  | 51.3                    | 69.3               | 887                          | 11.1                          | 6.8                            | 35.7               | 50.0                   |
-| [YOLOv5l6](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5l6.pt)                 | 1280                  | 53.7                    | 71.3               | 1784                         | 15.8                          | 10.5                           | 76.8               | 111.4                  |
-| [YOLOv5x6](https://github.com/ultralytics/yolov5/releases/download/v6.1/yolov5x6.pt)<br>+ [TTA][TTA] | 1280<br>1536          | 55.0<br>**55.8**        | 72.7<br>**72.7**   | 3136<br>-                    | 26.2<br>-                     | 19.4<br>-                      | 140.7<br>-         | 209.8<br>-             |
+| 模型                                                                                                 | 规模<br><sup>(像素) | mAP<sup>验证<br>0.5:0.95 | mAP<sup>验证<br>0.5 | 速度<br><sup>CPU b1<br>(ms) | 速度<br><sup>V100 b1<br>(ms) | 速度<br><sup>V100 b32<br>(ms) | 参数<br><sup>(M) | 浮点运算<br><sup>@640 (B) |
+|------------------------------------------------------------------------------------------------------|---------------------|--------------------------|---------------------|-----------------------------|------------------------------|-------------------------------|------------------|---------------------------|
+| [YOLOv5n](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5n.zip)                   | 640                 | 28.0                     | 45.7                | **45**                      | **6.3**                      | **0.6**                       | **1.9**          | **4.5**                   |
+| [YOLOv5s](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5s.zip)                   | 640                 | 37.4                     | 56.8                | 98                          | 6.4                          | 0.9                           | 7.2              | 16.5                      |
+| [YOLOv5m](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5m.zip)                   | 640                 | 45.4                     | 64.1                | 224                         | 8.2                          | 1.7                           | 21.2             | 49.0                      |
+| [YOLOv5l](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5l.zip)                   | 640                 | 49.0                     | 67.3                | 430                         | 10.1                         | 2.7                           | 46.5             | 109.1                     |
+| [YOLOv5x](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5x.zip)                   | 640                 | 50.7                     | 68.9                | 766                         | 12.1                         | 4.8                           | 86.7             | 205.7                     |
+|                                                                                                      |                     |                          |                     |                             |                              |                               |                  |                           |
+| [YOLOv5n6](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5n6.zip)                 | 1280                | 36.0                     | 54.4                | 153                         | 8.1                          | 2.1                           | 3.2              | 4.6                       |
+| [YOLOv5s6](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5s6.zip)                 | 1280                | 44.8                     | 63.7                | 385                         | 8.2                          | 3.6                           | 12.6             | 16.8                      |
+| [YOLOv5m6](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5m6.zip)                 | 1280                | 51.3                     | 69.3                | 887                         | 11.1                         | 6.8                           | 35.7             | 50.0                      |
+| [YOLOv5l6](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5l6.zip)                 | 1280                | 53.7                     | 71.3                | 1784                        | 15.8                         | 10.5                          | 76.8             | 111.4                     |
+| [YOLOv5x6](https://github.com/Oneflow-Inc/one-yolov5/releases/download/v1.0/yolov5x6.zip)<br>+ [TTA][TTA] | 1280<br>1536        | 55.0<br>**55.8**         | 72.7<br>**72.7**    | 3136<br>-                   | 26.2<br>-                    | 19.4<br>-                     | 140.7<br>-       | 209.8<br>-                |
 
 <details>
   <summary>表格注释 (点击扩展)</summary>
 
-- 所有检查点都以默认设置训练到300个时期. Nano和Small模型用 [hyp.scratch-low.yaml](https://github.com/ultralytics/yolov5/blob/master/data/hyps/hyp.scratch-low.yaml) hyps, 其他模型使用 [hyp.scratch-high.yaml](https://github.com/ultralytics/yolov5/blob/master/data/hyps/hyp.scratch-high.yaml).
+- 所有检查点都以默认设置训练到300个时期. Nano和Small模型用 [hyp.scratch-low.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/master/data/hyps/hyp.scratch-low.yaml) hyps, 其他模型使用 [hyp.scratch-high.yaml](https://github.com/Oneflow-Inc/one-yolov5/blob/master/data/hyps/hyp.scratch-high.yaml).
 - **mAP<sup>val</sup>** 值是 [COCO val2017](http://cocodataset.org) 数据集上的单模型单尺度的值。
 <br>复现方法: `python val.py --data coco.yaml --img 640 --conf 0.001 --iou 0.65`
 - 使用 [AWS p3.2xlarge](https://aws.amazon.com/ec2/instance-types/p3/) 实例对COCO val图像的平均速度。不包括NMS时间（~1 ms/img)
 <br>复现方法: `python val.py --data coco.yaml --img 640 --task speed --batch 1`
-- **TTA** [测试时数据增强](https://github.com/ultralytics/yolov5/issues/303) 包括反射和比例增强.
+- **TTA** [测试时数据增强](https://github.com/ultralytics/yolov5/issues/303) 包括反射和比例增强. # 文档网站还没有,稍后更新。
 <br>复现方法: `python val.py --data coco.yaml --img 1536 --iou 0.7 --augment`
 
 </details>
