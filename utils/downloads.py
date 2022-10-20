@@ -150,7 +150,7 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
             try:
                 tag = subprocess.check_output("git tag", shell=True, stderr=subprocess.STDOUT).decode().split()[-1]
             except:
-                tag = "v6.0"  # current release
+                tag = "v1.0"  # current release
 
         name = name + ".zip"
         file = Path(name)
