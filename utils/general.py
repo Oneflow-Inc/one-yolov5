@@ -34,7 +34,7 @@ import pandas as pd
 import pkg_resources as pkg
 import yaml
 
-from utils.downloads import download_url_to_file, gsutil_getsize
+from utils.downloads import gsutil_getsize
 from utils.metrics import box_iou, fitness
 
 # import torchvision
@@ -451,7 +451,7 @@ def check_file(file, suffix=""):
             LOGGER.info(f"Found {url} locally at {file}")  # file already exists
         else:
             LOGGER.info(f"Downloading {url} to {file}...")
-            download_url_to_file(url, file)
+            flow.hub.download_url_to_file(url, file)
             assert Path(file).exists() and Path(file).stat().st_size > 0, f"File download failed: {url}"  # check
         return file
     elif file.startswith("clearml://"):  # ClearML Dataset ID
@@ -473,7 +473,7 @@ def check_font(font=FONT, progress=False):
     if not font.exists() and not file.exists():
         url = "https://ultralytics.com/assets/" + font.name
         LOGGER.info(f"Downloading {url} to {file}...")
-        download_url_to_file(url, str(file), progress=progress)
+        flow.hub.download_url_to_file(url, str(file), progress=progress)
 
 
 def check_dataset(data, autodownload=True):
@@ -519,7 +519,7 @@ def check_dataset(data, autodownload=True):
             if s.startswith("http") and s.endswith(".zip"):  # URL
                 f = Path(s).name  # filename
                 LOGGER.info(f"Downloading {s} to {f}...")
-                download_url_to_file(s, f)
+                flow.hub.download_url_to_file(s, f)
                 Path(root).mkdir(parents=True, exist_ok=True)  # create root
                 ZipFile(f).extractall(path=root)  # unzip
                 Path(f).unlink()  # remove zip
@@ -598,7 +598,7 @@ def download(url, dir=".", unzip=True, delete=True, curl=False, threads=1, retry
                     r = os.system(f'curl -{s}L "{url}" -o "{f}" --retry 9 -C -')  # curl download with retry, continue
                     success = r == 0
                 else:
-                    download_url_to_file(url, f, progress=threads == 1)  # torch download
+                    flow.hub.download_url_to_file(url, f, progress=threads == 1)  # torch download
                     success = f.is_file()
                 if success:
                     break
