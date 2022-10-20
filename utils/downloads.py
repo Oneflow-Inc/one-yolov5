@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
+import oneflow as flow
 import requests
 from tqdm import tqdm
 
@@ -34,72 +35,13 @@ def gsutil_getsize(url=""):
     s = subprocess.check_output(f"gsutil du {url}", shell=True).decode("utf-8")
     return eval(s.split(" ")[0]) if len(s) else 0  # bytes
 
-
-def download_url_to_file(url, dst, hash_prefix=None, progress=True):
-    r"""Copied from https://github.com/pytorch/pytorch/blob/master/torch/hub.py#L400
-    Download object at the given URL to a local path.
-    Args:
-        url (string): URL of the object to download
-        dst (string): Full path where object will be saved, e.g. `/tmp/temporary_file`
-        hash_prefix (string, optional): If not None, the SHA256 downloaded file should start with `hash_prefix`.
-            Default: None
-        progress (bool, optional): whether or not to display a progress bar to stderr
-            Default: True
-    """
-    file_size = None
-    # We use a different API for python2 since urllib(2) doesn't recognize the CA
-    # certificates in older Python
-    req = Request(url, headers={"User-Agent": "torch.hub"})
-    u = urlopen(req)
-    meta = u.info()
-    if hasattr(meta, "getheaders"):
-        content_length = meta.getheaders("Content-Length")
-    else:
-        content_length = meta.get_all("Content-Length")
-    if content_length is not None and len(content_length) > 0:
-        file_size = int(content_length[0])
-
-    # We deliberately save it in a temp file and move it after
-    # download is complete. This prevents a local working checkpoint
-    # being overridden by a broken download.
-    dst = os.path.expanduser(dst)
-    dst_dir = os.path.dirname(dst)
-    f = tempfile.NamedTemporaryFile(delete=False, dir=dst_dir)
-
-    try:
-        if hash_prefix is not None:
-            import hashlib
-
-            sha256 = hashlib.sha256()
-        with tqdm(total=file_size, disable=not progress, unit="B", unit_scale=True, unit_divisor=1024) as pbar:
-            while True:
-                buffer = u.read(8192)
-                if len(buffer) == 0:
-                    break
-                f.write(buffer)
-                if hash_prefix is not None:
-                    sha256.update(buffer)
-                pbar.update(len(buffer))
-
-        f.close()
-        if hash_prefix is not None:
-            digest = sha256.hexdigest()
-            if digest[: len(hash_prefix)] != hash_prefix:
-                raise RuntimeError('invalid hash value (expected "{}", got "{}")'.format(hash_prefix, digest))
-        shutil.move(f.name, dst)
-    finally:
-        f.close()
-        if os.path.exists(f.name):
-            os.remove(f.name)
-
-
 def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
     # Attempts to download file from url or url2, checks and removes incomplete downloads < min_bytes
     file = Path(file)
     assert_msg = f"Downloaded file '{file}' does not exist or size is < min_bytes={min_bytes}"
     try:  # url1
         print(f"Downloading {url} to {file}...")
-        download_url_to_file(url, str(file))
+        flow.hub.download_url_to_file(url, str(file))
         assert file.exists() and file.stat().st_size > min_bytes, assert_msg  # check
     except Exception as e:  # url2
         file.unlink(missing_ok=True)  # remove partial downloads
