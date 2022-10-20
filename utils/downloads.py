@@ -4,6 +4,7 @@ Download utils
 
 import os
 import platform
+from random import shuffle
 import shutil
 import subprocess
 import tempfile
@@ -135,22 +136,24 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
             tag = response["tag_name"]  # i.e. 'v1.0'
         except:  # fallback plan
             assets = [
-                "yolov5n",
-                "yolov5s",
-                "yolov5m",
-                "yolov5l",
-                "yolov5x",
-                "yolov5n6",
-                "yolov5s6",
-                "yolov5m6",
-                "yolov5l6",
-                "yolov5x6",
+                "yolov5n.zip",
+                "yolov5s.zip",
+                "yolov5m.zip",
+                "yolov5l.zip",
+                "yolov5x.zip",
+                "yolov5n6.zip",
+                "yolov5s6.zip",
+                "yolov5m6.zip",
+                "yolov5l6.zip",
+                "yolov5x6.zip",
             ]
             try:
                 tag = subprocess.check_output("git tag", shell=True, stderr=subprocess.STDOUT).decode().split()[-1]
             except:
                 tag = "v6.0"  # current release
 
+        name = name + ".zip"
+        file = Path(name)
         if name in assets:
             safe_download(
                 file,
@@ -159,6 +162,26 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
                 min_bytes=1e5,
                 error_msg=f"{file} missing, try downloading from https://github.com/{repo}/releases/",
             )
+
+        new_dir = Path(name[:-4])
+        if not os.path.exists(new_dir): # 判断文件夹是否存在
+            os.mkdir(new_dir)# 新建文件夹
+
+        if ".zip" in name:
+            print("unzipping... ", end="")
+            # ZipFile(new_file).extractall(path=file.parent)  # unzip
+            f = ZipFile(file)
+            f.extractall(new_dir)
+            os.remove(file)  # remove zip
+            tmp_dir = "/tmp/oneyolov5"
+            if os.path.isdir(tmp_dir):
+                shutil.rmtree(tmp_dir)
+
+            path1 = os.path.join(name[:-4], name[:-4])
+            shutil.copytree(path1, tmp_dir)
+            shutil.rmtree(new_dir)
+            shutil.copytree(tmp_dir, new_dir)
+            shutil.rmtree(tmp_dir)
 
     return str(file)
 
