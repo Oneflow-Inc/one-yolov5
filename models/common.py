@@ -582,7 +582,7 @@ class AutoShape(nn.Module):
         self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
         self.of = not self.dmb or model.of  # OneFlow model
         self.model = model.eval()
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.inplace = False  # Detect.inplace=False for safe multithread inference
 
@@ -607,7 +607,6 @@ class AutoShape(nn.Module):
         #   numpy:           = np.zeros((640,1280,3))  # HWC
         #   torch:           = torch.zeros(16,3,320,640)  # BCHW (scaled to size=640, 0-1 values)
         #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
-
         t = [time_sync()]
         p = next(self.model.parameters()) if self.of else flow.zeros(1, device=self.model.device)  # for device, type
         # autocast = self.amp and (
@@ -700,7 +699,8 @@ class Detections:
         for i, (im, pred) in enumerate(zip(self.imgs, self.pred)):
             s = f"image {i + 1}/{len(self.pred)}: {im.shape[0]}x{im.shape[1]} "  # string
             if pred.shape[0]:
-                for c in pred[:, -1].unique():
+                pred = pred.detach().cpu().numpy()
+                for c in np.unique(pred[:, -1]):
                     n = (pred[:, -1] == c).sum()  # detections per class
                     s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
                 if show or save or render or crop:
