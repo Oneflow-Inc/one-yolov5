@@ -1,7 +1,7 @@
 
 
 <center> 
-<img src="https://oneflow-static.oss-cn-beijing.aliyuncs.com/one-yolo/document/logo/logo_01.png">
+<img src="https://user-images.githubusercontent.com/35585791/197139968-856354ff-7b43-49ab-a670-a2bbd8fa58b3.png">
 </center>
 
 
