@@ -4,19 +4,15 @@ Download utils
 
 import os
 import platform
-from random import shuffle
 import shutil
 import subprocess
-import tempfile
 import time
 import urllib
 from pathlib import Path
-from urllib.request import Request, urlopen
 from zipfile import ZipFile
 
 import oneflow as flow
 import requests
-from tqdm import tqdm
 
 
 def is_url(url, check=True):
