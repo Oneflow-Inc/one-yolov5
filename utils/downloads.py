@@ -35,6 +35,7 @@ def gsutil_getsize(url=""):
     s = subprocess.check_output(f"gsutil du {url}", shell=True).decode("utf-8")
     return eval(s.split(" ")[0]) if len(s) else 0  # bytes
 
+
 def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
     # Attempts to download file from url or url2, checks and removes incomplete downloads < min_bytes
     file = Path(file)
@@ -106,8 +107,8 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
             )
 
         new_dir = Path(name[:-4])
-        if not os.path.exists(new_dir): # 判断文件夹是否存在
-            os.mkdir(new_dir)# 新建文件夹
+        if not os.path.exists(new_dir):  # 判断文件夹是否存在
+            os.mkdir(new_dir)  # 新建文件夹
 
         if ".zip" in name:
             print("unzipping... ", end="")
