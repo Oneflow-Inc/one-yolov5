@@ -52,7 +52,7 @@ import oneflow as flow
 model = flow.hub.load('Oneflow-Inc/one-yolov5', 'yolov5s')  # or yolov5n - yolov5x6, custom
 
 # 图像
-img = 'https://github.com/Oneflow-Inc/one-yolov5/tree/main/data/images/zidane.jpg'  # or file, Path, PIL, OpenCV, numpy, list
+img = 'https://raw.githubusercontent.com/Oneflow-Inc/one-yolov5/main/data/images/zidane.jpg'  # or file, Path, PIL, OpenCV, numpy, list
 
 # 推理
 results = model(img)
