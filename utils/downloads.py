@@ -54,7 +54,6 @@ def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
 def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloads import *; attempt_download()
     # Attempt file download if does not exist
     file = Path(str(file).strip().replace("'", ""))
-
     if not file.exists():
         # URL specified
         name = Path(urllib.parse.unquote(str(file))).name  # decode '%2F' to '/' etc.
@@ -91,7 +90,8 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
             except:
                 tag = "v1.0"  # current release
 
-        name = name + ".zip"
+        if ".zip" not in name:
+            name = name + ".zip"
         file = Path(name)
         if name in assets:
             safe_download(
@@ -101,11 +101,12 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
                 min_bytes=1e5,
                 error_msg=f"{file} missing, try downloading from https://github.com/{repo}/releases/",
             )
-
-        new_dir = Path(name[:-4])
+        if ".zip" in name:
+            new_dir = Path(name[:-4])
+        else:
+            new_dir = Path(name)
         if not os.path.exists(new_dir):  # 判断文件夹是否存在
             os.mkdir(new_dir)  # 新建文件夹
-
         if ".zip" in name:
             print("unzipping... ", end="")
             # ZipFile(new_file).extractall(path=file.parent)  # unzip
@@ -116,7 +117,10 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5"):  # from utils.downloa
             if os.path.isdir(tmp_dir):
                 shutil.rmtree(tmp_dir)
 
-            path1 = os.path.join(name[:-4], name[:-4])
+            if ".zip" in name:
+                path1 = os.path.join(name[:-4], name[:-4])
+            else:
+                path1 = os.path.join(name, name)
             shutil.copytree(path1, tmp_dir)
             shutil.rmtree(new_dir)
             shutil.copytree(tmp_dir, new_dir)
