@@ -292,6 +292,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     )
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run("on_train_epoch_start")
+
+########################################
+        my_t0 = time.time()
+############################################################
+
         model.train()
 
         # Update image weights (optional, single-GPU only)
@@ -444,8 +449,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         #     break  # must break all DDP ranks
 
         # end epoch --------------------------------------------------------------------------
+        LOGGER.info(f"\n{epoch - start_epoch + 1} epochs completed in {(time.time() - my_t0) / 3600:.3f} hours")
     # end training ---------------------------------------------------------------------------
-
     if RANK in {-1, 0}:
         LOGGER.info(f"\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours")
         for f in last, best:
@@ -472,6 +477,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         callbacks.run("on_train_end", last, best, plots, epoch, results)
 
     flow.cuda.empty_cache()
+    exit(0)
     return results
 
 
