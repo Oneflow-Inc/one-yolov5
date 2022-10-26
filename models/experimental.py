@@ -75,7 +75,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
 
     model = Ensemble()
     if isinstance(weights, str) and weights.endswith(".zip"):
-        weights = weights[:-4]
+        weights = weitghts.replace(".zip", "")
 
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
