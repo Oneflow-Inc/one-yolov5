@@ -74,7 +74,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     from models.yolo import Detect, Model
 
     model = Ensemble()
-    if isinstance(weights, str) and ".zip" in weights:
+    if isinstance(weights, str) and weights.endswith(".zip"):
         weights = weights[:-4]
 
     for w in weights if isinstance(weights, list) else [weights]:
