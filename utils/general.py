@@ -577,6 +577,7 @@ def yaml_save(file="data.yaml", data={}):
 
 
 def model_save(obj,path_file)-> None:
+# TODO(fengwen) : 等到大老师对齐PyTorch的模型保存方式之后就可以去掉这个手动删除的过程了。
     try:
         if os.path.isdir(path_file):
             shutil.rmtree(path_file)
