@@ -100,7 +100,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.freeze,
     )
 
-    callbacks.run('on_pretrain_routine_start')
+    callbacks.run("on_pretrain_routine_start")
 
     # Directories
     w = save_dir / "weights"  # weights dir
@@ -427,13 +427,13 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 }
 
                 # Save last, best and delete
-                model_save(ckpt,last)# flow.save(ckpt, last)
+                model_save(ckpt, last)  # flow.save(ckpt, last)
                 if best_fitness == fi:
-                    model_save(ckpt,best)# flow.save(ckpt, best)
-                
+                    model_save(ckpt, best)  # flow.save(ckpt, best)
+
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
                     print("is ok")
-                    model_save(ckpt, w / f"epoch{epoch}") # flow.save(ckpt, w / f"epoch{epoch}")
+                    model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 

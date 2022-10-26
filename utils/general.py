@@ -576,8 +576,8 @@ def yaml_save(file="data.yaml", data={}):
         yaml.safe_dump({k: str(v) if isinstance(v, Path) else v for k, v in data.items()}, f, sort_keys=False)
 
 
-def model_save(obj,path_file)-> None:
-# TODO(fengwen) : 等到大老师对齐PyTorch的模型保存方式之后就可以去掉这个手动删除的过程了。
+def model_save(obj, path_file) -> None:
+    # TODO(fengwen) : 等到大老师对齐PyTorch的模型保存方式之后就可以去掉这个手动删除的过程了。
     try:
         if os.path.isdir(path_file):
             shutil.rmtree(path_file)
@@ -585,8 +585,9 @@ def model_save(obj,path_file)-> None:
         flow.save(obj, path_file)
         return True
     except Exception:
-        LOGGER.warning(f'model save failed  in {path_file}❌')
+        LOGGER.warning(f"model save failed  in {path_file}❌")
         return False
+
 
 def url2file(url):
     # Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt
