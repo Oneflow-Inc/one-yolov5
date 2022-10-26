@@ -63,6 +63,7 @@ from utils.general import (
     print_mutation,
     strip_optimizer,
     yaml_save,
+    model_save,
 )
 from utils.loggers import Loggers
 from utils.loggers.wandb.wandb_utils import check_wandb_resume
@@ -99,7 +100,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.freeze,
     )
 
-    # callbacks.run('on_pretrain_routine_start')
+    callbacks.run('on_pretrain_routine_start')
 
     # Directories
     w = save_dir / "weights"  # weights dir
@@ -426,16 +427,17 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 }
 
                 # Save last, best and delete
-                flow.save(ckpt, last)
+                model_save(ckpt,last)# flow.save(ckpt, last)
                 if best_fitness == fi:
-                    flow.save(ckpt, best)
+                    model_save(ckpt,best)# flow.save(ckpt, best)
+                
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    flow.save(ckpt, w / f"epoch{epoch}")
+                    print("is ok")
+                    model_save(ckpt, w / f"epoch{epoch}") # flow.save(ckpt, w / f"epoch{epoch}")
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 
         # # EarlyStopping
-        # if RANK != -1:  # if DDP training
         #     broadcast_list = [stop if RANK == 0 else None]
         #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
         #     if RANK != 0:
