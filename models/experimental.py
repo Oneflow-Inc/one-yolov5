@@ -3,7 +3,6 @@
 Experimental modules
 """
 import math
-import pathlib
 
 import numpy as np
 import oneflow as flow
