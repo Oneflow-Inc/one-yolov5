@@ -3,6 +3,7 @@
 Experimental modules
 """
 import math
+import pathlib
 
 import numpy as np
 import oneflow as flow
@@ -74,8 +75,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     from models.yolo import Detect, Model
 
     model = Ensemble()
-    if ".zip" in weights:
-        weights = weights[:-4]
+
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
