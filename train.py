@@ -370,6 +370,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             loss.backward()
             flow._oneflow_internal.profiler.RangePop()
 
+            flow._oneflow_internal.profiler.RangePush('optimizer update')
             # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
 
@@ -378,12 +379,15 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 if ema:
                     ema.update(model)
                 last_opt_step = ni
+            flow._oneflow_internal.profiler.RangePop()
 
             # Log
+            flow._oneflow_internal.profiler.RangePush('loss item')
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
                 t = mloss.numpy().tolist()
                 pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *t, targets.shape[0], imgs.shape[-1]))
+            flow._oneflow_internal.profiler.RangePop()
 
             # end batch ----------------------------------------------------------------
         flow._oneflow_internal.profiler.RangePop()
