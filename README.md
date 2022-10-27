@@ -8,7 +8,7 @@
 > 写在前面：本项目是基于 ultralytics 版 YOLOv5 源码改成 OneFlow 后端的结果，本工程的目的是做一个拥有更快训练速度的 YOLOv5 ，同时提供丰富的中文教程和源码细节解读，使得读者可以更加深入的了解 YOLOv5 。本 README 的其中一些部分也是直接用的 ultralytics 版 YOLOv5 README 的翻译，我们将相关链接替换为了 OneFlow 后端 YOLOv5 对应的链接。
 
 
-为了说明使用 OneFlow 训练目标检测模型的可行性以及性能的优越性，最近我们将 ultralytics 版 YOLOv5（https://github.com/ultralytics/yolov5）通过 import oneflow as torch 的方式迁移为了OneFlow后端（对应YOLOv5的commit号为：`48a85314bc80d8023c99bfb114cea98d71dd0591`）。并对 YOLOv5 中相关的教程进行了汉化，添加了一系列详细的代码解读，原理讲解以及部署教程，希望使得 YOLOv5 项目对用户更加透明化。另外我们也将在性能这个角度进行深入探索，本次我们发布的OneFlow后端的YOLOv5只是一个基础版本，没有用上任何的优化技巧。目前我们在小 Batch 进行训练时相比于 PyTorch 有5%-10%左右的性能优势，而对于大 Batch 则性能和 PyTorch 持平。相信在后续的一些定制化的性能优化技巧下（比如nn.Graph加持，算子的优化），我们可以继续提升YOLOv5在COCO等数据集的训练速度，更有效缩短目标检测模型的训练时间。
+为了说明使用 OneFlow 训练目标检测模型的可行性以及性能的优越性，最近我们将 [ultralytics 版 YOLOv5](https://github.com/ultralytics/yolov5) 通过 import oneflow as torch 的方式迁移为了OneFlow后端（对应YOLOv5的commit号为：`48a85314bc80d8023c99bfb114cea98d71dd0591`）。并对 YOLOv5 中相关的教程进行了汉化，添加了一系列详细的代码解读，原理讲解以及部署教程，希望使得 YOLOv5 项目对用户更加透明化。另外我们也将在性能这个角度进行深入探索，本次我们发布的OneFlow后端的YOLOv5只是一个基础版本，没有用上任何的优化技巧。目前我们在小 Batch 进行训练时相比于 PyTorch 有5%-10%左右的性能优势，而对于大 Batch 则性能和 PyTorch 持平。相信在后续的一些定制化的性能优化技巧下（比如nn.Graph加持，算子的优化），我们可以继续提升YOLOv5在COCO等数据集的训练速度，更有效缩短目标检测模型的训练时间。
 
 - 🎉代码仓库地址：https://github.com/Oneflow-Inc/one-yolov5
 - 🎉文档网站地址：https://start.oneflow.org/oneflow-yolo-doc/index.html
