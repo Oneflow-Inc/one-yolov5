@@ -281,7 +281,7 @@ def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5):
             g[0].append(v.weight)
 
     if name == "Adam":
-        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999))  # adjust beta1 to momentum
+        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999), fused=True)  # adjust beta1 to momentum
     elif name == "AdamW":
         optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
     elif name == "RMSProp":

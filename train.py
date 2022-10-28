@@ -290,6 +290,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         f"Logging results to {colorstr('bold', save_dir)}\n"
         f"Starting training for {epochs} epochs..."
     )
+    cnt = 0
     flow._oneflow_internal.profiler.RangePush('epoch begin!')
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run("on_train_epoch_start")
@@ -321,6 +322,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             paths,
             _,
         ) in pbar:  # batch -------------------------------------------------------------
+            cnt += 1
+            if cnt > 1000:
+                LOGGER.info(f"\n1000 bacthes completed in {(time.time() - t0) :.3f} seconds")
+                exit(0)
             callbacks.run("on_train_batch_start")
             ni = i + nb * epoch  # number integrated batches (since train start)
             imgs = imgs.to(device).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
