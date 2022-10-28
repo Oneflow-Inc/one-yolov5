@@ -724,7 +724,9 @@ class LoadImagesAndLabels(Dataset):
 
         labels_out = flow.zeros((nl, 6))
         if nl:
-            labels_out[:, 1:] = flow.from_numpy(labels)
+            # TODO(fengwen): 修改下一行绕过 TypeError: Tensors ref and value must have same type
+            # labels_out[:, 1:] = flow.from_numpy(labels)
+            labels_out[:, 1:] = flow.from_numpy(labels).to(labels_out.dtype)
 
         # Convert
         img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
