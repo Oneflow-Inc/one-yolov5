@@ -167,7 +167,7 @@ class ComputeLoss:
                     t = flow.full_like(pcls, self.cn, device=self.device)  # targets
 
                     # t[range(n), tcls[i]] = self.cp
-                    t[flow.arange(n).to(self.device), tcls[i]] = self.cp
+                    t[flow.arange(n, device=self.device), tcls[i]] = self.cp
 
                     lcls = lcls + self.BCEcls(pcls, t)  # BCE
 
@@ -234,7 +234,7 @@ class ComputeLoss:
             anchors, shape = self.anchors[i], p[i].shape
 
             # gain[2:6] = flow.tensor(shape)[[3, 2, 3, 2]]  # xyxy gain
-            gain[2:6] = flow.tensor(p[i].shape)[[3, 2, 3, 2]].float()  # xyxy gain
+            gain[2:6] = flow.tensor(p[i].shape, device=self.device)[[3, 2, 3, 2]].float()  # xyxy gain
 
             # Match targets to anchors
             t = targets * gain  # shape(3,n,7)

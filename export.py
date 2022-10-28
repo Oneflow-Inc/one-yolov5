@@ -492,7 +492,7 @@ def run(
     ) = flags  # export booleans
     file = Path(url2file(weights) if str(weights).startswith(("http:/", "https:/")) else weights)  # PyTorch weights
 
-    # Load PyTorch model
+    # Load OneFlow model
     device = select_device(device)
     if half:
         assert device.type != "cpu" or coreml, "--half only compatible with GPU export, i.e. use --device 0"
@@ -579,7 +579,7 @@ def run(
             f"\nResults saved to {colorstr('bold', file.parent.resolve())}"
             f"\nDetect:          python detect.py --weights {f[-1]} {h}"
             f"\nValidate:        python val.py --weights {f[-1]} {h}"
-            f"\nOneFlow Hub:     model = flow.hub.load('ultralytics/yolov5', 'custom', '{f[-1]}')"
+            f"\nOneFlow Hub:     model = flow.hub.load('OneFlow-Inc/one-yolov5', 'custom', '{f[-1]}')"
             f"\nVisualize:       https://netron.app"
         )
 
@@ -593,8 +593,8 @@ def parse_opt():
         "--weights",
         nargs="+",
         type=str,
-        default=ROOT / "yolov5s.pt",
-        help="model.pt path(s)",
+        default=ROOT / "yolov5s",
+        help="model path(s)",
     )
     parser.add_argument(
         "--imgsz",

@@ -138,4 +138,6 @@ runs/
 *.qdrep
 .vscode/
 *.onnx
+*.zip
+*.pt
 

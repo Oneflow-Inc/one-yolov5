@@ -34,7 +34,7 @@ import pandas as pd
 import pkg_resources as pkg
 import yaml
 
-from utils.downloads import download_url_to_file, gsutil_getsize
+from utils.downloads import gsutil_getsize
 from utils.metrics import box_iou, fitness
 
 # import torchvision
@@ -451,7 +451,7 @@ def check_file(file, suffix=""):
             LOGGER.info(f"Found {url} locally at {file}")  # file already exists
         else:
             LOGGER.info(f"Downloading {url} to {file}...")
-            download_url_to_file(url, file)
+            flow.hub.download_url_to_file(url, file)
             assert Path(file).exists() and Path(file).stat().st_size > 0, f"File download failed: {url}"  # check
         return file
     elif file.startswith("clearml://"):  # ClearML Dataset ID
@@ -473,7 +473,7 @@ def check_font(font=FONT, progress=False):
     if not font.exists() and not file.exists():
         url = "https://ultralytics.com/assets/" + font.name
         LOGGER.info(f"Downloading {url} to {file}...")
-        download_url_to_file(url, str(file), progress=progress)
+        flow.hub.download_url_to_file(url, str(file), progress=progress)
 
 
 def check_dataset(data, autodownload=True):
@@ -519,7 +519,7 @@ def check_dataset(data, autodownload=True):
             if s.startswith("http") and s.endswith(".zip"):  # URL
                 f = Path(s).name  # filename
                 LOGGER.info(f"Downloading {s} to {f}...")
-                download_url_to_file(s, f)
+                flow.hub.download_url_to_file(s, f)
                 Path(root).mkdir(parents=True, exist_ok=True)  # create root
                 ZipFile(f).extractall(path=root)  # unzip
                 Path(f).unlink()  # remove zip
@@ -576,6 +576,19 @@ def yaml_save(file="data.yaml", data={}):
         yaml.safe_dump({k: str(v) if isinstance(v, Path) else v for k, v in data.items()}, f, sort_keys=False)
 
 
+def model_save(obj, path_file) -> None:
+    # TODO(fengwen) : 等到大老师对齐PyTorch的模型保存方式之后就可以去掉这个手动删除的过程了。
+    try:
+        if os.path.isdir(path_file):
+            shutil.rmtree(path_file)
+            os.mkdir(path_file)
+        flow.save(obj, path_file)
+        return True
+    except Exception:
+        LOGGER.warning(f"model save failed  in {path_file}❌")
+        return False
+
+
 def url2file(url):
     # Convert URL to filename, i.e. https://url.com/file.txt?auth -> file.txt
     url = str(Path(url)).replace(":/", "://")  # Pathlib turns :// -> :/
@@ -598,7 +611,7 @@ def download(url, dir=".", unzip=True, delete=True, curl=False, threads=1, retry
                     r = os.system(f'curl -{s}L "{url}" -o "{f}" --retry 9 -C -')  # curl download with retry, continue
                     success = r == 0
                 else:
-                    download_url_to_file(url, f, progress=threads == 1)  # torch download
+                    flow.hub.download_url_to_file(url, f, progress=threads == 1)  # torch download
                     success = f.is_file()
                 if success:
                     break

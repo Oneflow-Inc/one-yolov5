@@ -313,7 +313,7 @@ class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
     def __init__(
         self,
-        weights="yolov5s.pt",
+        weights="yolov5s/",
         device=flow.device("cpu"),
         dnn=False,
         data=None,
@@ -321,7 +321,7 @@ class DetectMultiBackend(nn.Module):
         fuse=True,
     ):
         # Usage:
-        #   OneFlow:              weights  = *./
+        #   OneFlow:              weights  = *_oneflow_model
         #   ONNX Runtime:                   *.onnx
         #   ONNX OpenCV DNN:                *.onnx with --dnn
         #   OpenVINO:                       *.xml
@@ -551,6 +551,8 @@ class DetectMultiBackend(nn.Module):
         of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, xml2 = (s in p for s in suffixes)
         xml |= xml2  # *_openvino_model or *.xml
         tflite &= not edgetpu  # *.tflite
+        if onnx or xml or engine or coreml or saved_model or pb or tflite or edgetpu or tfjs:
+            of = False
         return of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs
 
     @staticmethod
@@ -580,7 +582,7 @@ class AutoShape(nn.Module):
         self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
         self.of = not self.dmb or model.of  # OneFlow model
         self.model = model.eval()
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.inplace = False  # Detect.inplace=False for safe multithread inference
 
@@ -605,7 +607,6 @@ class AutoShape(nn.Module):
         #   numpy:           = np.zeros((640,1280,3))  # HWC
         #   torch:           = torch.zeros(16,3,320,640)  # BCHW (scaled to size=640, 0-1 values)
         #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
-
         t = [time_sync()]
         p = next(self.model.parameters()) if self.of else flow.zeros(1, device=self.model.device)  # for device, type
         # autocast = self.amp and (
@@ -698,7 +699,8 @@ class Detections:
         for i, (im, pred) in enumerate(zip(self.imgs, self.pred)):
             s = f"image {i + 1}/{len(self.pred)}: {im.shape[0]}x{im.shape[1]} "  # string
             if pred.shape[0]:
-                for c in pred[:, -1].unique():
+                pred = pred.detach().cpu().numpy()
+                for c in np.unique(pred[:, -1]):
                     n = (pred[:, -1] == c).sum()  # detections per class
                     s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
                 if show or save or render or crop:
