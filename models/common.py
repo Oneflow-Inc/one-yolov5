@@ -260,11 +260,7 @@ class GhostBottleneck(nn.Module):
     def __init__(self, c1, c2, k=3, s=1):  # ch_in, ch_out, kernel, stride
         super().__init__()
         c_ = c2 // 2
-        self.conv = nn.Sequential(
-            GhostConv(c1, c_, 1, 1),  # pw
-            DWConv(c_, c_, k, s, act=False) if s == 2 else nn.Identity(),  # dw
-            GhostConv(c_, c2, 1, 1, act=False),
-        )  # pw-linear
+        self.conv = nn.Sequential(GhostConv(c1, c_, 1, 1), DWConv(c_, c_, k, s, act=False) if s == 2 else nn.Identity(), GhostConv(c_, c2, 1, 1, act=False),)  # pw  # dw  # pw-linear
         self.shortcut = nn.Sequential(DWConv(c1, c1, k, s, act=False), Conv(c1, c2, 1, 1, act=False)) if s == 2 else nn.Identity()
 
     def forward(self, x):
@@ -312,13 +308,7 @@ class Concat(nn.Module):
 class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
     def __init__(
-        self,
-        weights="yolov5s/",
-        device=flow.device("cpu"),
-        dnn=False,
-        data=None,
-        fp16=False,
-        fuse=True,
+        self, weights="yolov5s/", device=flow.device("cpu"), dnn=False, data=None, fp16=False, fuse=True,
     ):
         # Usage:
         #   OneFlow:              weights  = *_oneflow_model
@@ -335,9 +325,7 @@ class DetectMultiBackend(nn.Module):
 
         super().__init__()
         w = str(weights[0] if isinstance(weights, list) else weights)
-        (of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs,) = self.model_type(
-            w
-        )  # get backend
+        (of, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs,) = self.model_type(w)  # get backend
         w = attempt_download(w)  # download if not local
         fp16 &= (of or onnx or engine) and device.type != "cpu"  # FP16
         stride, names = 32, [f"class{i}" for i in range(1000)]  # assign defaults
@@ -449,11 +437,7 @@ class DetectMultiBackend(nn.Module):
                     )
                 if edgetpu:  # Edge TPU https://coral.ai/software/#edgetpu-runtime
                     LOGGER.info(f"Loading {w} for TensorFlow Lite Edge TPU inference...")
-                    delegate = {
-                        "Linux": "libedgetpu.so.1",
-                        "Darwin": "libedgetpu.1.dylib",
-                        "Windows": "edgetpu.dll",
-                    }[platform.system()]
+                    delegate = {"Linux": "libedgetpu.so.1", "Darwin": "libedgetpu.1.dylib", "Windows": "edgetpu.dll",}[platform.system()]
                     interpreter = Interpreter(model_path=w, experimental_delegates=[load_delegate(delegate)])
                 else:  # Lite
                     LOGGER.info(f"Loading {w} for TensorFlow Lite inference...")
@@ -650,15 +634,7 @@ class AutoShape(nn.Module):
         t.append(time_sync())
 
         # Post-process
-        y = non_max_suppression(
-            y if self.dmb else y[0],
-            self.conf,
-            self.iou,
-            self.classes,
-            self.agnostic,
-            self.multi_label,
-            max_det=self.max_det,
-        )  # NMS
+        y = non_max_suppression(y if self.dmb else y[0], self.conf, self.iou, self.classes, self.agnostic, self.multi_label, max_det=self.max_det,)  # NMS
         for i in range(n):
             scale_coords(shape1, y[i][:, :4], shape0[i])
 
@@ -686,14 +662,7 @@ class Detections:
         self.s = shape  # inference BCHW shape
 
     def display(
-        self,
-        pprint=False,
-        show=False,
-        save=False,
-        crop=False,
-        render=False,
-        labels=True,
-        save_dir=Path(""),
+        self, pprint=False, show=False, save=False, crop=False, render=False, labels=True, save_dir=Path(""),
     ):
         crops = []
         for i, (im, pred) in enumerate(zip(self.imgs, self.pred)):
@@ -710,13 +679,7 @@ class Detections:
                         if crop:
                             file = save_dir / "crops" / self.names[int(cls)] / self.files[i] if save else None
                             crops.append(
-                                {
-                                    "box": box,
-                                    "conf": conf,
-                                    "cls": cls,
-                                    "label": label,
-                                    "im": save_one_box(box, im, file=file, save=save),
-                                }
+                                {"box": box, "conf": conf, "cls": cls, "label": label, "im": save_one_box(box, im, file=file, save=save),}
                             )
                         else:  # all others
                             annotator.box_label(box, label if labels else "", color=colors(cls))
@@ -778,7 +741,7 @@ class Detections:
         #    for k in ['imgs', 'pred', 'xyxy', 'xyxyn', 'xywh', 'xywhn']:
         #        setattr(d, k, getattr(d, k)[0])  # pop out of list
         return x
-    
+
     def to_pil_image(self):
         for i, (im, pred) in enumerate(zip(self.imgs, self.pred)):
             s = f"image {i + 1}/{len(self.pred)}: {im.shape[0]}x{im.shape[1]} "  # string
