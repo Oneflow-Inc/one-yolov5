@@ -778,6 +778,25 @@ class Detections:
         #    for k in ['imgs', 'pred', 'xyxy', 'xyxyn', 'xywh', 'xywhn']:
         #        setattr(d, k, getattr(d, k)[0])  # pop out of list
         return x
+    
+    def to_pil_image(self):
+        for i, (im, pred) in enumerate(zip(self.imgs, self.pred)):
+            s = f"image {i + 1}/{len(self.pred)}: {im.shape[0]}x{im.shape[1]} "  # string
+            if pred.shape[0]:
+                pred = pred.detach().cpu().numpy()
+                for c in np.unique(pred[:, -1]):
+                    n = (pred[:, -1] == c).sum()  # detections per class
+                    s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
+                annotator = Annotator(im, example=str(self.names))
+                for *box, conf, cls in reversed(pred):  # xyxy, confidence, class
+                    label = f"{self.names[int(cls)]} {conf:.2f}"
+                    annotator.box_label(box, label, color=colors(cls))
+                im = annotator.im
+            else:
+                s += "(no detections)"
+
+            im = Image.fromarray(im.astype(np.uint8)) if isinstance(im, np.ndarray) else im  # from np
+        return im
 
     def __len__(self):
         return self.n  # override len(results)
