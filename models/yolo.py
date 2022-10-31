@@ -17,14 +17,6 @@ from pathlib import Path
 
 import oneflow as flow
 import oneflow.nn as nn
-
-from models.common import C3, C3SPP, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C3Ghost, C3x, Concat, Contract, Conv, CrossConv, DWConv, DWConvTranspose2d, Expand, Focus, GhostBottleneck, GhostConv
-from models.experimental import MixConv2d
-from utils.autoanchor import check_anchor_order
-from utils.general import LOGGER, check_yaml, colorstr, make_divisible, print_args
-from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
-from utils.plots import feature_visualization
-
 try:
     import thop  # for FLOPs computation
 except ImportError:
@@ -37,6 +29,13 @@ if str(ROOT) not in sys.path:
 if platform.system() != "Windows":
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
+
+from models.common import C3, C3SPP, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C3Ghost, C3x, Concat, Contract, Conv, CrossConv, DWConv, DWConvTranspose2d, Expand, Focus, GhostBottleneck, GhostConv
+from models.experimental import MixConv2d
+from utils.autoanchor import check_anchor_order
+from utils.general import LOGGER, check_yaml, colorstr, make_divisible, print_args
+from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
+from utils.plots import feature_visualization
 
 class Detect(nn.Module):
     stride = None  # strides computed during build
@@ -163,18 +162,6 @@ class Model(nn.Module):
                 self._profile_one_layer(m, x, dt)
 
             x = m(x)  # run
-
-            # if flow.is_tensor(x):
-            #     my_path = '/home/fengwen/np_list/flow'+str(my_name)+'.txt'
-            #     my_name = my_name + 1
-            #     my_len = len(x.cpu().detach().numpy().flatten().tolist())
-            #     if my_len > 1000000:
-            #         np.savetxt(my_path, x.cpu().detach().numpy().flatten()[0:1000000].tolist())
-            #     else:
-            #         np.savetxt(my_path, x.cpu().detach().numpy().flatten().tolist())
-            #     print(x.dtype) #  flow.float32
-            #     print(str(my_name))
-            #     print("=d"*40)
 
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
