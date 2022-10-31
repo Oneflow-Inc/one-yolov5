@@ -17,6 +17,7 @@ from pathlib import Path
 
 import oneflow as flow
 import oneflow.nn as nn
+
 try:
     import thop  # for FLOPs computation
 except ImportError:
@@ -36,6 +37,7 @@ from utils.autoanchor import check_anchor_order
 from utils.general import LOGGER, check_yaml, colorstr, make_divisible, print_args
 from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
 from utils.plots import feature_visualization
+
 
 class Detect(nn.Module):
     stride = None  # strides computed during build
