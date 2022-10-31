@@ -31,12 +31,35 @@ if platform.system() != "Windows":
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
-from models.common import C3, C3SPP, C3TR, SPP, SPPF, Bottleneck, BottleneckCSP, C3Ghost, C3x, Concat, Contract, Conv, CrossConv, DWConv, DWConvTranspose2d, Expand, Focus, GhostBottleneck, GhostConv
-from models.experimental import MixConv2d
-from utils.autoanchor import check_anchor_order
-from utils.general import LOGGER, check_yaml, colorstr, make_divisible, print_args
-from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
-from utils.plots import feature_visualization
+from models.common import (  # noqa :E402
+    C3,
+    C3SPP,
+    C3TR,
+    SPP,
+    SPPF,
+    Bottleneck,
+    BottleneckCSP,
+    C3Ghost,
+    C3x,
+    Concat,
+    Contract,
+    Conv,
+    CrossConv,
+    DWConv,
+    DWConvTranspose2d,
+    Expand,
+    Focus,
+    GhostBottleneck,
+    GhostConv,
+)
+
+from models.experimental import MixConv2d  # noqa :E402
+from utils.autoanchor import check_anchor_order  # noqa :E402
+from models.experimental import MixConv2d  # noqa :E402
+from utils.autoanchor import check_anchor_order  # noqa :E402
+from utils.general import LOGGER, check_yaml, colorstr, make_divisible, print_args  # noqa :E402
+from utils.oneflow_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync  # noqa :E402
+from utils.plots import feature_visualization  # noqa :E402
 
 
 class Detect(nn.Module):
