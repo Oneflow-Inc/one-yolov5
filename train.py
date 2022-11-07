@@ -45,6 +45,7 @@ from utils.downloads import is_url  # , attempt_download
 from utils.general import check_img_size  # check_suffix,
 from utils.general import (
     LOGGER,
+    check_amp,
     check_dataset,
     check_file,
     check_git_status,
@@ -70,6 +71,7 @@ from utils.loggers.wandb.wandb_utils import check_wandb_resume
 from utils.loss import ComputeLoss
 from utils.metrics import fitness
 from utils.oneflow_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume
+from utils.autobatch import check_train_batch_size
 from utils.plots import plot_evolve, plot_labels
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
@@ -156,8 +158,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         LOGGER.info(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")  # report
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
-    # amp = check_amp(model)  # check AMP
-    amp = False
+    amp = check_amp(model)  # check AMP
 
     # Freeze
     freeze = [f"model.{x}." for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
@@ -172,6 +173,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Image size
     gs = max(int(model.stride.max()), 32)  # grid size (max stride)
     imgsz = check_img_size(opt.imgsz, gs, floor=gs * 2)  # verify imgsz is gs-multiple
+
+    # Batch size
+    if RANK == -1 and batch_size == -1:  # single-GPU only, estimate best batch size
+        batch_size = check_train_batch_size(model, imgsz, amp)
+        loggers.on_params_update({"batch_size": batch_size})
 
     # Optimizer
     nbs = 64  # nominal batch size
@@ -280,7 +286,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
 
     scheduler.last_epoch = start_epoch - 1  # do not move
-    # scaler = flow.cuda.amp.GradScaler(enabled=amp)
+    scaler = flow.cuda.amp.GradScaler(enabled=amp)
 
     stopper, _ = EarlyStopping(patience=opt.patience), False
     compute_loss = ComputeLoss(model)  # init loss class
@@ -349,24 +355,25 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Forward
             # imgs = flow.FloatTensor(np.ones([16,3,640,640])).cuda()
+            with flow.cuda.amp.autocast(amp):
+                pred = model(imgs)  # forward
 
-            pred = model(imgs)  # forward
+                loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
 
-            loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
-
-            if RANK != -1:
-                loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
-            if opt.quad:
-                loss *= 4.0
+                if RANK != -1:
+                    loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
+                if opt.quad:
+                    loss *= 4.0
 
             # Backward
-            # scaler.scale(loss).backward()
-            loss.backward()
+            scaler.scale(loss).backward()
 
             # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
-
-                optimizer.step()
+                scaler.unscale_(optimizer)  # unscale gradients
+                flow.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
+                scaler.step(optimizer)  # optimizer.step
+                scaler.update()
                 optimizer.zero_grad()
                 if ema:
                     ema.update(model)
@@ -437,13 +444,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 
-        # # EarlyStopping
-        #     broadcast_list = [stop if RANK == 0 else None]
-        #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-        #     if RANK != 0:
-        #         stop = broadcast_list[0]
-        # if stop:
-        #     break  # must break all DDP ranks
 
         # end epoch --------------------------------------------------------------------------
     # end training ---------------------------------------------------------------------------
