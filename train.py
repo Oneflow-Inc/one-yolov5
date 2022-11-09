@@ -74,6 +74,7 @@ from utils.oneflow_utils import EarlyStopping, ModelEMA, de_parallel, select_dev
 from utils.autobatch import check_train_batch_size
 from utils.plots import plot_evolve, plot_labels
 
+os.environ['ONEFLOW_VM_COMPUTE_ON_WORKER_THREAD'] = '0'
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
 WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
