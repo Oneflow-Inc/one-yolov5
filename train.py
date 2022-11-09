@@ -135,8 +135,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     cuda = device.type != "cpu"
 
     init_seeds(opt.seed + 1 + RANK, deterministic=True)
-
-    # with torch_distributed_zero_first(LOCAL_RANK): # 这个是上下文管理器
+ 
     data_dict = data_dict or check_dataset(data)  # check if None
 
     train_path, val_path = data_dict["train"], data_dict["val"]
@@ -620,7 +619,6 @@ def main(opt, callbacks=Callbacks()):
         assert flow.cuda.device_count() > LOCAL_RANK, "insufficient CUDA devices for DDP command"
         flow.cuda.set_device(LOCAL_RANK)
         device = flow.device("cuda", LOCAL_RANK)
-        # dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Train
     if not opt.evolve:
