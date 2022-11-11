@@ -24,7 +24,7 @@ from utils.general import LOGGER, check_requirements, check_suffix, check_versio
 from utils.oneflow_utils import copy_attr, time_sync
 from utils.plots import Annotator, colors, save_one_box
 
-# from flow.cuda import amp
+from oneflow.cuda import amp
 
 
 def autopad(k, p=None):  # kernel, padding
@@ -572,7 +572,7 @@ class AutoShape(nn.Module):
     classes = None  # (optional list) filter by class, i.e. = [0, 15, 16] for COCO persons, cats and dogs
     max_det = 1000  # maximum number of detections per image
 
-    # amp = False  # Automatic Mixed Precision (AMP) inference
+    amp = False  # Automatic Mixed Precision (AMP) inference
 
     def __init__(self, model, verbose=True):
         super().__init__()
@@ -609,12 +609,12 @@ class AutoShape(nn.Module):
         #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
         t = [time_sync()]
         p = next(self.model.parameters()) if self.of else flow.zeros(1, device=self.model.device)  # for device, type
-        # autocast = self.amp and (
-        #     p.device.type != "cpu"
-        # )  # Automatic Mixed Precision (AMP) inference
+        autocast = self.amp and (
+            p.device.type != "cpu"
+        )  # Automatic Mixed Precision (AMP) inference
         if isinstance(imgs, flow.Tensor):  # oneflow
-            # with amp.autocast(autocast):
-            return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
+            with amp.autocast(autocast):
+                return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
 
         # Pre-process
         n, imgs = (len(imgs), list(imgs)) if isinstance(imgs, (list, tuple)) else (1, [imgs])  # number, list of images
@@ -644,26 +644,26 @@ class AutoShape(nn.Module):
         x = flow.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
         t.append(time_sync())
 
-        # with amp.autocast(autocast):
-        # Inference
-        y = self.model(x, augment, profile)  # forward
-        t.append(time_sync())
+        with amp.autocast(autocast):
+            # Inference
+            y = self.model(x, augment, profile)  # forward
+            t.append(time_sync())
 
-        # Post-process
-        y = non_max_suppression(
-            y if self.dmb else y[0],
-            self.conf,
-            self.iou,
-            self.classes,
-            self.agnostic,
-            self.multi_label,
-            max_det=self.max_det,
-        )  # NMS
-        for i in range(n):
-            scale_coords(shape1, y[i][:, :4], shape0[i])
+            # Post-process
+            y = non_max_suppression(
+                y if self.dmb else y[0],
+                self.conf,
+                self.iou,
+                self.classes,
+                self.agnostic,
+                self.multi_label,
+                max_det=self.max_det,
+            )  # NMS
+            for i in range(n):
+                scale_coords(shape1, y[i][:, :4], shape0[i])
 
-        t.append(time_sync())
-        return Detections(imgs, y, files, t, self.names, x.shape)
+            t.append(time_sync())
+            return Detections(imgs, y, files, t, self.names, x.shape)
 
 
 class Detections:
