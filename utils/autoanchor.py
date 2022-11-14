@@ -33,7 +33,11 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
     wh = flow.tensor(np.concatenate([l[:, 3:5] * s for s, l in zip(shapes * scale, dataset.labels)])).float()  # wh
 
     def metric(k):  # compute metric
-        r = wh[:, None] / k[None]
+        # r = wh[:, None] / k[None]
+        # print(wh.device, k.device)
+        print(flow.unsqueeze(wh, dim=1).shape)
+        print(flow.unsqueeze(k, dim=0).shape)
+        r = flow.unsqueeze(wh, dim=1).cuda() / flow.unsqueeze(k, dim=0).cuda()
         x = flow.min(r, 1 / r).min(2)[0]  # ratio metric
         best = x.max(1)[0]  # best_x
         aat = (x > 1 / thr).float().sum(1).mean()  # anchors above threshold
@@ -42,7 +46,7 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
 
     stride = m.stride.to(m.anchors.device).view(-1, 1, 1)  # model strides
     anchors = m.anchors.clone() * stride  # current anchors
-    bpr, aat = metric(anchors.cpu().view(-1, 2))
+    bpr, aat = metric(anchors.view(-1, 2))
     s = f"\n{PREFIX}{aat:.2f} anchors/target, {bpr:.3f} Best Possible Recall (BPR). "
     if bpr > 0.98:  # threshold to recompute
         LOGGER.info(f"{s}Current anchors are a good fit to dataset ✅")
@@ -53,7 +57,7 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
             anchors = kmean_anchors(dataset, n=na, img_size=imgsz, thr=thr, gen=1000, verbose=False)
         except Exception as e:
             LOGGER.info(f"{PREFIX}ERROR: {e}")
-        new_bpr = metric(anchors)[0]
+        new_bpr = metric(anchors.view(-1, 2))[0]
         if new_bpr > bpr:  # replace anchors
             anchors = flow.tensor(anchors, device=m.anchors.device).type_as(m.anchors)
             m.anchors[:] = anchors.clone().view_as(m.anchors)

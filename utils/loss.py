@@ -250,9 +250,16 @@ class ComputeLoss:
                 gxi = gain[[2, 3]] - gxy  # inverse
                 j, k = ((gxy % 1 < g) & (gxy > 1)).T
                 l, m = ((gxi % 1 < g) & (gxi > 1)).T
-                j = flow.stack((flow.ones_like(j), j, k, l, m))
-                t = t.repeat((5, 1, 1))[j]
-                offsets = (flow.zeros_like(gxy)[None] + off[:, None])[j]
+                if j.numel() > 0:
+                    j = flow.stack((flow.ones_like(j), j, k, l, m))
+                    t = t.repeat((5, 1, 1))[j]
+                    offsets = (flow.zeros_like(gxy)[None] + off[:, None])[j]
+                else:
+                    t = targets[0]
+                    offsets = 0
+                #     j = flow.stack((k, l, m))
+                # t = t.repeat((5, 1, 1))[j]
+                # offsets = (flow.zeros_like(gxy)[None] + off[:, None])[j]
             else:
                 t = targets[0]
                 offsets = 0

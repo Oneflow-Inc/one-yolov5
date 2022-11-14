@@ -310,9 +310,34 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         LOGGER.info(("\n" + "%10s" * 7) % ("Epoch", "gpu_mem", "box", "obj", "cls", "labels", "img_size"))
         if RANK in {-1, 0}:
-            pbar = tqdm(pbar, total=nb, bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}")  # progress bar
+            pbar = tqdm(pbar, total=nb, unit="batch", smoothing=0.9, bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}")  # progress bar
 
         optimizer.zero_grad()
+
+        # Save model
+        if (not nosave) or (final_epoch and not evolve):  # if save
+            ckpt = {
+                "epoch": epoch,
+                "best_fitness": best_fitness,
+                "model": model,#deepcopy(de_parallel(model)).half(),
+                "ema": deepcopy(ema.ema).half(),
+                "updates": ema.updates,
+                "optimizer": optimizer.state_dict(),
+                "wandb_id": loggers.wandb.wandb_run.id if loggers.wandb else None,
+                "opt": vars(opt),
+                "date": datetime.now().isoformat(),
+            }
+
+            # Save last, best and delete
+            model_save(ckpt, last)  # flow.save(ckpt, last)
+            # if best_fs_save(ckpt, best)  # flow.save(ckpt, best)
+
+            if opt.save_period > 0 and epoch % opt.save_period == 0:
+                print("is ok")
+                model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
+            del ckpt
+            # callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
+
 
         for i, (
             imgs,
@@ -412,30 +437,30 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             log_vals = list(mloss) + list(results) + lr
             callbacks.run("on_fit_epoch_end", log_vals, epoch, best_fitness, fi)
 
-            # Save model
-            if (not nosave) or (final_epoch and not evolve):  # if save
-                ckpt = {
-                    "epoch": epoch,
-                    "best_fitness": best_fitness,
-                    "model": deepcopy(de_parallel(model)).half(),
-                    "ema": deepcopy(ema.ema).half(),
-                    "updates": ema.updates,
-                    "optimizer": optimizer.state_dict(),
-                    "wandb_id": loggers.wandb.wandb_run.id if loggers.wandb else None,
-                    "opt": vars(opt),
-                    "date": datetime.now().isoformat(),
-                }
+            # # Save model
+            # if (not nosave) or (final_epoch and not evolve):  # if save
+            #     ckpt = {
+            #         "epoch": epoch,
+            #         "best_fitness": best_fitness,
+            #         "model": model,#deepcopy(de_parallel(model)).half(),
+            #         "ema": deepcopy(ema.ema).half(),
+            #         "updates": ema.updates,
+            #         "optimizer": optimizer.state_dict(),
+            #         "wandb_id": loggers.wandb.wandb_run.id if loggers.wandb else None,
+            #         "opt": vars(opt),
+            #         "date": datetime.now().isoformat(),
+            #     }
 
-                # Save last, best and delete
-                model_save(ckpt, last)  # flow.save(ckpt, last)
-                if best_fitness == fi:
-                    model_save(ckpt, best)  # flow.save(ckpt, best)
+            #     # Save last, best and delete
+            #     model_save(ckpt, last)  # flow.save(ckpt, last)
+            #     if best_fitness == fi:
+            #         model_save(ckpt, best)  # flow.save(ckpt, best)
 
-                if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    print("is ok")
-                    model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
-                del ckpt
-                callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
+            #     if opt.save_period > 0 and epoch % opt.save_period == 0:
+            #         print("is ok")
+            #         model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
+            #     del ckpt
+            #     callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 
         # # EarlyStopping
         #     broadcast_list = [stop if RANK == 0 else None]
@@ -618,7 +643,7 @@ def main(opt, callbacks=Callbacks()):
         assert opt.batch_size != -1, f"AutoBatch with --batch-size -1 {msg}, please pass a valid --batch-size"
         assert opt.batch_size % WORLD_SIZE == 0, f"--batch-size {opt.batch_size} must be multiple of WORLD_SIZE"
         assert flow.cuda.device_count() > LOCAL_RANK, "insufficient CUDA devices for DDP command"
-        flow.cuda.set_device(LOCAL_RANK)
+        # flow.cuda.set_device(LOCAL_RANK)
         device = flow.device("cuda", LOCAL_RANK)
         # dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
@@ -627,7 +652,7 @@ def main(opt, callbacks=Callbacks()):
         train(opt.hyp, opt, device, callbacks)
         if WORLD_SIZE > 1 and RANK == 0:
             LOGGER.info("Destroying process group... ")
-            dist.destroy_process_group()
+            # dist.destroy_process_group()
 
     # Evolve hyperparameters (optional)
     else:

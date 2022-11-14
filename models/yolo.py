@@ -260,7 +260,7 @@ class Model(nn.Module):
         for m in self.model.modules():
             if isinstance(m, (Conv, DWConv)) and hasattr(m, "bn"):
                 m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
-                delattr(m, "bn")  # remove batchnorm
+                # delattr(m, "bn")  # remove batchnorm
                 m.forward = m.forward_fuse  # update forward
                 m.is_fuse = True
         self.info()

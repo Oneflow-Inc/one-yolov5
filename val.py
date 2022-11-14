@@ -182,11 +182,11 @@ def run(
 
     # Dataloader
     if not training:
-        if of and not single_cls:  # check --weights are trained on --data
-            ncm = model.model.nc
-            assert ncm == nc, (
-                f"{weights} ({ncm} classes) trained on different --data than what you passed ({nc} " f"classes). Pass correct combination of" f" --weights and --data that are trained together."
-            )
+        # if of and not single_cls:  # check --weights are trained on --data
+        #     ncm = model.model.nc
+        #     assert ncm == nc, (
+        #         f"{weights} ({ncm} classes) trained on different --data than what you passed ({nc} " f"classes). Pass correct combination of" f" --weights and --data that are trained together."
+        #     )
         model.warmup(imgsz=(1 if of else batch_size, 3, imgsz, imgsz))  # warmup
         pad = 0.0 if task in ("speed", "benchmark") else 0.5
         rect = False if task == "benchmark" else of  # square inference for benchmarks
@@ -268,12 +268,12 @@ def run(
             correct = flow.zeros(npr, niou, dtype=flow.bool, device=device)  # init
             seen += 1
 
-            if npr == 0:
-                if nl:
-                    stats.append((correct, *flow.zeros((2, 0), device=device), labels[:, 0]))
-                    if plots:
-                        confusion_matrix.process_batch(detections=None, labels=labels[:, 0])
-                continue
+            # if npr == 0:
+            #     if nl:
+            #         stats.append((correct, *flow.zeros((2, 0), device=device), labels[:, 0]))
+            #         if plots:
+            #             confusion_matrix.process_batch(detections=None, labels=labels[:, 0])
+            #     continue
 
             # Predictions
             if single_cls:
@@ -287,8 +287,8 @@ def run(
                 scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
                 labelsn = flow.cat((labels[:, 0:1], tbox), 1)  # native-space labels
                 correct = process_batch(predn, labelsn, iouv)
-                if plots:
-                    confusion_matrix.process_batch(predn, labelsn)
+                # if plots:
+                #     confusion_matrix.process_batch(predn, labelsn)
             stats.append((correct, pred[:, 4], pred[:, 5], labels[:, 0]))  # (correct, conf, pcls, tcls)
 
             # Save/log
@@ -299,8 +299,8 @@ def run(
                     shape,
                     file=save_dir / "labels" / f"{path.stem}.txt",
                 )
-            if save_json:
-                save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
+            # if save_json:
+            #     save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
             callbacks.run("on_val_image_end", pred, predn, path, names, im[si])
 
         # Plot images
@@ -342,9 +342,9 @@ def run(
         LOGGER.info(f"Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {shape}" % t)
 
     # Plots
-    if plots:
-        confusion_matrix.plot(save_dir=save_dir, names=list(names.values()))
-        callbacks.run("on_val_end")
+    # if plots:
+    #     confusion_matrix.plot(save_dir=save_dir, names=list(names.values()))
+    #     callbacks.run("on_val_end")
 
     # Save JSON
     if save_json and len(jdict):
