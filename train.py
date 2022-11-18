@@ -375,8 +375,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Log
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                t = mloss.numpy().tolist()
-                pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *t, targets.shape[0], imgs.shape[-1]))
+                pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *mloss, targets.shape[0], imgs.shape[-1]))
 
             # end batch ----------------------------------------------------------------
 
