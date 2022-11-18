@@ -88,8 +88,6 @@ class QFocalLoss(nn.Module):
         else:  # 'none'
             return loss
 
-
-# 计算损失(分类损失+置信度损失+框坐标回归损失)
 class ComputeLoss:
     sort_obj_iou = False
 
@@ -127,11 +125,9 @@ class ComputeLoss:
         self.device = device
 
     def __call__(self, p, targets):  # predictions, targets
-        # 初始化各个部分损失
         lcls = flow.zeros(1, device=self.device)  # class loss
         lbox = flow.zeros(1, device=self.device)  # box loss
         lobj = flow.zeros(1, device=self.device)  # object loss
-        # 获得标签分类,边框,索引，anchors
         tcls, tbox, indices, anchors = self.build_targets(p, targets)  # targets
 
         # Losses
@@ -190,15 +186,6 @@ class ComputeLoss:
 
         return (lbox + lobj + lcls) * bs, flow.cat((lbox, lobj, lcls)).detach()
 
-    # ---------------------------------------------------------
-    # build_tangets函数用于获得在训练时计算loss函数所需要的目标框，即被认为是正样本与yolov3/v4的不同:yolov5支持跨网格预测
-    # 对于任何一个bbox，三个输出预测特征层都可能有先验框anchors匹配;该函数输出的正样本框比传入的targets （GT框）数目多
-    # 具体处理过程:
-    # (1)对于任何一层计算当前bbox和当前层anchor的匹配程度，不采用iou，而是shape比例;如果anchor和bbox的宽高比差距大于4，则认为不匹配，此时忽略相应的bbox，即当做背景;
-    # (2)然后对bbox计算落在的网格所有anchors都计算loss(并不是直接和GT框比较计算loss)
-    # 注意此时落在网格不再是一个，而是附近的多个，这样就增加了正样本数，可能存在有些bbox在三个尺度都预测的情况另外，
-    # yolov5也没有conf分支忽略阈值(ignore_thresh)的操作，而yoloy3/v4有。
-    # --------------------------------------------------------
 
     def build_targets(self, p, targets):
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h)
@@ -206,8 +193,7 @@ class ComputeLoss:
 
         tcls, tbox, indices, anch = [], [], [], []
         gain = flow.ones(7, device=self.device)  # normalized to gridspace gain
-        # ai.shape = (na,nt) 生成anchor索引
-        # anchor索引，后面有用，用于表示当前bbox和当前层的哪个anchor匹配
+        # ai.shape = (na,nt)
         ai = flow.arange(na, device=self.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
 
         targets = flow.cat((targets.repeat(na, 1, 1), ai[..., None]), 2)  # append anchor indices
