@@ -324,7 +324,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             _,
         ) in pbar:  # batch -------------------------------------------------------------
             cnt += 1
-            if cnt > 1000:
+            if cnt > 100:
                 LOGGER.info(f"\n1000 bacthes completed in {(time.time() - t0) :.3f} seconds")
                 exit(0)
             callbacks.run("on_train_batch_start")
@@ -392,6 +392,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
                 pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *mloss, targets.shape[0], imgs.shape[-1]))
+            flow._oneflow_internal.profiler.RangePop()
 
             # end batch ----------------------------------------------------------------
         flow._oneflow_internal.profiler.RangePop()
