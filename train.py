@@ -436,14 +436,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 
-        # # EarlyStopping
-        #     broadcast_list = [stop if RANK == 0 else None]
-        #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-        #     if RANK != 0:
-        #         stop = broadcast_list[0]
-        # if stop:
-        #     break  # must break all DDP ranks
-
         # end epoch --------------------------------------------------------------------------
     # end training ---------------------------------------------------------------------------
 
@@ -619,7 +611,6 @@ def main(opt, callbacks=Callbacks()):
         assert flow.cuda.device_count() > LOCAL_RANK, "insufficient CUDA devices for DDP command"
         flow.cuda.set_device(LOCAL_RANK)
         device = flow.device("cuda", LOCAL_RANK)
-        # dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Train
     if not opt.evolve:
