@@ -84,7 +84,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
-    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze,) = (
+    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, bbox_iou_optim) = (
         Path(opt.save_dir),
         opt.epochs,
         opt.batch_size,
@@ -98,6 +98,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.nosave,
         opt.workers,
         opt.freeze,
+        opt.bbox_iou_optim,
     )
 
     callbacks.run("on_pretrain_routine_start")
@@ -283,7 +284,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # scaler = flow.cuda.amp.GradScaler(enabled=amp)
 
     stopper, _ = EarlyStopping(patience=opt.patience), False
-    compute_loss = ComputeLoss(model)  # init loss class
+    compute_loss = ComputeLoss(model, bbox_iou_optim=bbox_iou_optim)  # init loss class
     callbacks.run("on_train_start")
     LOGGER.info(
         f"Image sizes {imgsz} train, {imgsz} val\n"
@@ -517,6 +518,7 @@ def parse_opt(known=False):
     parser.add_argument("--quad", action="store_true", help="quad dataloader")
     parser.add_argument("--cos-lr", action="store_true", help="cosine LR scheduler")
     parser.add_argument("--label-smoothing", type=float, default=0.0, help="Label smoothing epsilon")
+    parser.add_argument("--bbox_iou_optim", action="store_true", help="optim bbox_iou function in compute_loss")
     parser.add_argument(
         "--patience",
         type=int,

@@ -93,7 +93,7 @@ class ComputeLoss:
     sort_obj_iou = False
 
     # Compute losses
-    def __init__(self, model, autobalance=False):
+    def __init__(self, model, autobalance=False, bbox_iou_optim=False):
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
 
@@ -124,6 +124,7 @@ class ComputeLoss:
         self.nl = m.nl  # number of layers
         self.anchors = m.anchors
         self.device = device
+        self.bbox_iou_optim = bbox_iou_optim
 
     def __call__(self, p, targets):  # predictions, targets
         lcls = flow.zeros(1, device=self.device)  # class loss
@@ -147,7 +148,7 @@ class ComputeLoss:
                 pxy = pxy.sigmoid() * 2 - 0.5
                 pwh = (pwh.sigmoid() * 2) ** 2 * anchors[i]
                 pbox = flow.cat((pxy, pwh), 1)  # predicted box
-                iou = bbox_iou(pbox, tbox[i], CIoU=True).squeeze()  # iou(prediction, target)
+                iou = bbox_iou(pbox, tbox[i], CIoU=True, bbox_iou_optim=self.bbox_iou_optim).squeeze()  # iou(prediction, target)
                 lbox = lbox + (1.0 - iou).mean()  # iou loss
 
                 # Objectness
