@@ -41,7 +41,7 @@ from utils.autoanchor import check_anchors
 from utils.callbacks import Callbacks
 from utils.dataloaders import create_dataloader
 
-from utils.downloads import is_url  # , attempt_download
+from utils.downloads import is_url , attempt_download
 from utils.general import check_img_size  # check_suffix,
 from utils.general import (
     LOGGER,
@@ -50,6 +50,7 @@ from utils.general import (
     check_git_status,
     check_requirements,
     check_yaml,
+    check_weights,
     colorstr,
     get_latest_run,
     increment_path,
@@ -134,7 +135,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     init_seeds(opt.seed + 1 + RANK, deterministic=True)
 
-    # with torch_distributed_zero_first(LOCAL_RANK): # 这个是上下文管理器
     data_dict = data_dict or check_dataset(data)  # check if None
 
     train_path, val_path = data_dict["train"], data_dict["val"]
@@ -143,10 +143,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     assert len(names) == nc, f"{len(names)} names found for nc={nc} dataset in {data}"  # check
     is_coco = isinstance(val_path, str) and val_path.endswith("coco/val2017.txt")  # COCO dataset
 
-    pretrained = os.path.exists(weights)
+    pretrained = check_weights(weights)
 
     if pretrained:
         # ---------------------------------------------------------#
+        weights = attempt_download(weights)  # download if not found locally
         ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
         exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
@@ -348,8 +349,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     imgs = nn.functional.interpolate(imgs, size=ns, mode="bilinear", align_corners=False)
 
             # Forward
-            # imgs = flow.FloatTensor(np.ones([16,3,640,640])).cuda()
-
             pred = model(imgs)  # forward
 
             loss, loss_items = compute_loss(pred, targets.to(device))  # loss scaled by batch_size
@@ -615,9 +614,7 @@ def main(opt, callbacks=Callbacks()):
     # Train
     if not opt.evolve:
         train(opt.hyp, opt, device, callbacks)
-        if WORLD_SIZE > 1 and RANK == 0:
-            LOGGER.info("Destroying process group... ")
-            dist.destroy_process_group()
+
 
     # Evolve hyperparameters (optional)
     else:
@@ -712,7 +709,7 @@ def main(opt, callbacks=Callbacks()):
 
 
 def run(**kwargs):
-    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
+    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m')
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)
