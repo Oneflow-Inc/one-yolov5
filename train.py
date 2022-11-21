@@ -26,7 +26,6 @@ from pathlib import Path
 
 import numpy as np
 import oneflow as flow
-import oneflow.distributed as dist
 import oneflow.nn as nn
 import yaml
 from oneflow.optim import lr_scheduler
