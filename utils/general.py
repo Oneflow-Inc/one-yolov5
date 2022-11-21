@@ -548,8 +548,6 @@ def check_weights(weights: str):
     else:
         LOGGER.info(f"use {weights} checks failed ❌")
 
-    pass
-
 
 def check_amp(model):
     # Check Pyoneflow Automatic Mixed Precision (AMP) functionality. Return True on correct operation
