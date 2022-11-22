@@ -536,6 +536,19 @@ def check_dataset(data, autodownload=True):
     return data  # dictionary
 
 
+def check_weights(weights: str):
+    # Download check and/or unzip weights files if not found locally
+    weights_name = weights.split(os.sep)[-1]
+    if weights_name in ["yolov5n", "yolov5s", "yolov5m", "yolov5l", "yolov5x"]:
+        LOGGER.info(f"use {weights} checks passed ✅")
+        return True
+    elif weights_name in ["yolov5n6", "yolov5s6", "yolov5m6", "yolov5l6", "yolov5x6"]:
+        LOGGER.info(f"use {weights} checks passed ✅")
+        return True
+    else:
+        LOGGER.info(f"use {weights} checks failed ❌")
+
+
 def check_amp(model):
     # Check Pyoneflow Automatic Mixed Precision (AMP) functionality. Return True on correct operation
     from models.common import AutoShape, DetectMultiBackend
