@@ -228,14 +228,6 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
     if xywh:  # transform from xywh to xyxy
         (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, 1), box2.chunk(4, 1)
         if bbox_iou_optim:
-            x1 = flow.as_strided(x1, x1.shape, (1, 1))
-            y1 = flow.as_strided(y1, y1.shape, (1, 1))
-            w1 = flow.as_strided(w1, w1.shape, (1, 1))
-            h1 = flow.as_strided(h1, h1.shape, (1, 1))
-            x2 = flow.as_strided(x2, x2.shape, (1, 1))
-            y2 = flow.as_strided(y2, y2.shape, (1, 1))
-            w2 = flow.as_strided(w2, w2.shape, (1, 1))
-            h2 = flow.as_strided(h2, h2.shape, (1, 1))
             b1_x1, b1_x2, b1_y1, b1_y2, b2_x1, b2_x2, b2_y1, b2_y2 = flow._C.fused_get_boundding_boxes_coord(x1, y1, w1, h1, x2, y2, w2, h2)
         else:
             w1_, h1_, w2_, h2_ = w1 / 2, h1 / 2, w2 / 2, h2 / 2
