@@ -258,9 +258,12 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
                 rho2 = flow._C.fused_get_center_dist(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
             if CIoU:  # https://github.com/Zzh-tju/DIoU-SSD-pyflow/blob/master/utils/box/box_utils.py#L47
                 v = (4 / math.pi ** 2) * flow.pow(flow.atan(w2 / (h2 + eps)) - flow.atan(w1 / (h1 + eps)), 2)
-                with flow.no_grad():
-                    alpha = v / (v - iou + (1 + eps))
-                return iou - (rho2 / c2 + v * alpha)  # CIoU
+                if bbox_iou_optim:
+                    return flow._C.fused_get_ciou_result(v, iou, rho2, c2, eps)
+                else:
+                    with flow.no_grad():
+                        alpha = v / (v - iou + (1 + eps))
+                    return iou - (rho2 / c2 + v * alpha)  # CIoU
             return iou - rho2 / c2  # DIoU
         c_area = cw * ch + eps  # convex area
         return iou - (c_area - union) / c_area  # GIoU https://arxiv.org/pdf/1902.09630.pdf
