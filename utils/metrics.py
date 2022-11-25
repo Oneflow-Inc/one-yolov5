@@ -257,7 +257,7 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
             else:
                 rho2 = ((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4  # center dist ** 2
 
-            if CIoU:  
+            if CIoU:
                 if bbox_iou_optim:
                     v = flow._C.fused_get_ciou_diagonal_angle(w1, h1, w2, h2, eps)
                     return flow._C.fused_get_ciou_result(v, iou, rho2, c2, eps)[0]
