@@ -247,8 +247,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         )[0]
 
         if not resume:
-            if plots:
-                plot_labels(labels, names, save_dir)
+            # if plots:
+            #     plot_labels(labels, names, save_dir)
+            
             # Anchors
             if not opt.noautoanchor:
                 check_anchors(dataset, model=model, thr=hyp["anchor_t"], imgsz=imgsz)
@@ -415,7 +416,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 ckpt = {
                     "epoch": epoch,
                     "best_fitness": best_fitness,
-                    "model": deepcopy(de_parallel(model)).half(),
+                    # "model": deepcopy(de_parallel(model)).half(),
+                    "model":model,
                     "ema": deepcopy(ema.ema).half(),
                     "updates": ema.updates,
                     "optimizer": optimizer.state_dict(),
