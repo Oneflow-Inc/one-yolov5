@@ -242,7 +242,7 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
     # Intersection area
     inter = (flow.min(b1_x2, b2_x2) - flow.max(b1_x1, b2_x1)).clamp(0) * (flow.min(b1_y2, b2_y2) - flow.max(b1_y1, b2_y1)).clamp(0)
 
-    if CIoU:
+    if bbox_iou_optim and CIoU:
         iou = flow._C.fused_get_iou(w1, h1, w2, h2, inter, eps)
     else:
         # Union Area
