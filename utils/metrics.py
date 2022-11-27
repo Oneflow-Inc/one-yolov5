@@ -250,11 +250,16 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
 
         # IoU
         iou = inter / union
+    
     if CIoU or DIoU or GIoU:
-        cw = flow.max(b1_x2, b2_x2) - flow.min(b1_x1, b2_x1)  # convex (smallest enclosing box) width
-        ch = flow.max(b1_y2, b2_y2) - flow.min(b1_y1, b2_y1)  # convex height
+        if not bbox_iou_optim:
+            cw = flow.max(b1_x2, b2_x2) - flow.min(b1_x1, b2_x1)  # convex (smallest enclosing box) width
+            ch = flow.max(b1_y2, b2_y2) - flow.min(b1_y1, b2_y1)  # convex height
         if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
-            c2 = cw ** 2 + ch ** 2 + eps  # convex diagonal squared
+            if bbox_iou_optim:
+                c2 = flow._C.fused_get_convex_diagonal_squared(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2, eps)
+            else:
+                c2 = cw ** 2 + ch ** 2 + eps  # convex diagonal squared
             if bbox_iou_optim:
                 rho2 = flow._C.fused_get_center_dist(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
             else:
