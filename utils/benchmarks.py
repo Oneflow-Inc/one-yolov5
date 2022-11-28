@@ -37,7 +37,7 @@ import export
 import val
 from utils import notebook_init
 from utils.general import LOGGER, check_yaml, file_size, print_args
-from utils.torch_utils import select_device
+from utils.oneflow_utils import select_device
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
