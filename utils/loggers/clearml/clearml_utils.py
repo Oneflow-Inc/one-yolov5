@@ -4,8 +4,8 @@ import re
 from pathlib import Path
 
 import yaml
-from torchvision.transforms import ToPILImage
-from torchvision.utils import draw_bounding_boxes
+from flowvision.transforms import ToPILImage
+from flowvision.utils import draw_bounding_boxes
 
 try:
     import clearml

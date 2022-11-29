@@ -234,14 +234,14 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         val_loader = create_dataloader(
             val_path,
             imgsz,
-            batch_size // WORLD_SIZE * 2,
+            batch_size // WORLD_SIZE,
             gs,
             single_cls,
             hyp=hyp,
             cache=None if noval else opt.cache,
             rect=True,
             rank=-1,
-            workers=workers * 2,
+            workers=workers,
             pad=0.5,
             prefix=colorstr("val: "),
         )[0]
