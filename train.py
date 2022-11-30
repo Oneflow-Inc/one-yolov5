@@ -408,7 +408,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # stop = stopper(epoch=epoch, fitness=fi)  # early stop check
             if fi > best_fitness:
                 best_fitness = fi
-            log_vals = list(mloss) + list(results) + lr
+            log_vals = mloss.tolist() + list(results) + lr
             callbacks.run("on_fit_epoch_end", log_vals, epoch, best_fitness, fi)
 
             # Save model
@@ -431,7 +431,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     model_save(ckpt, best)  # flow.save(ckpt, best)
 
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    print("is ok")
                     model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
