@@ -235,15 +235,11 @@ def model_info(model, verbose=False, img_size=640):
 
     try:  # FLOPs
         from flowflops import get_model_complexity_info
+
         model_cp = deepcopy(model)
         stride = max(int(model_cp.stride.max()), 32) if hasattr(model_cp, "stride") else 32
-        total_flops, _ = get_model_complexity_info(
-            model_cp, (1, model_cp.yaml.get("ch", 3), stride, stride),
-            as_strings=False,
-            print_per_layer_stat=False,
-            mode="eager"         # eager or graph
-        )
-        total_flops = total_flops / 1E9 * 2
+        total_flops, _ = get_model_complexity_info(model_cp, (1, model_cp.yaml.get("ch", 3), stride, stride), as_strings=False, print_per_layer_stat=False, mode="eager")  # eager or graph
+        total_flops = total_flops / 1e9 * 2
         img_size = img_size if isinstance(img_size, list) else [img_size, img_size]  # expand if int/float
         fs = ", %.1f GFLOPs" % (total_flops * img_size[0] / stride * img_size[1] / stride)  # 640x640 GFLOPs
     except Exception:
@@ -274,7 +270,7 @@ def copy_attr(a, b, include=(), exclude=()):
             setattr(a, k, v)
 
 
-def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5):
+def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5, multi_tensor_optimizer=False):
     # YOLOv5 3-param group optimizer: 0) weights with decay, 1) weights no decay, 2) biases no decay
     g = [], [], []  # optimizer parameter groups
     bn = tuple(v for k, v in nn.__dict__.items() if "Norm" in k)  # normalization layers, i.e. BatchNorm2d()
@@ -287,13 +283,15 @@ def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5):
             g[0].append(v.weight)
 
     if name == "Adam":
-        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999))  # adjust beta1 to momentum
+        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999), fused=multi_tensor_optimizer)  # adjust beta1 to momentum
     elif name == "AdamW":
-        optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
+        optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0, fused=multi_tensor_optimizer)
     elif name == "RMSProp":
+        if multi_tensor_optimizer:
+            warnings.warn("RMSProp not support multi_tensor implement yet, please submit issue in https://github.com/Oneflow-Inc/oneflow/issues")
         optimizer = flow.optim.RMSprop(g[2], lr=lr, momentum=momentum)
     elif name == "SGD":
-        optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
+        optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True, fused=multi_tensor_optimizer)
     else:
         raise NotImplementedError(f"Optimizer {name} not implemented.")
 

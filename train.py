@@ -84,7 +84,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
-    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, bbox_iou_optim) = (
+    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, bbox_iou_optim, multi_tensor_optimizer) = (
         Path(opt.save_dir),
         opt.epochs,
         opt.batch_size,
@@ -99,6 +99,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.workers,
         opt.freeze,
         opt.bbox_iou_optim,
+        opt.multi_tensor_optimizer,
     )
 
     callbacks.run("on_pretrain_routine_start")
@@ -178,7 +179,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     nbs = 64  # nominal batch size
     accumulate = max(round(nbs / batch_size), 1)  # accumulate loss before optimizing
     hyp["weight_decay"] *= batch_size * accumulate / nbs  # scale weight_decay
-    optimizer = smart_optimizer(model, opt.optimizer, hyp["lr0"], hyp["momentum"], hyp["weight_decay"])
+    optimizer = smart_optimizer(model, opt.optimizer, hyp["lr0"], hyp["momentum"], hyp["weight_decay"], multi_tensor_optimizer)
 
     # Scheduler
     if opt.cos_lr:
@@ -517,6 +518,7 @@ def parse_opt(known=False):
     parser.add_argument("--cos-lr", action="store_true", help="cosine LR scheduler")
     parser.add_argument("--label-smoothing", type=float, default=0.0, help="Label smoothing epsilon")
     parser.add_argument("--bbox_iou_optim", action="store_true", help="optim bbox_iou function in compute_loss")
+    parser.add_argument("--multi_tensor_optimizer", action="store_true", help="apply multi_tensor implement in optimizer")
     parser.add_argument(
         "--patience",
         type=int,

@@ -250,7 +250,7 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
 
         # IoU
         iou = inter / union
-    
+
     if CIoU or DIoU or GIoU:
         if not bbox_iou_optim:
             cw = flow.max(b1_x2, b2_x2) - flow.min(b1_x1, b2_x1)  # convex (smallest enclosing box) width
