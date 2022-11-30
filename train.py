@@ -26,7 +26,6 @@ from pathlib import Path
 
 import numpy as np
 import oneflow as flow
-import oneflow.distributed as dist
 import oneflow.nn as nn
 import yaml
 from oneflow.optim import lr_scheduler
@@ -41,7 +40,7 @@ from utils.autoanchor import check_anchors
 from utils.callbacks import Callbacks
 from utils.dataloaders import create_dataloader
 
-from utils.downloads import is_url  # , attempt_download
+from utils.downloads import is_url, attempt_download
 from utils.general import check_img_size  # check_suffix,
 from utils.general import (
     LOGGER,
@@ -50,6 +49,7 @@ from utils.general import (
     check_git_status,
     check_requirements,
     check_yaml,
+    check_weights,
     colorstr,
     get_latest_run,
     increment_path,
@@ -84,7 +84,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
-    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze,) = (
+    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, bbox_iou_optim, multi_tensor_optimizer) = (
         Path(opt.save_dir),
         opt.epochs,
         opt.batch_size,
@@ -98,6 +98,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.nosave,
         opt.workers,
         opt.freeze,
+        opt.bbox_iou_optim,
+        opt.multi_tensor_optimizer,
     )
 
     callbacks.run("on_pretrain_routine_start")
@@ -134,7 +136,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     init_seeds(opt.seed + 1 + RANK, deterministic=True)
 
-    # with torch_distributed_zero_first(LOCAL_RANK): # 这个是上下文管理器
     data_dict = data_dict or check_dataset(data)  # check if None
 
     train_path, val_path = data_dict["train"], data_dict["val"]
@@ -143,10 +144,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     assert len(names) == nc, f"{len(names)} names found for nc={nc} dataset in {data}"  # check
     is_coco = isinstance(val_path, str) and val_path.endswith("coco/val2017.txt")  # COCO dataset
 
-    pretrained = os.path.exists(weights)
+    pretrained = check_weights(weights)
 
     if pretrained:
         # ---------------------------------------------------------#
+        weights = attempt_download(weights)  # download if not found locally
         ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
         model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
         exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
@@ -177,7 +179,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     nbs = 64  # nominal batch size
     accumulate = max(round(nbs / batch_size), 1)  # accumulate loss before optimizing
     hyp["weight_decay"] *= batch_size * accumulate / nbs  # scale weight_decay
-    optimizer = smart_optimizer(model, opt.optimizer, hyp["lr0"], hyp["momentum"], hyp["weight_decay"])
+    optimizer = smart_optimizer(model, opt.optimizer, hyp["lr0"], hyp["momentum"], hyp["weight_decay"], multi_tensor_optimizer)
 
     # Scheduler
     if opt.cos_lr:
@@ -233,14 +235,14 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         val_loader = create_dataloader(
             val_path,
             imgsz,
-            batch_size // WORLD_SIZE * 2,
+            batch_size // WORLD_SIZE,
             gs,
             single_cls,
             hyp=hyp,
             cache=None if noval else opt.cache,
             rect=True,
             rank=-1,
-            workers=workers * 2,
+            workers=workers,
             pad=0.5,
             prefix=colorstr("val: "),
         )[0]
@@ -283,7 +285,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # scaler = flow.cuda.amp.GradScaler(enabled=amp)
 
     stopper, _ = EarlyStopping(patience=opt.patience), False
-    compute_loss = ComputeLoss(model)  # init loss class
+    compute_loss = ComputeLoss(model, bbox_iou_optim=bbox_iou_optim)  # init loss class
     callbacks.run("on_train_start")
     LOGGER.info(
         f"Image sizes {imgsz} train, {imgsz} val\n"
@@ -310,7 +312,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         pbar = enumerate(train_loader)
 
-        LOGGER.info(("\n" + "%10s" * 7) % ("Epoch", "gpu_mem", "box", "obj", "cls", "labels", "img_size"))
+        LOGGER.info(("\n" + "%11s" * 6) % ("Epoch", "box_loss", "obj_loss", "cls_loss", "Instances", "Size"))
         if RANK in {-1, 0}:
             pbar = tqdm(pbar, total=nb, bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}")  # progress bar
 
@@ -391,8 +393,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             flow._oneflow_internal.profiler.RangePush('loss item')
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *mloss, targets.shape[0], imgs.shape[-1]))
-            flow._oneflow_internal.profiler.RangePop()
+                pbar.set_description(("%11s" + "%11.4g" * 5) % (f"{epoch}/{epochs - 1}", *mloss, targets.shape[0], imgs.shape[-1]))
+                flow._oneflow_internal.profiler.RangePop()
 
             # end batch ----------------------------------------------------------------
         flow._oneflow_internal.profiler.RangePop()
@@ -454,14 +456,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
-
-        # # EarlyStopping
-        #     broadcast_list = [stop if RANK == 0 else None]
-        #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-        #     if RANK != 0:
-        #         stop = broadcast_list[0]
-        # if stop:
-        #     break  # must break all DDP ranks
 
         # end epoch --------------------------------------------------------------------------
     # end training ---------------------------------------------------------------------------
@@ -545,6 +539,8 @@ def parse_opt(known=False):
     parser.add_argument("--quad", action="store_true", help="quad dataloader")
     parser.add_argument("--cos-lr", action="store_true", help="cosine LR scheduler")
     parser.add_argument("--label-smoothing", type=float, default=0.0, help="Label smoothing epsilon")
+    parser.add_argument("--bbox_iou_optim", action="store_true", help="optim bbox_iou function in compute_loss")
+    parser.add_argument("--multi_tensor_optimizer", action="store_true", help="apply multi_tensor implement in optimizer")
     parser.add_argument(
         "--patience",
         type=int,
@@ -639,14 +635,10 @@ def main(opt, callbacks=Callbacks()):
         assert flow.cuda.device_count() > LOCAL_RANK, "insufficient CUDA devices for DDP command"
         flow.cuda.set_device(LOCAL_RANK)
         device = flow.device("cuda", LOCAL_RANK)
-        # dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Train
     if not opt.evolve:
         train(opt.hyp, opt, device, callbacks)
-        if WORLD_SIZE > 1 and RANK == 0:
-            LOGGER.info("Destroying process group... ")
-            dist.destroy_process_group()
 
     # Evolve hyperparameters (optional)
     else:
@@ -741,7 +733,7 @@ def main(opt, callbacks=Callbacks()):
 
 
 def run(**kwargs):
-    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
+    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m')
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)

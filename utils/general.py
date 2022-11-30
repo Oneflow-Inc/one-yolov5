@@ -37,8 +37,6 @@ import yaml
 from utils.downloads import gsutil_getsize
 from utils.metrics import box_iou, fitness
 
-# import torchvision
-
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -206,7 +204,7 @@ def print_args(args: Optional[dict] = None, show_file=True, show_fcn=False):
 
 
 def init_seeds(seed=0, deterministic=False):
-    # Initialize random number generator (RNG) seeds https://pyflow.org/docs/stable/notes/randomness.html
+    # Initialize random number generator (RNG) seeds https://pytorch.org/docs/stable/notes/randomness.html
     # cudnn seed 0 settings are slower and more reproducible, else faster and less reproducible
 
     random.seed(seed)
@@ -536,32 +534,45 @@ def check_dataset(data, autodownload=True):
     return data  # dictionary
 
 
-# def check_amp(model):
-#     # Check Pyoneflow Automatic Mixed Precision (AMP) functionality. Return True on correct operation
-#     from models.common import AutoShape, DetectMultiBackend
+def check_weights(weights: str):
+    # Download check and/or unzip weights files if not found locally
+    weights_name = weights.split(os.sep)[-1]
+    if weights_name in ["yolov5n", "yolov5s", "yolov5m", "yolov5l", "yolov5x"]:
+        LOGGER.info(f"use {weights} checks passed ✅")
+        return True
+    elif weights_name in ["yolov5n6", "yolov5s6", "yolov5m6", "yolov5l6", "yolov5x6"]:
+        LOGGER.info(f"use {weights} checks passed ✅")
+        return True
+    else:
+        LOGGER.info(f"use {weights} checks failed ❌")
 
-#     def amp_allclose(model, im):
-#         # All close FP32 vs AMP results
-#         m = AutoShape(model, verbose=False)  # model
-#         a = m(im).xywhn[0]  # FP32 inference
-#         m.amp = True
-#         b = m(im).xywhn[0]  # AMP inference
-#         return a.shape == b.shape and torch.allclose(a, b, atol=0.1)  # close to 10% absolute tolerance
 
-#     prefix = colorstr('AMP: ')
-#     device = next(model.parameters()).device  # get model device
-#     if device.type == 'cpu':
-#         return False  # AMP disabled on CPU
-#     f = ROOT / 'data' / 'images' / 'bus.jpg'  # image to check
-#     im = f if f.exists() else 'https://ultralytics.com/images/bus.jpg' if check_online() else np.ones((640, 640, 3))
-#     try:
-#         assert amp_allclose(model, im) or amp_allclose(DetectMultiBackend('yolov5n.pt', device), im)
-#         LOGGER.info(f'{prefix}checks passed ✅')
-#         return True
-#     except Exception:
-#         help_url = 'https://github.com/ultralytics/yolov5/issues/7908'
-#         LOGGER.warning(f'{prefix}checks failed ❌, disabling Automatic Mixed Precision. See {help_url}')
-#         return False
+def check_amp(model):
+    # Check Pyoneflow Automatic Mixed Precision (AMP) functionality. Return True on correct operation
+    from models.common import AutoShape, DetectMultiBackend
+
+    def amp_allclose(model, im):
+        # All close FP32 vs AMP results
+        m = AutoShape(model, verbose=False)  # model
+        a = m(im).xywhn[0]  # FP32 inference
+        m.amp = True
+        b = m(im).xywhn[0]  # AMP inference
+        return a.shape == b.shape and flow.allclose(a, b, atol=0.1)  # close to 10% absolute tolerance
+
+    prefix = colorstr("AMP: ")
+    device = next(model.parameters()).device  # get model device
+    if device.type == "cpu":
+        return False  # AMP disabled on CPU
+    f = ROOT / "data" / "images" / "bus.jpg"  # image to check
+    im = f if f.exists() else "https://github.com/Oneflow-Inc/one-yolov5/blob/main/data/images/bus.jpg" if check_online() else np.ones((640, 640, 3))
+    try:
+        assert amp_allclose(model, im) or amp_allclose(DetectMultiBackend("yolov5n.pt", device), im)
+        LOGGER.info(f"{prefix}checks passed ✅")
+        return True
+    except Exception:
+        help_url = "https://github.com/ultralytics/yolov5/issues/7908"
+        LOGGER.warning(f"{prefix}checks failed ❌, disabling Automatic Mixed Precision. See {help_url}")
+        return False
 
 
 def yaml_load(file="data.yaml"):
@@ -996,7 +1007,6 @@ def non_max_suppression(
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        # i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
         i = flow.nms(boxes, scores, iou_thres)  # NMS
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]

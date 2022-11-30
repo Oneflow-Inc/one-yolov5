@@ -147,8 +147,8 @@ def profile(input, ops, n=10, device=None):
 
 
 def is_parallel(model):
-    # Returns True if model is of type DP or DDP
-    # return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
+    # Returns True if model is of type DDP
+    # return type(model) in (nn.parallel.DistributedDataParallel)
     return type(model) in (nn.parallel.DistributedDataParallel,)
 
 
@@ -234,13 +234,14 @@ def model_info(model, verbose=False, img_size=640):
             print("%5g %40s %9s %12g %20s %10.3g %10.3g" % (i, name, p.requires_grad, p.numel(), list(p.shape), p.mean(), p.std()))
 
     try:  # FLOPs
-        from thop import profile
+        from flowflops import get_model_complexity_info
 
-        stride = max(int(model.stride.max()), 32) if hasattr(model, "stride") else 32
-        img = flow.zeros((1, model.yaml.get("ch", 3), stride, stride), device=next(model.parameters()).device)  # input
-        flops = profile(deepcopy(model), inputs=(img,), verbose=False)[0] / 1e9 * 2  # stride GFLOPs
+        model_cp = deepcopy(model)
+        stride = max(int(model_cp.stride.max()), 32) if hasattr(model_cp, "stride") else 32
+        total_flops, _ = get_model_complexity_info(model_cp, (1, model_cp.yaml.get("ch", 3), stride, stride), as_strings=False, print_per_layer_stat=False, mode="eager")  # eager or graph
+        total_flops = total_flops / 1e9 * 2
         img_size = img_size if isinstance(img_size, list) else [img_size, img_size]  # expand if int/float
-        fs = ", %.1f GFLOPs" % (flops * img_size[0] / stride * img_size[1] / stride)  # 640x640 GFLOPs
+        fs = ", %.1f GFLOPs" % (total_flops * img_size[0] / stride * img_size[1] / stride)  # 640x640 GFLOPs
     except Exception:
         fs = ""
 
@@ -269,7 +270,7 @@ def copy_attr(a, b, include=(), exclude=()):
             setattr(a, k, v)
 
 
-def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5):
+def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5, multi_tensor_optimizer=False):
     # YOLOv5 3-param group optimizer: 0) weights with decay, 1) weights no decay, 2) biases no decay
     g = [], [], []  # optimizer parameter groups
     bn = tuple(v for k, v in nn.__dict__.items() if "Norm" in k)  # normalization layers, i.e. BatchNorm2d()
@@ -282,13 +283,19 @@ def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5):
             g[0].append(v.weight)
 
     if name == "Adam":
+<<<<<<< HEAD
         optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999), fused=True)  # adjust beta1 to momentum
+=======
+        optimizer = flow.optim.Adam(g[2], lr=lr, betas=(momentum, 0.999), fused=multi_tensor_optimizer)  # adjust beta1 to momentum
+>>>>>>> optim_inter
     elif name == "AdamW":
-        optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0)
+        optimizer = flow.optim.AdamW(g[2], lr=lr, betas=(momentum, 0.999), weight_decay=0.0, fused=multi_tensor_optimizer)
     elif name == "RMSProp":
+        if multi_tensor_optimizer:
+            warnings.warn("RMSProp not support multi_tensor implement yet, please submit issue in https://github.com/Oneflow-Inc/oneflow/issues")
         optimizer = flow.optim.RMSprop(g[2], lr=lr, momentum=momentum)
     elif name == "SGD":
-        optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True)
+        optimizer = flow.optim.SGD(g[2], lr=lr, momentum=momentum, nesterov=True, fused=multi_tensor_optimizer)
     else:
         raise NotImplementedError(f"Optimizer {name} not implemented.")
 
