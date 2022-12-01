@@ -369,7 +369,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 optimizer.step()
                 optimizer.zero_grad()
                 if ema:
-                    ema.update(model)
+                    ema.update(model, multi_tensor_optimizer)
                 last_opt_step = ni
 
             # Log
