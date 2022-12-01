@@ -84,7 +84,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
-    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, bbox_iou_optim) = (
+    (save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze, bbox_iou_optim, multi_tensor_optimizer) = (
         Path(opt.save_dir),
         opt.epochs,
         opt.batch_size,
@@ -99,6 +99,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         opt.workers,
         opt.freeze,
         opt.bbox_iou_optim,
+        opt.multi_tensor_optimizer,
     )
 
     callbacks.run("on_pretrain_routine_start")
@@ -178,7 +179,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     nbs = 64  # nominal batch size
     accumulate = max(round(nbs / batch_size), 1)  # accumulate loss before optimizing
     hyp["weight_decay"] *= batch_size * accumulate / nbs  # scale weight_decay
-    optimizer = smart_optimizer(model, opt.optimizer, hyp["lr0"], hyp["momentum"], hyp["weight_decay"])
+    optimizer = smart_optimizer(model, opt.optimizer, hyp["lr0"], hyp["momentum"], hyp["weight_decay"], multi_tensor_optimizer)
 
     # Scheduler
     if opt.cos_lr:
@@ -234,14 +235,14 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         val_loader = create_dataloader(
             val_path,
             imgsz,
-            batch_size // WORLD_SIZE * 2,
+            batch_size // WORLD_SIZE,
             gs,
             single_cls,
             hyp=hyp,
             cache=None if noval else opt.cache,
             rect=True,
             rank=-1,
-            workers=workers * 2,
+            workers=workers,
             pad=0.5,
             prefix=colorstr("val: "),
         )[0]
@@ -311,7 +312,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         pbar = enumerate(train_loader)
 
-        LOGGER.info(("\n" + "%10s" * 7) % ("Epoch", "gpu_mem", "box", "obj", "cls", "labels", "img_size"))
+        LOGGER.info(("\n" + "%11s" * 6) % ("Epoch", "box_loss", "obj_loss", "cls_loss", "Instances", "Size"))
         if RANK in {-1, 0}:
             pbar = tqdm(pbar, total=nb, bar_format="{l_bar}{bar:10}{r_bar}{bar:-10b}")  # progress bar
 
@@ -356,6 +357,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     imgs = nn.functional.interpolate(imgs, size=ns, mode="bilinear", align_corners=False)
 
             # Forward
+            # imgs = flow.FloatTensor(np.ones([16,3,640,640])).cuda()
+
             flow._oneflow_internal.profiler.RangePush('forward')
             pred = model(imgs)  # forward
             flow._oneflow_internal.profiler.RangePop()
@@ -390,8 +393,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             flow._oneflow_internal.profiler.RangePush('loss item')
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                pbar.set_description(("%10s" * 1 + "%10.4g" * 5) % (f"{epoch}/{epochs - 1}", *mloss, targets.shape[0], imgs.shape[-1]))
-            flow._oneflow_internal.profiler.RangePop()
+                pbar.set_description(("%11s" + "%11.4g" * 5) % (f"{epoch}/{epochs - 1}", *mloss, targets.shape[0], imgs.shape[-1]))
+                flow._oneflow_internal.profiler.RangePop()
 
             # end batch ----------------------------------------------------------------
         flow._oneflow_internal.profiler.RangePop()
@@ -537,6 +540,7 @@ def parse_opt(known=False):
     parser.add_argument("--cos-lr", action="store_true", help="cosine LR scheduler")
     parser.add_argument("--label-smoothing", type=float, default=0.0, help="Label smoothing epsilon")
     parser.add_argument("--bbox_iou_optim", action="store_true", help="optim bbox_iou function in compute_loss")
+    parser.add_argument("--multi_tensor_optimizer", action="store_true", help="apply multi_tensor implement in optimizer")
     parser.add_argument(
         "--patience",
         type=int,
