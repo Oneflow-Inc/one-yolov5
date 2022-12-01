@@ -344,7 +344,7 @@ class EarlyStopping:
             )
         return stop
 
-
+import numpy as np
 class ModelEMA:
     """Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
     Keeps a moving average of everything in the model state_dict (parameters and buffers)
@@ -368,7 +368,17 @@ class ModelEMA:
 
         msd = de_parallel(model).state_dict()  # model state_dict
         if multi_tensor_optimizer:
-            flow._C.flow._C.multi_tensor_yolov5_weight_update(self.ema.state_dict().items(), d)
+            weight = []
+            weight_update = []
+            for k, v in self.ema.state_dict().items():
+                weight.append(v)
+                weight_update.append(msd[k].detach())
+            
+            flow._C.flow._C.multi_tensor_yolov5_weight_update(weight, weight_update, d)
+            cnt = 0
+            for k, v in self.ema.state_dict().items():
+                v = weight[cnt]
+                cnt += 1
         else:    
             for k, v in self.ema.state_dict().items():
                 if v.dtype.is_floating_point:
