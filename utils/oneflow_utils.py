@@ -370,14 +370,15 @@ class ModelEMA:
             weight = []
             weight_update = []
             for k, v in self.ema.state_dict().items():
-                weight.append(v)
-                weight_update.append(msd[k].detach())
-            
-            flow._C.flow._C.multi_tensor_yolov5_weight_update(weight, weight_update, d)
+                if v.dtype.is_floating_point:
+                    weight.append(v)
+                    weight_update.append(msd[k].detach())
+            flow._C.multi_tensor_yolov5_weight_update(weight, weight_update, d)
             cnt = 0
             for k, v in self.ema.state_dict().items():
-                v = weight[cnt]
-                cnt += 1
+                if v.dtype.is_floating_point:
+                    v = weight[cnt]
+                    cnt += 1
         else:    
             for k, v in self.ema.state_dict().items():
                 if v.dtype.is_floating_point:
