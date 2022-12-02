@@ -21,12 +21,22 @@
 
 # 快速开始案例
 
+注意⚠️:
+
+- oneflow目前不支持windows平台
+
+- --batch 必须是GPU数量的倍数。
+
+- GPU 0 将比其他GPU占用略多的内存，因为它维护EMA并负责检查点等。
+
+
 ## <div align="center">快速开始案例</div>
 
 <details open>
 <summary>安装</summary>
 
 在[**Python>=3.7.0**](https://www.python.org/) 的环境中克隆版本仓并安装 [requirements.txt](https://github.com/Oneflow-Inc/one-yolov5/blob/main/requirements.txt)，包括 [OneFlow nightly或者oneflow>=0.9.0](https://pytorch.org/get-started/locally/) 。
+
 
 注意⚠️： 目前OneFlow 需要安装 nightly 版本，等OneFlow后续新版本发布后可以安装稳定版。
 
