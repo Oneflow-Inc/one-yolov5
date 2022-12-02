@@ -1,22 +1,19 @@
 
 
 <center> 
-<img src="https://user-images.githubusercontent.com/35585791/197145944-8c7fbfb0-699f-428e-984a-c8bbadfddfe3.png">
+<img src="https://user-images.githubusercontent.com/35585791/205295580-d1259bdd-14ff-4482-b741-e4bb49734dfa.png">
 </center>
-
 
 > 写在前面：本项目是基于 ultralytics 版 YOLOv5 源码改成 OneFlow 后端的结果，本工程的目的是做一个拥有更快训练速度的 YOLOv5 ，同时提供丰富的中文教程和源码细节解读，使得读者可以更加深入的了解 YOLOv5 。本 README 的其中一些部分也是直接用的 ultralytics 版 YOLOv5 README 的翻译，我们将相关链接替换为了 OneFlow 后端 YOLOv5 对应的链接。
 
 
-为了说明使用 OneFlow 训练目标检测模型的可行性以及性能的优越性，最近我们将 [ultralytics 版 YOLOv5](https://github.com/ultralytics/yolov5) 通过 import oneflow as torch 的方式迁移为了OneFlow后端（对应YOLOv5的commit号为：`48a85314bc80d8023c99bfb114cea98d71dd0591`）。并对 YOLOv5 中相关的教程进行了汉化，添加了一系列详细的代码解读，原理讲解以及部署教程，希望使得 YOLOv5 项目对用户更加透明化。另外我们也将在性能这个角度进行深入探索，本次我们发布的OneFlow后端的YOLOv5只是一个基础版本，没有用上任何的优化技巧。目前我们在小 Batch 进行训练时相比于 PyTorch 有5%-10%左右的性能优势，而对于大 Batch 则性能和 PyTorch 持平。相信在后续的一些定制化的性能优化技巧下（比如nn.Graph加持，算子的优化），我们可以继续提升YOLOv5在COCO等数据集的训练速度，更有效缩短目标检测模型的训练时间。
+为了说明使用 OneFlow 训练目标检测模型的可行性以及性能的优越性，最近我们将 [ultralytics 版 YOLOv5](https://github.com/ultralytics/yolov5) 通过 import oneflow as torch 的方式迁移为了OneFlow后端（对应YOLOv5的commit号为：`48a85314bc80d8023c99bfb114cea98d71dd0591`）。并对 YOLOv5 中相关的教程进行了汉化，添加了一系列详细的代码解读，原理讲解以及部署教程，希望使得 YOLOv5 项目对用户更加透明化。另外我们也将在性能这个角度进行深入探索，我们在单卡上凭借对YOLOv5的性能分析以及几个简单的优化将GTX 3090 FP32 YOLOv5s的训练速度提升了近20%。对于需要迭代300个Epoch的COCO数据集来说相比 ultralytics/yolov5 我们缩短了11.35个小时的训练时间。详情请看[消费级显卡的春天，GTX 3090 YOLOv5s单卡完整训练COCO数据集缩短11.35个小时](https://start.oneflow.org/oneflow-yolo-doc/tutorials/00_chapter/optim_speed_version1.html)
 
-- 🎉代码仓库地址：https://github.com/Oneflow-Inc/one-yolov5
-- 🎉文档网站地址：https://start.oneflow.org/oneflow-yolo-doc/index.html
-- OneFlow 安装方法：https://github.com/Oneflow-Inc/oneflow#install-oneflow
+- 🎉 [代码仓库地址](https://github.com/Oneflow-Inc/one-yolov5)
+- 🎉 [文档网站地址](https://start.oneflow.org/oneflow-yolo-doc/index.html)
+- 🎉 [OneFlow 安装方法](https://github.com/Oneflow-Inc/oneflow#install-oneflow) (注意⚠️： 目前OneFlow 需要安装 nightly 版本，等OneFlow后续新版本发布后可以安装稳定版)
 
-不过即使你对 OneFlow 带来的性能提升不太感兴趣，我们相信[文档网站](https://start.oneflow.org/oneflow-yolo-doc/index.html)中对 YOLOv5 教程的汉化以及源码剖析也会是从零开始深入学习 YOLOv5 一份不错的资料。欢迎在仓库给我们提出宝贵的意见。🌟🌟🌟
-
-欢迎star [one-yolov5项目](https://github.com/Oneflow-Inc/one-yolov5) 获取最新的动态。
+不过即使你对 OneFlow 带来的性能提升不感兴趣，我们相信[OneYOLOv5文档网站](https://start.oneflow.org/oneflow-yolo-doc/index.html)中对 ultralytics/yolov5 相关教程的汉化以及源码剖析也会是从零开始深入学习 YOLOv5 一份不错的资料。欢迎在仓库给我们提出宝贵的意见。🌟🌟🌟
 
 ## <div align="center">文档</div>
 
