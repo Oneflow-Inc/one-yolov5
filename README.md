@@ -101,18 +101,20 @@ python train.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 12
 <summary>教程和源码解读</summary>
 
 - [0. one-yolov5特点解析](https://start.oneflow.org/oneflow-yolo-doc/tutorials/00_chapter/overview.html)
-- [1. YOLOv5 网络结构解析](https://start.oneflow.org/oneflow-yolo-doc/tutorials/01_chapter/yolov5_network_structure_analysis.html)
-- [2. 如何准备yolov5模型训练数据](https://start.oneflow.org/oneflow-yolo-doc/tutorials/02_chapter/how_to_prepare_yolov5_training_data.html)
-- [3. 快速开始](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/quick_start.html)
-- [4. 模型训练](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/model_train.html)
-- [5. 测试时增强 (TTA)](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/TTA.html)
-- [6. 模型融合 (Model Ensembling)](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/model_ensembling.html)
-- [7. 从 OneFlow Hub 加载 YOLOv5](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/loading_model_from_oneflowhub.html)
+- [1. 消费级显卡的春天，GTX 3090 YOLOv5s单卡完整训练COCO数据集缩短11.35个小时](https://start.oneflow.org/oneflow-yolo-doc/tutorials/00_chapter/optim_speed_version1.html)
+- [2. YOLOv5 网络结构解析](https://start.oneflow.org/oneflow-yolo-doc/tutorials/01_chapter/yolov5_network_structure_analysis.html)
+- [3. 如何准备yolov5模型训练数据](https://start.oneflow.org/oneflow-yolo-doc/tutorials/02_chapter/how_to_prepare_yolov5_training_data.html)
+- [4. 快速开始](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/quick_start.html)
+- [5. 从OneFlow Hub 加载YOLOv5](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/loading_model_from_oneflowhub.html)
+- [6. 测试时增强 (TTA)](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/TTA.html)
+- [7. 模型融合 (Model Ensembling)](https://start.oneflow.org/oneflow-yolo-doc/tutorials/03_chapter/model_ensembling.html)
 - [8. 数据增强](https://start.oneflow.org/oneflow-yolo-doc/tutorials/04_chapter/mosaic.html)
 - [9. 矩形推理](https://start.oneflow.org/oneflow-yolo-doc/tutorials/05_chapter/rectangular_reasoning.html)
 - [10. IOU深入解析](https://start.oneflow.org/oneflow-yolo-doc/tutorials/05_chapter/iou_in-depth_analysis.html)
 - [11. 模型精确度评估](https://start.oneflow.org/oneflow-yolo-doc/tutorials/05_chapter/map_analysis.html)
-- [12. ONNX模型导出](https://start.oneflow.org/oneflow-yolo-doc/tutorials/06_chapter/export_onnx_tflite_tensorrt.html)
+- [12. 计算mAP用到的numpy函数](https://start.oneflow.org/oneflow-yolo-doc/tutorials/05_chapter/Introduction_to_functions_used_in_metrics.html)
+- [13. ONNX模型导出](https://start.oneflow.org/oneflow-yolo-doc/tutorials/06_chapter/export_onnx_tflite_tensorrt.html)
+- [14. train.py源码解读](https://start.oneflow.org/oneflow-yolo-doc/source_code_interpretation/train_py.html) 
 
 持续新增中...
 
@@ -121,6 +123,8 @@ python train.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 12
 
 
 ## <div align="center">为什么选择 one-yolov5</div>
+
+[消费级显卡的春天，GTX 3090 YOLOv5s单卡完整训练COCO数据集缩短11.35个小时](https://start.oneflow.org/oneflow-yolo-doc/tutorials/00_chapter/optim_speed_version1.html)
 
 <p align="left"><img width="800" src="https://user-images.githubusercontent.com/26833433/155040763-93c22a27-347c-4e3c-847a-8094621d3f4e.png"></p>
 <details>
