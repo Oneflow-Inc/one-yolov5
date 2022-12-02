@@ -140,4 +140,4 @@ runs/
 *.onnx
 *.zip
 *.pt
-
+wandb/
