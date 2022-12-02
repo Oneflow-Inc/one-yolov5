@@ -361,13 +361,26 @@ class ModelEMA:
         for p in self.ema.parameters():
             p.requires_grad_(False)
 
-    def update(self, model):
+    def update(self, model, multi_tensor_optimizer=False):
         # Update EMA parameters
-        with flow.no_grad():
-            self.updates += 1
-            d = self.decay(self.updates)
+        self.updates += 1
+        d = self.decay(self.updates)
 
-            msd = de_parallel(model).state_dict()  # model state_dict
+        msd = de_parallel(model).state_dict()  # model state_dict
+        if multi_tensor_optimizer:
+            weight = []
+            weight_update = []
+            for k, v in self.ema.state_dict().items():
+                if v.dtype.is_floating_point:
+                    weight.append(v)
+                    weight_update.append(msd[k].detach())
+            flow._C.multi_tensor_yolov5_weight_update(weight, weight_update, d)
+            cnt = 0
+            for k, v in self.ema.state_dict().items():
+                if v.dtype.is_floating_point:
+                    v = weight[cnt]
+                    cnt += 1
+        else:
             for k, v in self.ema.state_dict().items():
                 if v.dtype.is_floating_point:
                     v *= d
