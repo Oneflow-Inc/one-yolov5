@@ -344,6 +344,7 @@ class EarlyStopping:
             )
         return stop
 
+
 class ModelEMA:
     """Updated Exponential Moving Average (EMA) from https://github.com/rwightman/pytorch-image-models
     Keeps a moving average of everything in the model state_dict (parameters and buffers)
@@ -379,7 +380,7 @@ class ModelEMA:
                 if v.dtype.is_floating_point:
                     v = weight[cnt]
                     cnt += 1
-        else:    
+        else:
             for k, v in self.ema.state_dict().items():
                 if v.dtype.is_floating_point:
                     v *= d
