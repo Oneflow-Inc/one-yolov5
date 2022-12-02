@@ -30,6 +30,9 @@
 <summary>安装</summary>
 
 在[**Python>=3.7.0**](https://www.python.org/) 的环境中克隆版本仓并安装 [requirements.txt](https://github.com/Oneflow-Inc/one-yolov5/blob/main/requirements.txt)，包括 [OneFlow nightly或者oneflow>=0.9.0](https://pytorch.org/get-started/locally/) 。
+
+注意⚠️： 目前OneFlow 需要要安装 nightly 版本，到oneflow发0.9.0版本才可以稳定，希望试用的小伙伴暂时先忍耐一下。
+
 ```bash
 git clone https://github.com/Oneflow-Inc/one-yolov5  # 克隆
 cd one-yolov5
