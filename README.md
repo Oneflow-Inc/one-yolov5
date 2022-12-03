@@ -11,7 +11,7 @@
 
 - 🎉 [代码仓库地址](https://github.com/Oneflow-Inc/one-yolov5)
 - 🎉 [文档网站地址](https://start.oneflow.org/oneflow-yolo-doc/index.html)
-- 🎉 [OneFlow 安装方法](https://github.com/Oneflow-Inc/oneflow#install-oneflow) (注意⚠️： 目前OneFlow 需要安装 nightly 版本，等OneFlow后续新版本发布后可以安装稳定版)
+- 🎉 [OneFlow 安装方法](https://github.com/Oneflow-Inc/oneflow#install-oneflow) (注意⚠️： 目前OneFlow 需要安装 nightly 版本，等OneFlow后续新版本发布后可以安装稳定版。此外 OneFlow 目前仅对Linux平台有完整支持，请 Windows 和 Macos 用户注意)
 
 不过即使你对 OneFlow 带来的性能提升不感兴趣，我们相信[OneYOLOv5文档网站](https://start.oneflow.org/oneflow-yolo-doc/index.html)中对 ultralytics/yolov5 相关教程的汉化以及源码剖析也会是从零开始深入学习 YOLOv5 一份不错的资料。欢迎在仓库给我们提出宝贵的意见。🌟🌟🌟
 
