@@ -6,8 +6,11 @@
 
 > 写在前面：本项目是基于 ultralytics 版 YOLOv5 源码改成 OneFlow 后端的结果，本工程的目的是做一个拥有更快训练速度的 YOLOv5 ，同时提供丰富的中文教程和源码细节解读，使得读者可以更加深入的了解 YOLOv5 。本 README 的其中一些部分也是直接用的 ultralytics 版 YOLOv5 README 的翻译，我们将相关链接替换为了 OneFlow 后端 YOLOv5 对应的链接。
 
+# 最近新闻
 
-为了说明使用 OneFlow 训练目标检测模型的可行性以及性能的优越性，最近我们将 [ultralytics 版 YOLOv5](https://github.com/ultralytics/yolov5) 通过 import oneflow as torch 的方式迁移为了OneFlow后端（对应YOLOv5的commit号为：`48a85314bc80d8023c99bfb114cea98d71dd0591`）。并对 YOLOv5 中相关的教程进行了汉化，添加了一系列详细的代码解读，原理讲解以及部署教程，希望使得 YOLOv5 项目对用户更加透明化。另外我们也将在性能这个角度进行深入探索，我们在单卡上凭借对YOLOv5的性能分析以及几个简单的优化将GTX 3090 FP32 YOLOv5s的训练速度提升了近20%。对于需要迭代300个Epoch的COCO数据集来说相比 ultralytics/yolov5 我们缩短了11.35个小时的训练时间。详情请看[消费级显卡的春天，GTX 3090 YOLOv5s单卡完整训练COCO数据集缩短11.35个小时](https://start.oneflow.org/oneflow-yolo-doc/tutorials/00_chapter/optim_speed_version1.html)
+- 🌟 v1.1.0 正式开源。详情请看：[Release Note](https://github.com/Oneflow-Inc/one-yolov5/releases/tag/v1.1.0)
+
+为了说明使用 OneFlow 训练目标检测模型的可行性以及性能的优越性，最近我们将 [ultralytics 版 YOLOv5](https://github.com/ultralytics/yolov5) 通过 import oneflow as torch 的方式迁移为了OneFlow后端（我们将尽量跟随 ultralytics/yolov5 开源的新Feature，比如对分类，分割的支持）。并对 YOLOv5 中相关的教程进行了汉化，添加了一系列详细的代码解读，原理讲解以及部署教程，希望使得 YOLOv5 项目对用户更加透明化。另外我们也将在性能这个角度进行深入探索，我们在单卡上凭借对YOLOv5的性能分析以及几个简单的优化将GTX 3090 FP32 YOLOv5s的训练速度提升了近20%。对于需要迭代300个Epoch的COCO数据集来说相比 ultralytics/yolov5 我们缩短了11.35个小时的训练时间。详情请看[消费级显卡的春天，GTX 3090 YOLOv5s单卡完整训练COCO数据集缩短11.35个小时](https://start.oneflow.org/oneflow-yolo-doc/tutorials/00_chapter/optim_speed_version1.html)
 
 - 🎉 [代码仓库地址](https://github.com/Oneflow-Inc/one-yolov5)
 - 🎉 [文档网站地址](https://start.oneflow.org/oneflow-yolo-doc/index.html)
