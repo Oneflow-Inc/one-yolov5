@@ -86,7 +86,13 @@ class ComputeLoss:
                     masks = F.interpolate(masks[None], (mask_h, mask_w), mode="nearest")[0]
                 marea = xywhn[i][:, 2:].prod(1)  # mask width, height normalized
                 mxyxy = xywh2xyxy(xywhn[i] * flow.tensor([mask_w, mask_h, mask_w, mask_h], device=self.device))
-                for bi in b.unique():
+                # TODO(fengwen): 对应issues   https://github.com/Oneflow-Inc/oneflow/issues/9540
+                exits = dict()
+                for bi in b:
+                    if exits.get(str(b.tolist())) is not None:
+                        continue 
+                    exits[str(b.tolist())] = "exits"
+
                     j = b == bi  # matching index
                     if self.overlap:
                         mask_gti = flow.where(masks[bi][None] == tidxs[i][j].view(-1, 1, 1), 1.0, 0.0)
@@ -112,7 +118,12 @@ class ComputeLoss:
     def single_mask_loss(self, gt_mask, pred, proto, xyxy, area):
         # Mask loss for one image
         pred_mask = (pred @ proto.view(self.nm, -1)).view(-1, *proto.shape[1:])  # (n,32) @ (32,80,80) -> (n,80,80)
+        print(f"{pred_mask.shape=} {gt_mask.shape=} ")
+        print(f"{pred_mask.is_cuda=} {gt_mask.is_cuda=} ")
+        print(f"{pred_mask.dtype=} {gt_mask.dtype=}")
+
         loss = F.binary_cross_entropy_with_logits(pred_mask, gt_mask, reduction="none")
+        print(f"{pred_mask.shape=} {gt_mask.shape=}")
         return (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).mean()
 
     def build_targets(self, p, targets):

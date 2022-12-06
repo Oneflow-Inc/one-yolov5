@@ -14,7 +14,7 @@ from oneflow.utils.data import DataLoader, distributed
 from ..augmentations import augment_hsv, copy_paste, letterbox
 from ..dataloaders import InfiniteDataLoader, LoadImagesAndLabels, seed_worker
 from ..general import LOGGER, xyn2xy, xywhn2xyxy, xyxy2xywhn
-# from ..oneflow_utils import oneflow as flow_distributed_zero_first
+from ..oneflow_utils import torch_distributed_zero_first
 from .augmentations import mixup, random_perspective
 
 RANK = int(os.getenv('RANK', -1))

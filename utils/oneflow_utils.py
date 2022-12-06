@@ -14,7 +14,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import oneflow as flow
-# import oneflow as flow.distributed as dist
+import oneflow.comm as dist
 import oneflow.nn as nn
 import oneflow.nn.functional as F
 from oneflow.nn.parallel  import DistributedDataParallel as DDP
@@ -85,14 +85,14 @@ def reshape_classifier_output(model, n=1000):
                 m[i] = nn.Conv2d(m[i].in_channels, n, m[i].kernel_size, m[i].stride, bias=m[i].bias is not None)
 
 
-# @contextmanager
-# def torch_distributed_zero_first(local_rank: int):
-#     # Decorator to make all processes in distributed training wait for each local_master to do something
-#     if local_rank not in [-1, 0]:
-#         dist.barrier(device_ids=[local_rank])
-#     yield
-#     if local_rank == 0:
-#         dist.barrier(device_ids=[0])
+@contextmanager
+def torch_distributed_zero_first(local_rank: int):
+    # Decorator to make all processes in distributed training wait for each local_master to do something
+    if local_rank not in [-1, 0]:
+        dist.barrier()
+    yield
+    if local_rank == 0:
+        dist.barrier()
 
 
 def device_count():
