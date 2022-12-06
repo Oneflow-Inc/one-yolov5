@@ -27,7 +27,7 @@ from pathlib import Path
 
 import numpy as np
 import oneflow as flow
-import oneflow as flow.distributed as dist
+# import oneflow as flow.distributed as dist
 import oneflow.nn as nn
 import yaml
 from oneflow.optim import lr_scheduler
@@ -57,7 +57,7 @@ from utils.segment.loss import ComputeLoss
 from utils.segment.metrics import KEYS, fitness
 from utils.segment.plots import plot_images_and_masks, plot_results_with_masks
 from utils.oneflow_utils import (EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer,
-                               smart_resume, torch_distributed_zero_first)
+                               smart_resume)
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pyflow.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
