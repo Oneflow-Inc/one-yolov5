@@ -64,7 +64,8 @@ def process_mask(protos, masks_in, bboxes, shape, upsample=False):
     masks = crop_mask(masks, downsampled_bboxes)  # CHW
     if upsample:
         masks = F.interpolate(masks[None], shape, mode='bilinear', align_corners=False)[0]  # CHW
-    return masks.gt_(0.5)
+    # return masks.gt_(0.5)
+    return masks.gt(0.5)
 
 
 def process_mask_native(protos, masks_in, bboxes, shape):
@@ -126,7 +127,12 @@ def mask_iou(mask1, mask2, eps=1e-7):
 
     return: masks iou, [N, M]
     """
+    # print(f"{mask1.size=} {mask2.size=}")
+    print(f"{mask1.shape=} {mask2.shape=}")
+    print(f"{mask1.dtype=} {mask2.dtype=}")
+    
     intersection = flow.matmul(mask1, mask2.t()).clamp(0)
+
     union = (mask1.sum(1)[:, None] + mask2.sum(1)[None]) - intersection  # (area1 + area2) - intersection
     return intersection / (union + eps)
 
