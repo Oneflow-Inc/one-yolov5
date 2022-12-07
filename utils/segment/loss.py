@@ -118,12 +118,8 @@ class ComputeLoss:
     def single_mask_loss(self, gt_mask, pred, proto, xyxy, area):
         # Mask loss for one image
         pred_mask = (pred @ proto.view(self.nm, -1)).view(-1, *proto.shape[1:])  # (n,32) @ (32,80,80) -> (n,80,80)
-        print(f"{pred_mask.shape=} {gt_mask.shape=} ")
-        print(f"{pred_mask.is_cuda=} {gt_mask.is_cuda=} ")
-        print(f"{pred_mask.dtype=} {gt_mask.dtype=}")
-
-        loss = F.binary_cross_entropy_with_logits(pred_mask, gt_mask, reduction="none")
-        print(f"{pred_mask.shape=} {gt_mask.shape=}")
+        # TODO(fengwen) issues:https://github.com/Oneflow-Inc/oneflow/issues/9551
+        loss = F.binary_cross_entropy_with_logits(pred_mask, gt_mask.float(), reduction="none")
         return (crop_mask(loss, xyxy).mean(dim=(1, 2)) / area).mean()
 
     def build_targets(self, p, targets):

@@ -88,6 +88,7 @@ class Loggers():
         #     prefix = colorstr('Weights & Biases: ')
         #     s = f"{prefix}run 'pip install wandb' to automatically track and visualize YOLOv5 🚀 runs in Weights & Biases"
         #     self.logger.info(s)
+
         if not clearml:
             prefix = colorstr('ClearML: ')
             s = f"{prefix}run 'pip install clearml' to automatically track, visualize and remotely train YOLOv5 🚀 in ClearML"
@@ -96,12 +97,13 @@ class Loggers():
             prefix = colorstr('Comet: ')
             s = f"{prefix}run 'pip install comet_ml' to automatically track and visualize YOLOv5 🚀 runs in Comet"
             self.logger.info(s)
-        # TensorBoard
-        s = self.save_dir
-        if 'tb' in self.include and not self.opt.evolve:
-            prefix = colorstr('TensorBoard: ')
-            self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
-            # self.tb = SummaryWriter(str(s))
+
+        # # TensorBoard
+        # s = self.save_dir
+        # if 'tb' in self.include and not self.opt.evolve:
+        #     prefix = colorstr('TensorBoard: ')
+        #     self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
+        #     # self.tb = SummaryWriter(str(s))
 
         # W&B
         if wandb and 'wandb' in self.include:
@@ -353,9 +355,9 @@ class GenericLogger:
             with open(self.csv, 'a') as f:
                 f.write(s + ('%23.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 
-        if self.tb:
-            for k, v in metrics.items():
-                self.tb.add_scalar(k, v, epoch)
+        # if self.tb:
+        #     for k, v in metrics.items():
+        #         self.tb.add_scalar(k, v, epoch)
 
         if self.wandb:
             self.wandb.log(metrics, step=epoch)
@@ -365,9 +367,9 @@ class GenericLogger:
         files = [Path(f) for f in (files if isinstance(files, (tuple, list)) else [files])]  # to Path
         files = [f for f in files if f.exists()]  # filter by exists
 
-        if self.tb:
-            for f in files:
-                self.tb.add_image(f.stem, cv2.imread(str(f))[..., ::-1], epoch, dataformats='HWC')
+        # if self.tb:
+        #     for f in files:
+        #         self.tb.add_image(f.stem, cv2.imread(str(f))[..., ::-1], epoch, dataformats='HWC')
 
         if self.wandb:
             self.wandb.log({name: [wandb.Image(str(f), caption=f.name) for f in files]}, step=epoch)

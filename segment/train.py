@@ -471,7 +471,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Optimize - https://pyflow.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
                 # scaler.unscale_(optimizer)  # unscale gradients
-                optimizer.unscale_()
+                # optimizer.unscale_()
                 flow.nn.utils.clip_grad_norm_(
                     model.parameters(), max_norm=10.0
                 )  # clip gradients
@@ -487,7 +487,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Log
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                mem = f"{flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0:.3g}G"  # (GB)
+                mem = "None" #f"{flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0:.3g}G"  # (GB)
                 pbar.set_description(
                     ("%11s" * 2 + "%11.4g" * 6)
                     % (

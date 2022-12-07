@@ -23,11 +23,11 @@ from datetime import datetime
 from pathlib import Path
 
 import oneflow as flow
-import oneflow as flow.distributed as dist
-import oneflow as flow.hub as hub
-import oneflow as flow.optim.lr_scheduler as lr_scheduler
-import oneflow as flowvision
-from oneflow.cuda import amp
+# import oneflow as flow.distributed as dist
+import oneflow.hub as hub
+import oneflow.optim.lr_scheduler as lr_scheduler
+import flowvision
+# from oneflow.cuda import amp
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
@@ -310,7 +310,7 @@ def main(opt):
         assert flow.cuda.device_count() > LOCAL_RANK, 'insufficient CUDA devices for DDP command'
         flow.cuda.set_device(LOCAL_RANK)
         device = flow.device('cuda', LOCAL_RANK)
-        dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
+        # dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Parameters
     opt.save_dir = increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok)  # increment run

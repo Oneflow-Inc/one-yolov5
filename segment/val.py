@@ -242,7 +242,7 @@ def run(
         # callbacks.run('on_val_batch_start')
         with dt[0]:
             if cuda:
-                im = im.to(device, non_blocking=True)
+                im = im.to(device)
                 targets = targets.to(device)
                 masks = masks.to(device)
             masks = masks.float()
