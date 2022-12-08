@@ -175,6 +175,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Model
     check_suffix(weights, ".pt")  # check weights
     pretrained = weights.endswith(".pt")
+    weights = "/home/fengwen/one-yolov5/runs/train-seg/exp/weights/last.pt"
     if pretrained:
         # with torch_distributed_zero_first(LOCAL_RANK):
         weights = attempt_download(weights)  # download if not found locally
@@ -562,7 +563,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 ckpt = {
                     "epoch": epoch,
                     "best_fitness": best_fitness,
-                    "model": deepcopy(de_parallel(model)).half(),
+                    "model": deepcopy(de_parallel(model)), # .half(),
                     "ema": deepcopy(ema.ema).half(),
                     "updates": ema.updates,
                     "optimizer": optimizer.state_dict(),
