@@ -93,7 +93,7 @@ class ComputeLoss:
     sort_obj_iou = False
 
     # Compute losses
-    def __init__(self, model, autobalance=False, bbox_iou_optim=False):
+    def __init__(self, model, autobalance=False, bbox_iou_optim=False, build_targets_optim=False):
         device = next(model.parameters()).device  # get model device
         h = model.hyp  # hyperparameters
 
@@ -125,6 +125,7 @@ class ComputeLoss:
         self.anchors = m.anchors
         self.device = device
         self.bbox_iou_optim = bbox_iou_optim
+        self.build_targets_optim = build_targets_optim
 
     def __call__(self, p, targets):  # predictions, targets
         lcls = flow.zeros(1, device=self.device)  # class loss
@@ -235,9 +236,12 @@ class ComputeLoss:
                 # Offsets
                 gxy = t[:, 2:4]  # grid xy
                 gxi = gain[[2, 3]] - gxy  # inverse
-                j, k = ((gxy % 1 < g) & (gxy > 1)).T
-                l, m = ((gxi % 1 < g) & (gxi > 1)).T
-                j = flow.stack((flow.ones_like(j), j, k, l, m))
+                if self.build_targets_optim:
+                    j = flow._C.fused_yolov5_get_target_offsets(gxy, gxi, g)
+                else:
+                    j, k = ((gxy % 1 < g) & (gxy > 1)).T
+                    l, m = ((gxi % 1 < g) & (gxi > 1)).T
+                    j = flow.stack((flow.ones_like(j), j, k, l, m))
                 t = t.repeat((5, 1, 1))[j]
                 offsets = (flow.zeros_like(gxy)[None] + off[:, None])[j]
             else:

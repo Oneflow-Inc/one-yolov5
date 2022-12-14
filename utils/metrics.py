@@ -228,7 +228,7 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
     if xywh:  # transform from xywh to xyxy
         (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, 1), box2.chunk(4, 1)
         if bbox_iou_optim:
-            b1_x1, b1_x2, b1_y1, b1_y2, b2_x1, b2_x2, b2_y1, b2_y2 = flow._C.fused_get_boundding_boxes_coord(x1, y1, w1, h1, x2, y2, w2, h2)
+            b1_x1, b1_x2, b1_y1, b1_y2, b2_x1, b2_x2, b2_y1, b2_y2 = flow._C.fused_yolov5_get_boundding_boxes_coord(x1, y1, w1, h1, x2, y2, w2, h2)
         else:
             w1_, h1_, w2_, h2_ = w1 / 2, h1 / 2, w2 / 2, h2 / 2
             b1_x1, b1_x2, b1_y1, b1_y2 = x1 - w1_, x1 + w1_, y1 - h1_, y1 + h1_
@@ -241,12 +241,12 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
 
     # Intersection area
     if bbox_iou_optim:
-        inter = flow._C.fused_get_intersection_area(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
+        inter = flow._C.fused_yolov5_get_intersection_area(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
     else:
         inter = (flow.min(b1_x2, b2_x2) - flow.max(b1_x1, b2_x1)).clamp(0) * (flow.min(b1_y2, b2_y2) - flow.max(b1_y1, b2_y1)).clamp(0)
 
     if bbox_iou_optim and CIoU:
-        iou = flow._C.fused_get_iou(w1, h1, w2, h2, inter, eps)
+        iou = flow._C.fused_yolov5_get_iou(w1, h1, w2, h2, inter, eps)
     else:
         # Union Area
         union = w1 * h1 + w2 * h2 - inter + eps
@@ -260,18 +260,18 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
             ch = flow.max(b1_y2, b2_y2) - flow.min(b1_y1, b2_y1)  # convex height
         if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
             if bbox_iou_optim:
-                c2 = flow._C.fused_get_convex_diagonal_squared(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2, eps)
+                c2 = flow._C.fused_yolov5_get_convex_diagonal_squared(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2, eps)
             else:
                 c2 = cw ** 2 + ch ** 2 + eps  # convex diagonal squared
             if bbox_iou_optim:
-                rho2 = flow._C.fused_get_center_dist(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
+                rho2 = flow._C.fused_yolov5_get_center_dist(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
             else:
                 rho2 = ((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4  # center dist ** 2
 
             if CIoU:
                 if bbox_iou_optim:
-                    v = flow._C.fused_get_ciou_diagonal_angle(w1, h1, w2, h2, eps)
-                    return flow._C.fused_get_ciou_result(v, iou, rho2, c2, eps)[0]
+                    v = flow._C.fused_yolov5_get_ciou_diagonal_angle(w1, h1, w2, h2, eps)
+                    return flow._C.fused_yolov5_get_ciou_result(v, iou, rho2, c2, eps)[0]
                 else:
                     # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
                     v = (4 / math.pi ** 2) * flow.pow(flow.atan(w2 / (h2 + eps)) - flow.atan(w1 / (h1 + eps)), 2)
