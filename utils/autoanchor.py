@@ -53,7 +53,7 @@ def check_anchors(dataset, model, thr=4.0, imgsz=640):
             anchors = kmean_anchors(dataset, n=na, img_size=imgsz, thr=thr, gen=1000, verbose=False)
         except Exception as e:
             LOGGER.info(f"{PREFIX}ERROR: {e}")
-        new_bpr = metric(anchors)[0]
+        new_bpr = metric(anchors.cpu())[0]
         if new_bpr > bpr:  # replace anchors
             anchors = flow.tensor(anchors, device=m.anchors.device).type_as(m.anchors)
             m.anchors[:] = anchors.clone().view_as(m.anchors)
