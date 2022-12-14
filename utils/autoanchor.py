@@ -107,7 +107,7 @@ def kmean_anchors(dataset="./data/coco128.yaml", n=9, img_size=640, thr=4.0, gen
             f"past_thr={x[x > thr].mean():.3f}-mean: "
         )
         for x in k:
-            s += "%i,%i, " % (round(x[0]), round(x[1]))
+            s += "%i,%i, " % (round(float(x[0].numpy())), round(float(x[1].numpy())))
         if verbose:
             LOGGER.info(s[:-2])
         return k
@@ -141,6 +141,7 @@ def kmean_anchors(dataset="./data/coco128.yaml", n=9, img_size=640, thr=4.0, gen
         LOGGER.warning(f"{PREFIX}WARNING: switching strategies from kmeans to random init")
         k = np.sort(npr.rand(n * 2)).reshape(n, 2) * img_size  # random init
     wh, wh0 = (flow.tensor(x, dtype=flow.float32) for x in (wh, wh0))
+    k = flow.tensor(k, dtype=flow.float32)
     k = print_results(k, verbose=False)
 
     # Plot
@@ -167,10 +168,10 @@ def kmean_anchors(dataset="./data/coco128.yaml", n=9, img_size=640, thr=4.0, gen
         v = np.ones(sh)
         while (v == 1).all():  # mutate until a change occurs (prevent duplicates)
             v = ((npr.random(sh) < mp) * random.random() * npr.randn(*sh) * s + 1).clip(0.3, 3.0)
-        kg = (k.copy() * v).clip(min=2.0)
+        kg = (k.clone() * flow.tensor(v)).clip(min=2.0)
         fg = anchor_fitness(kg)
         if fg > f:
-            f, k = fg, kg.copy()
+            f, k = fg, kg.clone()
             pbar.desc = f"{PREFIX}Evolving anchors with Genetic Algorithm: fitness = {f:.4f}"
             if verbose:
                 print_results(k, verbose)
