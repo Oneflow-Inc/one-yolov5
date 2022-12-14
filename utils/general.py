@@ -536,7 +536,7 @@ def check_dataset(data, autodownload=True):
 
 def check_weights(weights: str):
     # Download check and/or unzip weights files if not found locally
-    weights_name = weights.split(os.sep)[-1]
+    weights_name = Path(weights).name
     if weights_name in ["yolov5n", "yolov5s", "yolov5m", "yolov5l", "yolov5x"]:
         LOGGER.info(f"use {weights} checks passed ✅")
         return True
