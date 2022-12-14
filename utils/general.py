@@ -18,7 +18,6 @@ import sys
 import threading
 import time
 import urllib
-from plistlib import Path
 from datetime import datetime
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
