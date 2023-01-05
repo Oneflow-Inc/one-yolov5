@@ -358,7 +358,7 @@ def smart_hub_load(repo='ultralytics/yolov5', model='yolov5s', **kwargs):
         return flow.hub.load(repo, model, force_reload=True, **kwargs)
 
 
-def smart_resume(ckpt, optimizer, ema=None, weights='yolov5s.pt', epochs=300, resume=True):
+def smart_resume(ckpt, optimizer, ema=None, weights='yolov5s.of', epochs=300, resume=True):
     # Resume training from a partially trained checkpoint
     best_fitness = 0.0
     start_epoch = ckpt['epoch'] + 1
@@ -395,7 +395,7 @@ class EarlyStopping:
         stop = delta >= self.patience  # stop training if patience exceeded
         if stop:
             LOGGER.info(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
-                        f'Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n'
+                        f'Best results observed at epoch {self.best_epoch}, best model saved as best.of.\n'
                         f'To update EarlyStopping(patience={self.patience}) pass a new patience value, '
                         f'i.e. `python train.py --patience 300` or use `--patience 0` to disable EarlyStopping.')
         return stop

@@ -315,9 +315,9 @@ class Concat(nn.Module):
 
 class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
-    def __init__(self, weights='yolov5s.pt', device=flow.device('cpu'), dnn=False, data=None, fp16=False, fuse=True):
+    def __init__(self, weights='yolov5s.of', device=flow.device('cpu'), dnn=False, data=None, fp16=False, fuse=True):
         # Usage:
-        #   PyTorch:              weights = *.pt
+        #   PyTorch:              weights = *.of
         #   TorchScript:                    *.torchscript
         #   ONNX Runtime:                   *.onnx
         #   ONNX OpenCV DNN:                *.onnx --dnn
@@ -415,7 +415,7 @@ class DetectMultiBackend(nn.Module):
                 shape = tuple(context.get_binding_shape(i))
                 im = flow.from_numpy(np.empty(shape, dtype=dtype)).to(device)
                 bindings[name] = Binding(name, dtype, shape, im, int(im.data_ptr()))
-            binding_addrs = OrderedDict((n, d.ptr) for n, d in bindings.items())
+            binding_addrs = OrderedDict((n, d.ofr) for n, d in bindings.items())
             batch_size = bindings['images'].shape[0]  # if dynamic, this is instead max batch size
         elif coreml:  # CoreML
             LOGGER.info(f'Loading {w} for CoreML inference...')
@@ -511,7 +511,7 @@ class DetectMultiBackend(nn.Module):
         if self.nhwc:
             im = im.permute(0, 2, 3, 1)  # torch BCHW to numpy BHWC shape(1,320,192,3)
 
-        if self.pt:  # PyTorch
+        if self.of:  # PyTorch
             y = self.model(im, augment=augment, visualize=visualize) if augment or visualize else self.model(im)
         elif self.jit:  # TorchScript
             y = self.model(im)
@@ -590,14 +590,14 @@ class DetectMultiBackend(nn.Module):
 
     def warmup(self, imgsz=(1, 3, 640, 640)):
         # Warmup model by running inference once
-        warmup_types = self.pt, self.jit, self.onnx, self.engine, self.saved_model, self.pb, self.triton
+        warmup_types = self.of, self.jit, self.onnx, self.engine, self.saved_model, self.pb, self.triton
         if any(warmup_types) and (self.device.type != 'cpu' or self.triton):
             im = flow.empty(*imgsz, dtype=flow.half if self.fp16 else flow.float, device=self.device)  # input
             for _ in range(2 if self.jit else 1):  #
                 self.forward(im)  # warmup
 
     @staticmethod
-    def _model_type(p='path/to/model.pt'):
+    def _model_type(p='path/to/model.of'):
         # Return model type from model path, i.e. path='path/to/model.onnx' -> type=onnx
         # types = [pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle]
         from export import export_formats
@@ -636,9 +636,9 @@ class AutoShape(nn.Module):
             LOGGER.info('Adding AutoShape... ')
         copy_attr(self, model, include=('yaml', 'nc', 'hyp', 'names', 'stride', 'abc'), exclude=())  # copy attributes
         self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
-        self.pt = not self.dmb or model.pt  # PyTorch model
+        self.of = not self.dmb or model.of  # PyTorch model
         self.model = model.eval()
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.inplace = False  # Detect.inplace=False for safe multithread inference
             m.export = True  # do not output loss values
@@ -646,7 +646,7 @@ class AutoShape(nn.Module):
     def _apply(self, fn):
         # Apply to(), cpu(), cuda(), half() to model tensors that are not parameters or registered buffers
         self = super()._apply(fn)
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.stride = fn(m.stride)
             m.grid = list(map(fn, m.grid))
@@ -669,7 +669,7 @@ class AutoShape(nn.Module):
         with dt[0]:
             if isinstance(size, int):  # expand
                 size = (size, size)
-            p = next(self.model.parameters()) if self.pt else flow.empty(1, device=self.model.device)  # param
+            p = next(self.model.parameters()) if self.of else flow.empty(1, device=self.model.device)  # param
             autocast = self.amp and (p.device.type != 'cpu')  # Automatic Mixed Precision (AMP) inference
             if isinstance(ims, flow.Tensor):  # torch
                 with amp.autocast(autocast):

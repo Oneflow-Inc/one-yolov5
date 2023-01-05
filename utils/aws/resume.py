@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
 
 port = 0  # --master_port
 path = Path('').resolve()
-for last in path.rglob('*/**/last.pt'):
+for last in path.rglob('*/**/last.of'):
     ckpt = flow.load(last)
     if ckpt['optimizer'] is None:
         continue

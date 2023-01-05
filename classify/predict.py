@@ -3,7 +3,7 @@
 Run YOLOv5 classification inference on images, videos, directories, globs, YouTube, webcam, streams, etc.
 
 Usage - sources:
-    $ python classify/predict.py --weights yolov5s-cls.pt --source 0                               # webcam
+    $ python classify/predict.py --weights yolov5s-cls.of --source 0                               # webcam
                                                                    img.jpg                         # image
                                                                    vid.mp4                         # video
                                                                    screen                          # screenshot
@@ -15,7 +15,7 @@ Usage - sources:
                                                                    'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream
 
 Usage - formats:
-    $ python classify/predict.py --weights yolov5s-cls.pt                 # PyTorch
+    $ python classify/predict.py --weights yolov5s-cls.of                 # PyTorch
                                            yolov5s-cls.torchscript        # TorchScript
                                            yolov5s-cls.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                            yolov5s-cls_openvino_model     # OpenVINO
@@ -54,7 +54,7 @@ from utils.torch_utils import select_device, smart_inference_mode
 
 @smart_inference_mode()
 def run(
-        weights=ROOT / 'yolov5s-cls.pt',  # model.pt path(s)
+        weights=ROOT / 'yolov5s-cls.of',  # model.of path(s)
         source=ROOT / 'data/images',  # file/dir/URL/glob/screen/0(webcam)
         data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
         imgsz=(224, 224),  # inference size (height, width)
@@ -88,7 +88,7 @@ def run(
     # Load model
     device = select_device(device)
     model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
-    stride, names, pt = model.stride, model.names, model.pt
+    stride, names, pt = model.stride, model.names, model.of
     imgsz = check_img_size(imgsz, s=stride)  # check image size
 
     # Dataloader
@@ -193,7 +193,7 @@ def run(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s-cls.pt', help='model path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s-cls.of', help='model path(s)')
     parser.add_argument('--source', type=str, default=ROOT / 'data/images', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[224], help='inference size h,w')

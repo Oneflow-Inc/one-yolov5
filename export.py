@@ -4,7 +4,7 @@ Export a YOLOv5 PyTorch model to other formats. TensorFlow exports authored by h
 
 Format                      | `export.py --include`         | Model
 ---                         | ---                           | ---
-PyTorch                     | -                             | yolov5s.pt
+PyTorch                     | -                             | yolov5s.of
 TorchScript                 | `torchscript`                 | yolov5s.torchscript
 ONNX                        | `onnx`                        | yolov5s.onnx
 OpenVINO                    | `openvino`                    | yolov5s_openvino_model/
@@ -22,10 +22,10 @@ Requirements:
     $ pip install -r requirements.txt coremltools onnx onnx-simplifier onnxruntime-gpu openvino-dev tensorflow  # GPU
 
 Usage:
-    $ python export.py --weights yolov5s.pt --include torchscript onnx openvino engine coreml tflite ...
+    $ python export.py --weights yolov5s.of --include torchscript onnx openvino engine coreml tflite ...
 
 Inference:
-    $ python detect.py --weights yolov5s.pt                 # PyTorch
+    $ python detect.py --weights yolov5s.of                 # PyTorch
                                  yolov5s.torchscript        # TorchScript
                                  yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                  yolov5s_openvino_model     # OpenVINO
@@ -80,7 +80,7 @@ MACOS = platform.system() == 'Darwin'  # macOS environment
 def export_formats():
     # YOLOv5 export formats
     x = [
-        ['PyTorch', '-', '.pt', True, True],
+        ['PyTorch', '-', '.of', True, True],
         ['TorchScript', 'torchscript', '.torchscript', True, True],
         ['ONNX', 'onnx', '.onnx', True, True],
         ['OpenVINO', 'openvino', '_openvino_model', True, False],
@@ -192,7 +192,7 @@ def export_openvino(file, metadata, half, prefix=colorstr('OpenVINO:')):
     import openvino.inference_engine as ie
 
     LOGGER.info(f'\n{prefix} starting export with openvino {ie.__version__}...')
-    f = str(file).replace('.pt', f'_openvino_model{os.sep}')
+    f = str(file).replace('.of', f'_openvino_model{os.sep}')
 
     cmd = f"mo --input_model {file.with_suffix('.onnx')} --output_dir {f} --data_type {'FP16' if half else 'FP32'}"
     subprocess.run(cmd.split(), check=True, env=os.environ)  # export
@@ -208,7 +208,7 @@ def export_paddle(model, im, file, metadata, prefix=colorstr('PaddlePaddle:')):
     from x2paddle.convert import pytorch2paddle
 
     LOGGER.info(f'\n{prefix} starting export with X2Paddle {x2paddle.__version__}...')
-    f = str(file).replace('.pt', f'_paddle_model{os.sep}')
+    f = str(file).replace('.of', f'_paddle_model{os.sep}')
 
     pytorch2paddle(module=model, save_dir=f, jit_type='trace', input_examples=[im])  # export
     yaml_save(Path(f) / file.with_suffix('.yaml').name, metadata)  # add metadata.yaml
@@ -324,7 +324,7 @@ def export_saved_model(model,
     from models.tf import TFModel
 
     LOGGER.info(f'\n{prefix} starting export with tensorflow {tf.__version__}...')
-    f = str(file).replace('.pt', '_saved_model')
+    f = str(file).replace('.of', '_saved_model')
     batch_size, ch, *imgsz = list(im.shape)  # BCHW
 
     tf_model = TFModel(cfg=model.yaml, model=model, nc=model.nc, imgsz=imgsz)
@@ -376,7 +376,7 @@ def export_tflite(keras_model, im, file, int8, data, nms, agnostic_nms, prefix=c
 
     LOGGER.info(f'\n{prefix} starting export with tensorflow {tf.__version__}...')
     batch_size, ch, *imgsz = list(im.shape)  # BCHW
-    f = str(file).replace('.pt', '-fp16.tflite')
+    f = str(file).replace('.of', '-fp16.tflite')
 
     converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
@@ -391,7 +391,7 @@ def export_tflite(keras_model, im, file, int8, data, nms, agnostic_nms, prefix=c
         converter.inference_input_type = tf.uint8  # or tf.int8
         converter.inference_output_type = tf.uint8  # or tf.int8
         converter.experimental_new_quantizer = True
-        f = str(file).replace('.pt', '-int8.tflite')
+        f = str(file).replace('.of', '-int8.tflite')
     if nms or agnostic_nms:
         converter.target_spec.supported_ops.append(tf.lite.OpsSet.SELECT_TF_OPS)
 
@@ -417,8 +417,8 @@ def export_edgetpu(file, prefix=colorstr('Edge TPU:')):
     ver = subprocess.run(cmd, shell=True, capture_output=True, check=True).stdout.decode().split()[-1]
 
     LOGGER.info(f'\n{prefix} starting export with Edge TPU compiler {ver}...')
-    f = str(file).replace('.pt', '-int8_edgetpu.tflite')  # Edge TPU model
-    f_tfl = str(file).replace('.pt', '-int8.tflite')  # TFLite model
+    f = str(file).replace('.of', '-int8_edgetpu.tflite')  # Edge TPU model
+    f_tfl = str(file).replace('.of', '-int8.tflite')  # TFLite model
 
     cmd = f"edgetpu_compiler -s -d -k 10 --out_dir {file.parent} {f_tfl}"
     subprocess.run(cmd.split(), check=True)
@@ -432,7 +432,7 @@ def export_tfjs(file, prefix=colorstr('TensorFlow.js:')):
     import tensorflowjs as tfjs
 
     LOGGER.info(f'\n{prefix} starting export with tensorflowjs {tfjs.__version__}...')
-    f = str(file).replace('.pt', '_web_model')  # js dir
+    f = str(file).replace('.of', '_web_model')  # js dir
     f_pb = file.with_suffix('.pb')  # *.pb path
     f_json = f'{f}/model.json'  # *.json path
 
@@ -490,7 +490,7 @@ def add_tflite_metadata(file, metadata, num_outputs):
 @smart_inference_mode()
 def run(
         data=ROOT / 'data/coco128.yaml',  # 'dataset.yaml path'
-        weights=ROOT / 'yolov5s.pt',  # weights path
+        weights=ROOT / 'yolov5s.of',  # weights path
         imgsz=(640, 640),  # image (height, width)
         batch_size=1,  # batch size
         device='cpu',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
@@ -613,7 +613,7 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.of', help='model.of path(s)')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640, 640], help='image (h, w)')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--device', default='cpu', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')

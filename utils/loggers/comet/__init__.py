@@ -215,7 +215,7 @@ class CometLogger:
             "save_period": opt.save_period,
             "total_epochs": opt.epochs,}
 
-        model_files = glob.glob(f"{path}/*.pt")
+        model_files = glob.glob(f"{path}/*.of")
         for model_path in model_files:
             name = Path(model_path).name
 

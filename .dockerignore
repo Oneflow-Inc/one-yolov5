@@ -12,13 +12,13 @@ data/samples/*
 *.jpg
 
 # Neural Network weights -----------------------------------------------------------------------------------------------
-**/*.pt
-**/*.pth
+**/*.of
+**/*.ofh
 **/*.onnx
 **/*.engine
 **/*.mlmodel
 **/*.torchscript
-**/*.torchscript.pt
+**/*.torchscript.of
 **/*.tflite
 **/*.h5
 **/*.pb

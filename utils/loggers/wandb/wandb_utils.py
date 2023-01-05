@@ -77,7 +77,7 @@ def check_wandb_resume(opt):
                 api = wandb.Api()
                 artifact = api.artifact(entity + '/' + project + '/' + model_artifact_name + ':latest')
                 modeldir = artifact.download()
-                opt.weights = str(Path(modeldir) / "last.pt")
+                opt.weights = str(Path(modeldir) / "last.of")
             return True
     return None
 
@@ -233,7 +233,7 @@ class WandbLogger():
         if isinstance(opt.resume, str):
             modeldir, _ = self.download_model_artifact(opt)
             if modeldir:
-                self.weights = Path(modeldir) / "last.pt"
+                self.weights = Path(modeldir) / "last.of"
                 config = self.wandb_run.config
                 opt.weights, opt.save_period, opt.batch_size, opt.bbox_interval, opt.epochs, opt.hyp, opt.imgsz = str(
                     self.weights), config.save_period, config.batch_size, config.bbox_interval, config.epochs,\
@@ -327,7 +327,7 @@ class WandbLogger():
                                             'project': opt.project,
                                             'total_epochs': opt.epochs,
                                             'fitness_score': fitness_score})
-        model_artifact.add_file(str(path / 'last.pt'), name='last.pt')
+        model_artifact.add_file(str(path / 'last.of'), name='last.of')
         wandb.log_artifact(model_artifact,
                            aliases=['latest', 'last', 'epoch ' + str(self.current_epoch), 'best' if best_model else ''])
         LOGGER.info(f"Saving model artifact on epoch {epoch + 1}")

@@ -46,7 +46,7 @@ project_name=<Your Comet Project Name> # This will default to 'yolov5'
 
 ```shell
 # Train YOLOv5s on COCO128 for 5 epochs
-python train.py --img 640 --batch 16 --epochs 5 --data coco128.yaml --weights yolov5s.pt
+python train.py --img 640 --batch 16 --epochs 5 --data coco128.yaml --weights yolov5s.of
 ```
 
 That's it! Comet will automatically log your hyperparameters, command line arguments, training and valiation metrics. You can visualize and analyze your runs in the Comet UI
@@ -91,7 +91,7 @@ export COMET_MODEL_NAME=<your model name> #Set the name for the saved model. Def
 export COMET_LOG_CONFUSION_MATRIX=false # Set to disable logging a Comet Confusion Matrix. Defaults to true
 export COMET_MAX_IMAGE_UPLOADS=<number of allowed images to upload to Comet> # Controls how many total image predictions to log to Comet. Defaults to 100.
 export COMET_LOG_PER_CLASS_METRICS=true # Set to log evaluation metrics for each detected class at the end of training. Defaults to false
-export COMET_DEFAULT_CHECKPOINT_FILENAME=<your checkpoint filename> # Set this if you would like to resume training from a different checkpoint. Defaults to 'last.pt'
+export COMET_DEFAULT_CHECKPOINT_FILENAME=<your checkpoint filename> # Set this if you would like to resume training from a different checkpoint. Defaults to 'last.of'
 export COMET_LOG_BATCH_LEVEL_METRICS=true # Set this if you would like to log training metrics at the batch level. Defaults to false.
 export COMET_LOG_PREDICTIONS=true # Set this to false to disable logging model predictions
 ```
@@ -107,7 +107,7 @@ python train.py \
 --batch 16 \
 --epochs 5 \
 --data coco128.yaml \
---weights yolov5s.pt \
+--weights yolov5s.of \
 --save-period 1
 ```
 
@@ -128,7 +128,7 @@ python train.py \
 --batch 16 \
 --epochs 5 \
 --data coco128.yaml \
---weights yolov5s.pt \
+--weights yolov5s.of \
 --bbox_interval 2
 ```
 
@@ -142,7 +142,7 @@ env COMET_MAX_IMAGE_UPLOADS=200 python train.py \
 --batch 16 \
 --epochs 5 \
 --data coco128.yaml \
---weights yolov5s.pt \
+--weights yolov5s.of \
 --bbox_interval 1
 ```
 
@@ -156,7 +156,7 @@ env COMET_LOG_PER_CLASS_METRICS=true python train.py \
 --batch 16 \
 --epochs 5 \
 --data coco128.yaml \
---weights yolov5s.pt
+--weights yolov5s.of
 ```
 
 ## Uploading a Dataset to Comet Artifacts
@@ -171,7 +171,7 @@ python train.py \
 --batch 16 \
 --epochs 5 \
 --data coco128.yaml \
---weights yolov5s.pt \
+--weights yolov5s.of \
 --upload_dataset
 ```
 
@@ -200,7 +200,7 @@ python train.py \
 --batch 16 \
 --epochs 5 \
 --data artifact.yaml \
---weights yolov5s.pt
+--weights yolov5s.of
 ```
 
 Artifacts also allow you to track the lineage of data as it flows through your Experimentation workflow. Here you can see a graph that shows you all the experiments that have used your uploaded dataset.

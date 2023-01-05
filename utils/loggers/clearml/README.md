@@ -63,12 +63,12 @@ If you want to change the `project_name` or `task_name`, use the `--project` and
 PLEASE NOTE: ClearML uses `/` as a delimter for subprojects, so be careful when using `/` in your project name!
 
 ```bash
-python train.py --img 640 --batch 16 --epochs 3 --data coco128.yaml --weights yolov5s.pt --cache
+python train.py --img 640 --batch 16 --epochs 3 --data coco128.yaml --weights yolov5s.of --cache
 ```
 
 or with custom project and task name:
 ```bash
-python train.py --project my_project --name my_training --img 640 --batch 16 --epochs 3 --data coco128.yaml --weights yolov5s.pt --cache
+python train.py --project my_project --name my_training --img 640 --batch 16 --epochs 3 --data coco128.yaml --weights yolov5s.of --cache
 ```
 
 This will capture:
@@ -152,7 +152,7 @@ clearml-data close
 Now that you have a ClearML dataset, you can very simply use it to train custom YOLOv5 🚀 models!
 
 ```bash
-python train.py --img 640 --batch 16 --epochs 3 --data clearml://<your_dataset_id> --weights yolov5s.pt --cache
+python train.py --img 640 --batch 16 --epochs 3 --data clearml://<your_dataset_id> --weights yolov5s.of --cache
 ```
 
 <br />
