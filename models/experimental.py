@@ -38,7 +38,7 @@ class MixConv2d(nn.Module):
         super().__init__()
         n = len(k)  # number of convolutions
         if equal_ch:  # equal c_ per group
-            i = flow.linspace(0, n - 1e-6, c2).floor()  # c2 indices
+            i = flow.linspace(0, n - 1E-6, c2).floor()  # c2 indices
             c_ = [(i == g).sum() for g in range(n)]  # intermediate channels
         else:  # equal weight.numel() per group
             b = [c2] + [0] * n
@@ -48,7 +48,8 @@ class MixConv2d(nn.Module):
             a[0] = 1
             c_ = np.linalg.lstsq(a, b, rcond=None)[0].round()  # solve for equal weight indices, ax = b
 
-        self.m = nn.ModuleList([nn.Conv2d(c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False) for k, c_ in zip(k, c_)])
+        self.m = nn.ModuleList([
+            nn.Conv2d(c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False) for k, c_ in zip(k, c_)])
         self.bn = nn.BatchNorm2d(c2)
         self.act = nn.SiLU()
 
@@ -74,30 +75,37 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     from models.yolo import Detect, Model
 
     model = Ensemble()
-    if isinstance(weights, str) and weights.endswith(".zip"):
-        weights = weights.replace(".zip", "")
-
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
-        ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
-        model.append(ckpt.fuse().eval() if fuse else ckpt.eval())  # fused or un-fused model in eval mode
+        ckpt = flow.load(attempt_download(w), map_location='cpu')  # load
+        ckpt = (ckpt.get('ema') or ckpt['model']).to(device).float()  # FP32 model
 
-    # Compatibility updates
+        # Model compatibility updates
+        if not hasattr(ckpt, 'stride'):
+            ckpt.stride = flow.tensor([32.])
+        if hasattr(ckpt, 'names') and isinstance(ckpt.names, (list, tuple)):
+            ckpt.names = dict(enumerate(ckpt.names))  # convert to dict
+
+        model.append(ckpt.fuse().eval() if fuse and hasattr(ckpt, 'fuse') else ckpt.eval())  # model in eval mode
+
+    # Module compatibility updates
     for m in model.modules():
         t = type(m)
         if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
-            m.inplace = inplace  # oneflow 1.7.0 compatibility
+            m.inplace = inplace  # torch 1.7.0 compatibility
             if t is Detect and not isinstance(m.anchor_grid, list):
-                delattr(m, "anchor_grid")
-                setattr(m, "anchor_grid", [flow.zeros(1)] * m.nl)
-        elif t is nn.Upsample and not hasattr(m, "recompute_scale_factor"):
-            m.recompute_scale_factor = None  # oneflow 1.11.0 compatibility
+                delattr(m, 'anchor_grid')
+                setattr(m, 'anchor_grid', [flow.zeros(1)] * m.nl)
+        elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
+            m.recompute_scale_factor = None  # torch 1.11.0 compatibility
 
+    # Return model
     if len(model) == 1:
-        return model[-1]  # return model
-    print(f"Ensemble created with {weights}\n")
-    for k in "names", "nc", "yaml":
+        return model[-1]
+
+    # Return detection ensemble
+    print(f'Ensemble created with {weights}\n')
+    for k in 'names', 'nc', 'yaml':
         setattr(model, k, getattr(model[0], k))
     model.stride = model[flow.argmax(flow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
-    assert all(model[0].nc == m.nc for m in model), f"Models have different class counts: {[m.nc for m in model]}"
-    return model  # return ensemble
+    assert all(model[0].nc == m.nc for m in model), f'Models have different class counts: {[m.nc for m in model]}'
+    return model
