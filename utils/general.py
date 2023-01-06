@@ -1026,6 +1026,19 @@ def non_max_suppression(
     return output
 
 
+def get_file_size(path):
+    # Print the size of all files in a directory and its subdirectories (in bytes).
+    if not os.path.isdir(path):
+        return os.path.getsize(path)
+
+    size = 0
+    for root, dirs, files in os.walk(path):
+        for f in files:
+            file_path = os.path.join(root, f)
+            size += os.path.getsize(file_path)
+    return size
+
+
 def strip_optimizer(f="best", s=""):  # from utils.general import *; strip_optimizer()
     # Strip optimizer from 'f' to finalize training, optionally save as 's'
     x = flow.load(f, map_location=flow.device("cpu"))
@@ -1038,7 +1051,7 @@ def strip_optimizer(f="best", s=""):  # from utils.general import *; strip_optim
     for p in x["model"].parameters():
         p.requires_grad = False
     flow.save(x, s or f)
-    mb = os.path.getsize(s or f) / 1e6  # filesize
+    mb = get_file_size(s or f) / 1e6  # filesize
     LOGGER.info(f"Optimizer stripped from {f},{f' saved as {s},' if s else ''} {mb:.1f}MB")
 
 
