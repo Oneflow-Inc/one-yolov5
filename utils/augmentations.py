@@ -9,8 +9,8 @@ import random
 import cv2
 import numpy as np
 import oneflow as flow
-import oneflow as flowvision.transforms as T
-import oneflow as flowvision.transforms.functional as TF
+import flowvision.transforms as T
+import flowvision.transforms.functional as TF
 
 from utils.general import LOGGER, check_version, colorstr, resample_segments, segment2box, xywhn2xyxy
 from utils.metrics import bbox_ioa
