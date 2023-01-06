@@ -63,7 +63,6 @@ from utils.general import (
     print_mutation,
     strip_optimizer,
     yaml_save,
-    model_save,
 )
 from utils.loggers import Loggers
 from utils.loggers.wandb.wandb_utils import check_wandb_resume
@@ -416,7 +415,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 ckpt = {
                     "epoch": epoch,
                     "best_fitness": best_fitness,
-                    "model": deepcopy(de_parallel(model)),  # .half(),
+                    # "model": deepcopy(de_parallel(model)),  # .half(),
+                    "model": de_parallel(model),
                     "ema": deepcopy(ema.ema).half(),
                     "updates": ema.updates,
                     "optimizer": optimizer.state_dict(),
@@ -426,12 +426,12 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 }
 
                 # Save last, best and delete
-                model_save(ckpt, last)  # flow.save(ckpt, last)
+                flow.save(ckpt, last)  # flow.save(ckpt, last)
                 if best_fitness == fi:
-                    model_save(ckpt, best)  # flow.save(ckpt, best)
+                    flow.save(ckpt, best)  # flow.save(ckpt, best)
 
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    model_save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
+                    flow.save(ckpt, w / f"epoch{epoch}")  # flow.save(ckpt, w / f"epoch{epoch}")
                 del ckpt
                 callbacks.run("on_model_save", last, epoch, final_epoch, best_fitness, fi)
 
