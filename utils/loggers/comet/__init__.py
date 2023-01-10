@@ -103,7 +103,7 @@ class CometLogger:
 
         if run_id is None:
             self.experiment.log_other("Created from", "YOLOv5")
-            if not isinstance(self.experiment, comet_ml.OfflineExperiment):
+            if not isinstance(self.experiment, comet_ml.ptflineExperiment):
                 workspace, project_name, experiment_id = self.experiment.url.split("/")[-3:]
                 self.experiment.log_other(
                     "Run Path",
@@ -169,7 +169,7 @@ class CometLogger:
                     **self.default_experiment_kwargs,
                 )
 
-            return comet_ml.OfflineExperiment(**self.default_experiment_kwargs,)
+            return comet_ml.ptflineExperiment(**self.default_experiment_kwargs,)
 
         else:
             try:
@@ -215,7 +215,7 @@ class CometLogger:
             "save_period": opt.save_period,
             "total_epochs": opt.epochs,}
 
-        model_files = glob.glob(f"{path}/*.of")
+        model_files = glob.glob(f"{path}/*.pt")
         for model_path in model_files:
             name = Path(model_path).name
 

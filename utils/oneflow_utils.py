@@ -14,7 +14,9 @@ from copy import deepcopy
 from pathlib import Path
 
 import oneflow as flow
-import oneflow.distributed as dist
+# import oneflow.distributed as dist
+import oneflow.comm as dist
+
 import oneflow.nn as nn
 import oneflow.nn.functional as F
 from oneflow.nn.parallel import DistributedDataParallel as DDP
@@ -89,10 +91,10 @@ def reshape_classifier_output(model, n=1000):
 def torch_distributed_zero_first(local_rank: int):
     # Decorator to make all processes in distributed training wait for each local_master to do something
     if local_rank not in [-1, 0]:
-        dist.barrier(device_ids=[local_rank])
+        dist.barrier()
     yield
     if local_rank == 0:
-        dist.barrier(device_ids=[0])
+        dist.barrier()
 
 
 def device_count():
@@ -358,7 +360,7 @@ def smart_hub_load(repo='ultralytics/yolov5', model='yolov5s', **kwargs):
         return flow.hub.load(repo, model, force_reload=True, **kwargs)
 
 
-def smart_resume(ckpt, optimizer, ema=None, weights='yolov5s.of', epochs=300, resume=True):
+def smart_resume(ckpt, optimizer, ema=None, weights='yolov5s.pt', epochs=300, resume=True):
     # Resume training from a partially trained checkpoint
     best_fitness = 0.0
     start_epoch = ckpt['epoch'] + 1
@@ -395,7 +397,7 @@ class EarlyStopping:
         stop = delta >= self.patience  # stop training if patience exceeded
         if stop:
             LOGGER.info(f'Stopping training early as no improvement observed in last {self.patience} epochs. '
-                        f'Best results observed at epoch {self.best_epoch}, best model saved as best.of.\n'
+                        f'Best results observed at epoch {self.best_epoch}, best model saved as best.pt.\n'
                         f'To update EarlyStopping(patience={self.patience}) pass a new patience value, '
                         f'i.e. `python train.py --patience 300` or use `--patience 0` to disable EarlyStopping.')
         return stop

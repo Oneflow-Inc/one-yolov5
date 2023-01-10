@@ -4,8 +4,8 @@
 # Example usage: bash data/scripts/download_weights.sh
 # parent
 # └── yolov5
-#     ├── yolov5s.of  ← downloads here
-#     ├── yolov5m.of
+#     ├── yolov5s.pt  ← downloads here
+#     ├── yolov5m.pt
 #     └── ...
 
 python - <<EOF
@@ -17,6 +17,6 @@ cls = [f'{x}-cls' for x in p5]  # classification models
 seg = [f'{x}-seg' for x in p5]  # classification models
 
 for x in p5 + p6 + cls + seg:
-    attempt_download(f'weights/yolov5{x}.of')
+    attempt_download(f'weights/yolov5{x}.pt')
 
 EOF

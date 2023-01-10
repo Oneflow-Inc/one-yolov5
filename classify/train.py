@@ -3,13 +3,13 @@
 Train a YOLOv5 classifier model on a classification dataset
 
 Usage - Single-GPU training:
-    $ python classify/train.py --model yolov5s-cls.of --data imagenette160 --epochs 5 --img 224
+    $ python classify/train.py --model yolov5s-cls.pt --data imagenette160 --epochs 5 --img 224
 
 Usage - Multi-GPU DDP training:
-    $ python -m flow.distributed.run --nproc_per_node 4 --master_port 2022 classify/train.py --model yolov5s-cls.of --data imagenet --epochs 5 --img 224 --device 0,1,2,3
+    $ python -m flow.distributed.run --nproc_per_node 4 --master_port 2022 classify/train.py --model yolov5s-cls.pt --data imagenet --epochs 5 --img 224 --device 0,1,2,3
 
 Datasets:           --data mnist, fashion-mnist, cifar10, cifar100, imagenette, imagewoof, imagenet, or 'path/to/data'
-YOLOv5-cls models:  --model yolov5n-cls.of, yolov5s-cls.of, yolov5m-cls.of, yolov5l-cls.of, yolov5x-cls.of
+YOLOv5-cls models:  --model yolov5n-cls.pt, yolov5s-cls.pt, yolov5m-cls.pt, yolov5l-cls.pt, yolov5x-cls.pt
 Torchvision models: --model resnet50, efficientnet_b0, etc. See https://pyflow.org/vision/stable/models.html
 """
 
@@ -26,7 +26,7 @@ import oneflow as flow
 import oneflow.distributed as dist
 import oneflow.hub as hub
 import oneflow.optim.lr_scheduler as lr_scheduler
-import oneflow as flowvision
+import flowvision
 from oneflow.cuda import amp
 from tqdm import tqdm
 
@@ -44,7 +44,7 @@ from utils.general import (DATASETS_DIR, LOGGER, TQDM_BAR_FORMAT, WorkingDirecto
                            check_requirements, colorstr, download, increment_path, init_seeds, print_args, yaml_save)
 from utils.loggers import GenericLogger
 from utils.plots import imshow_cls
-from utils.torch_utils import (ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP,
+from utils.oneflow_utils import (ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP,
                                smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first)
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pyflow.org/docs/stable/elastic/run.html
@@ -63,7 +63,7 @@ def train(opt, device):
     # Directories
     wdir = save_dir / 'weights'
     wdir.mkdir(parents=True, exist_ok=True)  # make dir
-    last, best = wdir / 'last.of', wdir / 'best.of'
+    last, best = wdir / 'last.pt', wdir / 'best.pt'
 
     # Save run settings
     yaml_save(save_dir / 'opt.yaml', vars(opt))
@@ -107,15 +107,15 @@ def train(opt, device):
 
     # Model
     with torch_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
-        if Path(opt.model).is_file() or opt.model.endswith('.of'):
+        if Path(opt.model).is_file() or opt.model.endswith('.pt'):
             model = attempt_load(opt.model, device='cpu', fuse=False)
-        elif opt.model in torchvision.models.__dict__:  # TorchVision models i.e. resnet50, efficientnet_b0
-            model = torchvision.models.__dict__[opt.model](weights='IMAGENET1K_V1' if pretrained else None)
+        elif opt.model in flowvision.models.__dict__:  # flowvision models i.e. resnet50, efficientnet_b0
+            model = flowvision.models.__dict__[opt.model](weights='IMAGENET1K_V1' if pretrained else None)
         else:
             m = hub.list('ultralytics/yolov5')  # + hub.list('pytorch/vision')  # models
             raise ModuleNotFoundError(f'--model {opt.model} not found. Available models are: \n' + '\n'.join(m))
         if isinstance(model, DetectionModel):
-            LOGGER.warning("WARNING ⚠️ pass YOLOv5 classifier model with '-cls' suffix, i.e. '--model yolov5s-cls.of'")
+            LOGGER.warning("WARNING ⚠️ pass YOLOv5 classifier model with '-cls' suffix, i.e. '--model yolov5s-cls.pt'")
             model = ClassificationModel(model=model, nc=nc, cutoff=opt.cutoff or 10)  # convert to classification model
         reshape_classifier_output(model, nc)  # update class count
     for m in model.modules():
@@ -270,7 +270,7 @@ def train(opt, device):
 
 def parse_opt(known=False):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, default='yolov5s-cls.of', help='initial weights path')
+    parser.add_argument('--model', type=str, default='yolov5s-cls.pt', help='initial weights path')
     parser.add_argument('--data', type=str, default='imagenette160', help='cifar10, cifar100, mnist, imagenet, ...')
     parser.add_argument('--epochs', type=int, default=10, help='total training epochs')
     parser.add_argument('--batch-size', type=int, default=64, help='total batch size for all GPUs')

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 COMET_PREFIX = "comet://"
 COMET_MODEL_NAME = os.getenv("COMET_MODEL_NAME", "yolov5")
-COMET_DEFAULT_CHECKPOINT_FILENAME = os.getenv("COMET_DEFAULT_CHECKPOINT_FILENAME", "last.of")
+COMET_DEFAULT_CHECKPOINT_FILENAME = os.getenv("COMET_DEFAULT_CHECKPOINT_FILENAME", "last.pt")
 
 
 def download_model_checkpoint(opt, experiment):

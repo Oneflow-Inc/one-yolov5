@@ -55,7 +55,7 @@ def notebook_init(verbose=True):
     import shutil
 
     from utils.general import check_font, check_requirements, is_colab
-    from utils.torch_utils import select_device  # imports
+    from utils.oneflow_utils import select_device  # imports
 
     check_font()
 

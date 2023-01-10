@@ -9,7 +9,7 @@ import numpy as np
 import oneflow as flow
 
 from utils.general import LOGGER, colorstr
-from utils.torch_utils import profile
+from utils.oneflow_utils import profile
 
 
 def check_train_batch_size(model, imgsz=640, amp=True):

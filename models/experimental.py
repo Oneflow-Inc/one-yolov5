@@ -18,7 +18,9 @@ class Sum(nn.Module):
         self.weight = weight  # apply weights boolean
         self.iter = range(n - 1)  # iter object
         if weight:
-            self.w = nn.Parameter(-flow.arange(1.0, n) / 2, requires_grad=True)  # layer weights
+            self.w = nn.Parameter(
+                -flow.arange(1.0, n) / 2, requires_grad=True
+            )  # layer weights
 
     def forward(self, x):
         y = x[0]  # no weight
@@ -34,11 +36,13 @@ class Sum(nn.Module):
 
 class MixConv2d(nn.Module):
     # Mixed Depth-wise Conv https://arxiv.org/abs/1907.09595
-    def __init__(self, c1, c2, k=(1, 3), s=1, equal_ch=True):  # ch_in, ch_out, kernel, stride, ch_strategy
+    def __init__(
+        self, c1, c2, k=(1, 3), s=1, equal_ch=True
+    ):  # ch_in, ch_out, kernel, stride, ch_strategy
         super().__init__()
         n = len(k)  # number of convolutions
         if equal_ch:  # equal c_ per group
-            i = flow.linspace(0, n - 1E-6, c2).floor()  # c2 indices
+            i = flow.linspace(0, n - 1e-6, c2).floor()  # c2 indices
             c_ = [(i == g).sum() for g in range(n)]  # intermediate channels
         else:  # equal weight.numel() per group
             b = [c2] + [0] * n
@@ -46,10 +50,18 @@ class MixConv2d(nn.Module):
             a -= np.roll(a, 1, axis=1)
             a *= np.array(k) ** 2
             a[0] = 1
-            c_ = np.linalg.lstsq(a, b, rcond=None)[0].round()  # solve for equal weight indices, ax = b
+            c_ = np.linalg.lstsq(a, b, rcond=None)[
+                0
+            ].round()  # solve for equal weight indices, ax = b
 
-        self.m = nn.ModuleList([
-            nn.Conv2d(c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False) for k, c_ in zip(k, c_)])
+        self.m = nn.ModuleList(
+            [
+                nn.Conv2d(
+                    c1, int(c_), k, s, k // 2, groups=math.gcd(c1, int(c_)), bias=False
+                )
+                for k, c_ in zip(k, c_)
+            ]
+        )
         self.bn = nn.BatchNorm2d(c2)
         self.act = nn.SiLU()
 
@@ -70,22 +82,35 @@ class Ensemble(nn.ModuleList):
         return y, None  # inference, train output
 
 
+def torch_weights_to_flow(weight):
+    from models.yolo import ClassificationModel
+    weight = attempt_download(weight)
+    import torch
+    ckpt = torch.load(weight, map_location="cpu")
+    model = ckpt['model']
+    print(model)
+    model = ClassificationModel(model=model)
+    return ckpt
+
+
 def attempt_load(weights, device=None, inplace=True, fuse=True):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     from models.yolo import Detect, Model
 
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = flow.load(attempt_download(w), map_location='cpu')  # load
-        ckpt = (ckpt.get('ema') or ckpt['model']).to(device).float()  # FP32 model
+        ckpt = torch_weights_to_flow(w) # ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
+        ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
 
         # Model compatibility updates
-        if not hasattr(ckpt, 'stride'):
-            ckpt.stride = flow.tensor([32.])
-        if hasattr(ckpt, 'names') and isinstance(ckpt.names, (list, tuple)):
+        if not hasattr(ckpt, "stride"):
+            ckpt.stride = flow.tensor([32.0])
+        if hasattr(ckpt, "names") and isinstance(ckpt.names, (list, tuple)):
             ckpt.names = dict(enumerate(ckpt.names))  # convert to dict
 
-        model.append(ckpt.fuse().eval() if fuse and hasattr(ckpt, 'fuse') else ckpt.eval())  # model in eval mode
+        model.append(
+            ckpt.fuse().eval() if fuse and hasattr(ckpt, "fuse") else ckpt.eval()
+        )  # model in eval mode
 
     # Module compatibility updates
     for m in model.modules():
@@ -93,9 +118,9 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
         if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
             m.inplace = inplace  # torch 1.7.0 compatibility
             if t is Detect and not isinstance(m.anchor_grid, list):
-                delattr(m, 'anchor_grid')
-                setattr(m, 'anchor_grid', [flow.zeros(1)] * m.nl)
-        elif t is nn.Upsample and not hasattr(m, 'recompute_scale_factor'):
+                delattr(m, "anchor_grid")
+                setattr(m, "anchor_grid", [flow.zeros(1)] * m.nl)
+        elif t is nn.Upsample and not hasattr(m, "recompute_scale_factor"):
             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
 
     # Return model
@@ -103,9 +128,13 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
         return model[-1]
 
     # Return detection ensemble
-    print(f'Ensemble created with {weights}\n')
-    for k in 'names', 'nc', 'yaml':
+    print(f"Ensemble created with {weights}\n")
+    for k in "names", "nc", "yaml":
         setattr(model, k, getattr(model[0], k))
-    model.stride = model[flow.argmax(flow.tensor([m.stride.max() for m in model])).int()].stride  # max stride
-    assert all(model[0].nc == m.nc for m in model), f'Models have different class counts: {[m.nc for m in model]}'
+    model.stride = model[
+        flow.argmax(flow.tensor([m.stride.max() for m in model])).int()
+    ].stride  # max stride
+    assert all(
+        model[0].nc == m.nc for m in model
+    ), f"Models have different class counts: {[m.nc for m in model]}"
     return model

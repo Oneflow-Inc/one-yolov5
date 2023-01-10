@@ -262,8 +262,8 @@ def get_default_args(func):
 
 
 def get_latest_run(search_dir='.'):
-    # Return path to most recent 'last.of' in /runs (i.e. to --resume from)
-    last_list = glob.glob(f'{search_dir}/**/last*.of', recursive=True)
+    # Return path to most recent 'last.pt' in /runs (i.e. to --resume from)
+    last_list = glob.glob(f'{search_dir}/**/last*.pt', recursive=True)
     return max(last_list, key=os.path.getctime) if last_list else ''
 
 
@@ -441,7 +441,7 @@ def check_imshow(warn=False):
         return False
 
 
-def check_suffix(file='yolov5s.of', suffix=('.of',), msg=''):
+def check_suffix(file='yolov5s.pt', suffix=('.pt',), msg=''):
     # Check file(s) for acceptable suffix
     if file and suffix:
         if isinstance(suffix, str):
@@ -580,7 +580,7 @@ def check_amp(model):
     f = ROOT / 'data' / 'images' / 'bus.jpg'  # image to check
     im = f if f.exists() else 'https://ultralytics.com/images/bus.jpg' if check_online() else np.ones((640, 640, 3))
     try:
-        assert amp_allclose(deepcopy(model), im) or amp_allclose(DetectMultiBackend('yolov5n.of', device), im)
+        assert amp_allclose(deepcopy(model), im) or amp_allclose(DetectMultiBackend('yolov5n.pt', device), im)
         LOGGER.info(f'{prefix}checks passed ✅')
         return True
     except Exception:
@@ -915,7 +915,7 @@ def non_max_suppression(
     # Settings
     # min_wh = 2  # (pixels) minimum box width and height
     max_wh = 7680  # (pixels) maximum box width and height
-    max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
+    max_nms = 30000  # maximum number of boxes into flowvision.ops.nms()
     time_limit = 0.5 + 0.05 * bs  # seconds to quit after
     redundant = True  # require redundant detections
     multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
@@ -974,7 +974,7 @@ def non_max_suppression(
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        i = flowvision.ops.nms(boxes, scores, iou_thres)  # NMS
         i = i[:max_det]  # limit detections
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
             # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
@@ -994,7 +994,7 @@ def non_max_suppression(
     return output
 
 
-def strip_optimizer(f='best.of', s=''):  # from utils.general import *; strip_optimizer()
+def strip_optimizer(f='best.pt', s=''):  # from utils.general import *; strip_optimizer()
     # Strip optimizer from 'f' to finalize training, optionally save as 's'
     x = flow.load(f, map_location=flow.device('cpu'))
     if x.get('ema'):
@@ -1051,7 +1051,7 @@ def print_mutation(keys, results, hyp, save_dir, bucket, prefix=colorstr('evolve
 
 def apply_classifier(x, model, img, im0):
     # Apply a second stage classifier to YOLO outputs
-    # Example model = torchvision.models.__dict__['efficientnet_b0'](pretrained=True).to(device).eval()
+    # Example model = flowvision.models.__dict__['efficientnet_b0'](pretrained=True).to(device).eval()
     im0 = [im0] if isinstance(im0, np.ndarray) else im0
     for i, d in enumerate(x):  # per image
         if d is not None and len(d):

@@ -4,7 +4,7 @@ Run YOLOv5 benchmarks on all supported export formats
 
 Format                      | `export.py --include`         | Model
 ---                         | ---                           | ---
-PyTorch                     | -                             | yolov5s.of
+PyTorch                     | -                             | yolov5s.pt
 TorchScript                 | `torchscript`                 | yolov5s.torchscript
 ONNX                        | `onnx`                        | yolov5s.onnx
 OpenVINO                    | `openvino`                    | yolov5s_openvino_model/
@@ -22,7 +22,7 @@ Requirements:
     $ pip install -U nvidia-tensorrt --index-url https://pypi.ngc.nvidia.com  # TensorRT
 
 Usage:
-    $ python benchmarks.py --weights yolov5s.of --img 640
+    $ python benchmarks.py --weights yolov5s.pt --img 640
 """
 
 import argparse
@@ -45,12 +45,12 @@ from models.yolo import SegmentationModel
 from segment.val import run as val_seg
 from utils import notebook_init
 from utils.general import LOGGER, check_yaml, file_size, print_args
-from utils.torch_utils import select_device
+from utils.oneflow_utils import select_device
 from val import run as val_det
 
 
 def run(
-        weights=ROOT / 'yolov5s.of',  # weights path
+        weights=ROOT / 'yolov5s.pt',  # weights path
         imgsz=640,  # inference size (pixels)
         batch_size=1,  # batch size
         data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
@@ -112,7 +112,7 @@ def run(
 
 
 def test(
-        weights=ROOT / 'yolov5s.of',  # weights path
+        weights=ROOT / 'yolov5s.pt',  # weights path
         imgsz=640,  # inference size (pixels)
         batch_size=1,  # batch size
         data=ROOT / 'data/coco128.yaml',  # dataset.yaml path
@@ -145,7 +145,7 @@ def test(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.of', help='weights path')
+    parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.pt', help='weights path')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--batch-size', type=int, default=1, help='batch size')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')

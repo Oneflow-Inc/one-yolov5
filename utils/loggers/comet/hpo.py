@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 from train import train
 from utils.callbacks import Callbacks
 from utils.general import increment_path
-from utils.torch_utils import select_device
+from utils.oneflow_utils import select_device
 
 # Project Configuration
 config = comet_ml.config.get_config()
@@ -26,7 +26,7 @@ COMET_PROJECT_NAME = config.get_string(os.getenv("COMET_PROJECT_NAME"), "comet.p
 
 def get_args(known=False):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.of', help='initial weights path')
+    parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.pt', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')

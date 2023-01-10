@@ -139,5 +139,5 @@ runs/
 .vscode/
 *.onnx
 *.zip
-*.of
+*.pt
 wandb/
