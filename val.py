@@ -130,6 +130,7 @@ def run(
     if training:  # called by train.py
         device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != 'cpu'  # half precision only supported on CUDA
+        half = False # TODO(fengwen):暂时不支持fp32。 -----2023.01.10 
         model.half() if half else model.float()
     else:  # called directly
         device = select_device(device, batch_size=batch_size)
@@ -198,7 +199,7 @@ def run(
         callbacks.run('on_val_batch_start')
         with dt[0]:
             if cuda:
-                im = im.to(device, non_blocking=True)
+                im = im.to(device)
                 targets = targets.to(device)
             im = im.half() if half else im.float()  # uint8 to fp16/32
             im /= 255  # 0 - 255 to 0.0 - 1.0

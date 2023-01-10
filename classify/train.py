@@ -242,9 +242,9 @@ def train(opt, device):
                     'date': datetime.now().isoformat()}
 
                 # Save last, best and delete
-                flow.save(ckpt, last)
+                model_save(ckpt, last)
                 if best_fitness == fitness:
-                    flow.save(ckpt, best)
+                    model_save(ckpt, best)
                 del ckpt
 
     # Train complete

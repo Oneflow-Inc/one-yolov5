@@ -33,13 +33,13 @@ import numpy as np
 import pandas as pd
 import pkg_resources as pkg
 import oneflow as flow
-import oneflow as flowvision
+import flowvision
 import yaml
 
 from utils import TryExcept, emojis
 from utils.downloads import gsutil_getsize
 from utils.metrics import box_iou, fitness
-
+from utils.temp_repair_tool import get_file_size,model_save
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
 RANK = int(os.getenv('RANK', -1))
@@ -974,7 +974,7 @@ def non_max_suppression(
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = flowvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        i = flow.nms(boxes, scores, iou_thres) # NMS
         i = i[:max_det]  # limit detections
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
             # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
@@ -1005,8 +1005,8 @@ def strip_optimizer(f='best.pt', s=''):  # from utils.general import *; strip_op
     x['model'].half()  # to FP16
     for p in x['model'].parameters():
         p.requires_grad = False
-    flow.save(x, s or f)
-    mb = os.path.getsize(s or f) / 1E6  # filesize
+    model_save(x, s or f)
+    mb = get_file_size(s or f) / 1E6  # filesize
     LOGGER.info(f"Optimizer stripped from {f},{f' saved as {s},' if s else ''} {mb:.1f}MB")
 
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pkg_resources as pkg
 import oneflow as flow
-from oneflow.utils.tensorboard import SummaryWriter
+# from oneflow.utils.tensorboard import SummaryWriter
 
 from utils.general import LOGGER, colorstr, cv2
 from utils.loggers.clearml.clearml_utils import ClearmlLogger
@@ -96,12 +96,12 @@ class Loggers():
             prefix = colorstr('Comet: ')
             s = f"{prefix}run 'pip install comet_ml' to automatically track and visualize YOLOv5 🚀 runs in Comet"
             self.logger.info(s)
-        # TensorBoard
-        s = self.save_dir
-        if 'tb' in self.include and not self.opt.evolve:
-            prefix = colorstr('TensorBoard: ')
-            self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
-            self.tb = SummaryWriter(str(s))
+        # # TensorBoard
+        # s = self.save_dir
+        # if 'tb' in self.include and not self.opt.evolve:
+        #     prefix = colorstr('TensorBoard: ')
+        #     self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
+        #     self.tb = SummaryWriter(str(s))
 
         # W&B
         if wandb and 'wandb' in self.include:
@@ -331,11 +331,11 @@ class GenericLogger:
         self.include = include
         self.console_logger = console_logger
         self.csv = self.save_dir / 'results.csv'  # CSV logger
-        if 'tb' in self.include:
-            prefix = colorstr('TensorBoard: ')
-            self.console_logger.info(
-                f"{prefix}Start with 'tensorboard --logdir {self.save_dir.parent}', view at http://localhost:6006/")
-            self.tb = SummaryWriter(str(self.save_dir))
+        # if 'tb' in self.include:
+        #     prefix = colorstr('TensorBoard: ')
+        #     self.console_logger.info(
+        #         f"{prefix}Start with 'tensorboard --logdir {self.save_dir.parent}', view at http://localhost:6006/")
+        #     self.tb = SummaryWriter(str(self.save_dir))
 
         if wandb and 'wandb' in self.include:
             self.wandb = wandb.init(project=web_project_name(str(opt.project)),

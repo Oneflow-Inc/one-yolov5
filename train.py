@@ -59,6 +59,7 @@ from utils.metrics import fitness
 from utils.plots import plot_evolve
 from utils.oneflow_utils import (EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer,
                                smart_resume, torch_distributed_zero_first)
+from utils.temp_repair_tool import FlowCudaMemoryReserved,model_save
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pyflow.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -129,7 +130,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-    amp = check_amp(model)  # check AMP
+
+    amp = False # amp = check_amp(model)  # check AMP
 
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
@@ -172,11 +174,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
         del ckpt, csd
 
-    # DP mode
-    if cuda and RANK == -1 and flow.cuda.device_count() > 1:
-        LOGGER.warning('WARNING ⚠️ DP not recommended, use flow.distributed.run for best DDP Multi-GPU results.\n'
-                       'See Multi-GPU Tutorial at https://github.com/ultralytics/yolov5/issues/475 to get started.')
-        model = flow.nn.DataParallel(model)
 
     # SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
@@ -250,7 +247,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     maps = np.zeros(nc)  # mAP per class
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
     scheduler.last_epoch = start_epoch - 1  # do not move
-    scaler = flow.cuda.amp.GradScaler(enabled=amp)
+
+    # scaler = flow.cuda.amp.GradScaler(enabled=amp)
+
     stopper, stop = EarlyStopping(patience=opt.patience), False
     compute_loss = ComputeLoss(model)  # init loss class
     callbacks.run('on_train_start')
@@ -258,6 +257,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 f'Using {train_loader.num_workers * WORLD_SIZE} dataloader workers\n'
                 f"Logging results to {colorstr('bold', save_dir)}\n"
                 f'Starting training for {epochs} epochs...')
+    
+    # temp_repair_tool 
+    if RANK in {-1,0}:
+        mem_tool = FlowCudaMemoryReserved("GPU" if cuda else "CPU")
+
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         callbacks.run('on_train_epoch_start')
         model.train()
@@ -283,7 +287,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         for i, (imgs, targets, paths, _) in pbar:  # batch -------------------------------------------------------------
             callbacks.run('on_train_batch_start')
             ni = i + nb * epoch  # number integrated batches (since train start)
-            imgs = imgs.to(device, non_blocking=True).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
+            imgs = imgs.to(device).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
 
             # Warmup
             if ni <= nw:
@@ -314,14 +318,16 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     loss *= 4.
 
             # Backward
-            scaler.scale(loss).backward()
+            # scaler.scale(loss).backward()
+            loss.backward()
 
             # Optimize - https://pyflow.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
-                scaler.unscale_(optimizer)  # unscale gradients
-                flow.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
-                scaler.step(optimizer)  # optimizer.step
-                scaler.update()
+            #     scaler.unscale_(optimizer)  # unscale gradients
+            #     flow.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
+            #     scaler.step(optimizer)  # optimizer.step
+            #     scaler.update()
+                optimizer.step()
                 optimizer.zero_grad()
                 if ema:
                     ema.update(model)
@@ -330,7 +336,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Log
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                mem = f'{flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0:.3g}G'  # (GB)
+                # mem = f'{flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0:.3g}G'  # (GB)
+                mem = mem_tool.cuda_memory_reserved("GB")
                 pbar.set_description(('%11s' * 2 + '%11.4g' * 5) %
                                      (f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run('on_train_batch_end', model, ni, imgs, targets, paths, list(mloss))
@@ -373,7 +380,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 ckpt = {
                     'epoch': epoch,
                     'best_fitness': best_fitness,
-                    'model': deepcopy(de_parallel(model)).half(),
+                    # 'model': deepcopy(de_parallel(model)).half(),
+                    'model': de_parallel(model),
                     'ema': deepcopy(ema.ema).half(),
                     'updates': ema.updates,
                     'optimizer': optimizer.state_dict(),
@@ -382,20 +390,21 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     'date': datetime.now().isoformat()}
 
                 # Save last, best and delete
-                flow.save(ckpt, last)
+                model_save(ckpt, last)
+
                 if best_fitness == fi:
-                    flow.save(ckpt, best)
+                    model_save(ckpt, best)
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    flow.save(ckpt, w / f'epoch{epoch}.pt')
+                    model_save(ckpt, w / f'epoch{epoch}.pt')
                 del ckpt
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
-        # EarlyStopping
-        if RANK != -1:  # if DDP training
-            broadcast_list = [stop if RANK == 0 else None]
-            dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-            if RANK != 0:
-                stop = broadcast_list[0]
+        # # EarlyStopping
+        # if RANK != -1:  # if DDP training
+        #     broadcast_list = [stop if RANK == 0 else None]
+        #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
+        #     if RANK != 0:
+        #         stop = broadcast_list[0]
         if stop:
             break  # must break all DDP ranks
 
@@ -521,7 +530,6 @@ def main(opt, callbacks=Callbacks()):
         assert flow.cuda.device_count() > LOCAL_RANK, 'insufficient CUDA devices for DDP command'
         flow.cuda.set_device(LOCAL_RANK)
         device = flow.device('cuda', LOCAL_RANK)
-        dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Train
     if not opt.evolve:

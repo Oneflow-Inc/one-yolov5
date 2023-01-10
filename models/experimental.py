@@ -83,13 +83,10 @@ class Ensemble(nn.ModuleList):
 
 
 def torch_weights_to_flow(weight):
-    from models.yolo import ClassificationModel
     weight = attempt_download(weight)
     import torch
     ckpt = torch.load(weight, map_location="cpu")
-    model = ckpt['model']
-    print(model)
-    model = ClassificationModel(model=model)
+    ckpt['model']._oneflow_internal_module_tensor_applied_dict__=None
     return ckpt
 
 
@@ -98,8 +95,11 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     from models.yolo import Detect, Model
 
     model = Ensemble()
+    if isinstance(weights, str) and weights.endswith(".zip"):
+        weights = weights.replace(".zip", "")
+    
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = torch_weights_to_flow(w) # ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
+        ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
 
         # Model compatibility updates

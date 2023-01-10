@@ -24,7 +24,7 @@ except (ModuleNotFoundError, ImportError):
 
 import PIL
 import oneflow as flow
-import oneflow as flowvision.transforms as T
+import flowvision.transforms as T
 import yaml
 
 from utils.dataloaders import img2label_paths

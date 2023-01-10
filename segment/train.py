@@ -395,11 +395,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     'date': datetime.now().isoformat()}
 
                 # Save last, best and delete
-                flow.save(ckpt, last)
+                model_save(ckpt, last)
                 if best_fitness == fi:
-                    flow.save(ckpt, best)
+                    model_save(ckpt, best)
                 if opt.save_period > 0 and epoch % opt.save_period == 0:
-                    flow.save(ckpt, w / f'epoch{epoch}.pt')
+                    model_save(ckpt, w / f'epoch{epoch}.pt')
                     logger.log_model(w / f'epoch{epoch}.pt')
                 del ckpt
                 # callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
