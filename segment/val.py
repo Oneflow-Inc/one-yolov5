@@ -169,6 +169,7 @@ def run(
     if training:  # called by train.py
         device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != 'cpu'  # half precision only supported on CUDA
+        half = False # TODO(fengwen) RuntimeError: InferDataType Failed. Expected kFloat16, but got kFloat
         model.half() if half else model.float()
         nm = de_parallel(model).model[-1].nm  # number of masks
     else:  # called directly
@@ -242,7 +243,7 @@ def run(
         # callbacks.run('on_val_batch_start')
         with dt[0]:
             if cuda:
-                im = im.to(device, non_blocking=True)
+                im = im.to(device)
                 targets = targets.to(device)
                 masks = masks.to(device)
             masks = masks.float()

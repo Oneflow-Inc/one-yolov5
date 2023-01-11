@@ -5,7 +5,7 @@ import oneflow.nn.functional as F
 from ..general import xywh2xyxy
 from ..loss import FocalLoss, smooth_BCE
 from ..metrics import bbox_iou
-from ..torch_utils import de_parallel
+from ..oneflow_utils import de_parallel
 from .general import crop_mask
 
 
@@ -21,7 +21,7 @@ class ComputeLoss:
         # Define criteria
         BCEcls = nn.BCEWithLogitsLoss(pos_weight=flow.tensor([h['cls_pw']], device=device))
         BCEobj = nn.BCEWithLogitsLoss(pos_weight=flow.tensor([h['obj_pw']], device=device))
-
+   
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
         self.cp, self.cn = smooth_BCE(eps=h.get('label_smoothing', 0.0))  # positive, negative BCE targets
 
@@ -79,7 +79,7 @@ class ComputeLoss:
                 if self.nc > 1:  # cls loss (only if multiple classes)
                     t = flow.full_like(pcls, self.cn, device=self.device)  # targets
                     t[range(n), tcls[i]] = self.cp
-                    lcls += self.BCEcls(pcls, t)  # BCE
+                    lcls = lcls + self.BCEcls(pcls, t)  # BCE
 
                 # Mask regression
                 if tuple(masks.shape[-2:]) != (mask_h, mask_w):  # downsample

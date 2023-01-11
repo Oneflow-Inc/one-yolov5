@@ -88,7 +88,7 @@ def reshape_classifier_output(model, n=1000):
 
 
 @contextmanager
-def torch_distributed_zero_first(local_rank: int):
+def oneflow_distributed_zero_first(local_rank: int):
     # Decorator to make all processes in distributed training wait for each local_master to do something
     if local_rank not in [-1, 0]:
         dist.barrier()

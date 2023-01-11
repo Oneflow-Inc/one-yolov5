@@ -8,12 +8,13 @@ issues:
 """
 缺少：
 1. https://pytorch.org/docs/stable/mobile_optimizer.html?highlight=optimize_for_mobile#torch.utils.mobile_optimizer.optimize_for_mobile
-2.
+2. Tensor' object has no attribute 'gt_ 
 
 """
 """
 未对齐:
-i = flowvision.ops.nms(boxes, scores, iou_thres)  # NMS flow.nms()
+1. i = flowvision.ops.nms(boxes, scores, iou_thres)  # NMS flow.nms()
+2. imgs = imgs.to(device, non_blocking=True).float 
 """
 
 import os
@@ -26,8 +27,7 @@ import threading
 import oneflow as flow
 
 
-
-class FlowCudaMemoryReserved():
+class FlowCudaMemoryReserved:
     """实现思路
     在 Python 的类中起一个子线程，并让子线程每 _update_time 秒更新一次数据.
     子线程 根据 pid 更新显存。
@@ -51,18 +51,18 @@ class FlowCudaMemoryReserved():
                 return "%.3fMB" % (float(memory))
             elif mode == "GB":
                 return "%.3fG" % (float(memory) / 1024)
-            elif mode not in ("MB","GB"):
-                print(f'warning {mode=}')
+            elif mode not in ("MB", "GB"):
+                print(f"warning {mode=}")
                 return None
             else:
-                return 'None'
+                return "None"
         except:
             # print(f'warning cuda_memory_reserved')
-            return 'None'
+            return "None"
 
     def update_data(self):
         while True:
-            self._memery_of_pid = self.use_memory(mode='MB')
+            self._memery_of_pid = self.use_memory(mode="MB")
             time.sleep(self._update_time)
 
     def use_memory(self, mode="MB"):
@@ -112,6 +112,7 @@ def get_file_size(path):
             size += os.path.getsize(file_path)
     return size
 
+
 def model_save(obj, path_file) -> None:
     try:
         if os.path.exists(path_file):
@@ -124,3 +125,13 @@ def model_save(obj, path_file) -> None:
     except Exception:
         print(f"warning model save failed  in {path_file}❌")
         return False
+
+
+def tensor_gt_(tensor: flow.tensor, other):
+    """
+    issues: https://github.com/Oneflow-Inc/oneflow/issues/9563
+    """
+    dtype = tensor.dtype
+    result = tensor.gt(other)
+    return flow.tensor(result.numpy(), dtype=dtype, device=tensor.device)
+

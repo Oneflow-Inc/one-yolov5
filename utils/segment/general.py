@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import oneflow as flow
 import oneflow.nn.functional as F
+from utils.temp_repair_tool import tensor_gt_
 
 
 def crop_mask(masks, boxes):
@@ -37,7 +38,8 @@ def process_mask_upsample(protos, masks_in, bboxes, shape):
     masks = (masks_in @ protos.float().view(c, -1)).sigmoid().view(-1, mh, mw)
     masks = F.interpolate(masks[None], shape, mode='bilinear', align_corners=False)[0]  # CHW
     masks = crop_mask(masks, bboxes)  # CHW
-    return masks.gt_(0.5)
+    # return masks.gt_(0.5)
+    return tensor_gt_(masks,0.5)
 
 
 def process_mask(protos, masks_in, bboxes, shape, upsample=False):
@@ -64,7 +66,8 @@ def process_mask(protos, masks_in, bboxes, shape, upsample=False):
     masks = crop_mask(masks, downsampled_bboxes)  # CHW
     if upsample:
         masks = F.interpolate(masks[None], shape, mode='bilinear', align_corners=False)[0]  # CHW
-    return masks.gt_(0.5)
+    # return masks.gt_(0.5)
+    return tensor_gt_(masks,0.5)
 
 
 def process_mask_native(protos, masks_in, bboxes, shape):
@@ -87,7 +90,8 @@ def process_mask_native(protos, masks_in, bboxes, shape):
 
     masks = F.interpolate(masks[None], shape, mode='bilinear', align_corners=False)[0]  # CHW
     masks = crop_mask(masks, bboxes)  # CHW
-    return masks.gt_(0.5)
+    # return masks.gt_(0.5)
+    return tensor_gt_(masks,0.5)
 
 
 def scale_image(im1_shape, masks, im0_shape, ratio_pad=None):

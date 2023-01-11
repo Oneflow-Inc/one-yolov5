@@ -57,7 +57,7 @@ from utils.general import (
     xywhn2xyxy,
     xyxy2xywhn,
 )
-from utils.oneflow_utils import torch_distributed_zero_first
+from utils.oneflow_utils import oneflow_distributed_zero_first
 
 # Parameters
 HELP_URL = "See https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data"
@@ -176,7 +176,7 @@ def create_dataloader(
             "WARNING ⚠️ --rect is incompatible with DataLoader shuffle, setting shuffle=False"
         )
         shuffle = False
-    with torch_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
+    with oneflow_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
         dataset = LoadImagesAndLabels(
             path,
             imgsz,
@@ -1583,7 +1583,7 @@ def create_classification_dataloader(
     shuffle=True,
 ):
     # Returns Dataloader object to be used with YOLOv5 Classifier
-    with torch_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
+    with oneflow_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
         dataset = ClassificationDataset(
             root=path, imgsz=imgsz, augment=augment, cache=cache
         )

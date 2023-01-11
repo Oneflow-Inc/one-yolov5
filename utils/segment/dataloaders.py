@@ -14,7 +14,7 @@ from oneflow.utils.data import DataLoader, distributed
 from ..augmentations import augment_hsv, copy_paste, letterbox
 from ..dataloaders import InfiniteDataLoader, LoadImagesAndLabels, seed_worker
 from ..general import LOGGER, xyn2xy, xywhn2xyxy, xyxy2xywhn
-from ..torch_utils import oneflow as flow_distributed_zero_first
+from ..oneflow_utils import oneflow_distributed_zero_first
 from .augmentations import mixup, random_perspective
 
 RANK = int(os.getenv('RANK', -1))
@@ -42,7 +42,7 @@ def create_dataloader(path,
     if rect and shuffle:
         LOGGER.warning('WARNING ⚠️ --rect is incompatible with DataLoader shuffle, setting shuffle=False')
         shuffle = False
-    with torch_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
+    with oneflow_distributed_zero_first(rank):  # init dataset *.cache only once if DDP
         dataset = LoadImagesAndLabelsAndMasks(
             path,
             imgsz,

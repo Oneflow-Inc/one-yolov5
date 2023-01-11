@@ -81,22 +81,11 @@ class Ensemble(nn.ModuleList):
         y = flow.cat(y, 1)  # nms ensemble
         return y, None  # inference, train output
 
-
-def torch_weights_to_flow(weight):
-    weight = attempt_download(weight)
-    import torch
-    ckpt = torch.load(weight, map_location="cpu")
-    ckpt['model']._oneflow_internal_module_tensor_applied_dict__=None
-    return ckpt
-
-
 def attempt_load(weights, device=None, inplace=True, fuse=True):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     from models.yolo import Detect, Model
 
     model = Ensemble()
-    if isinstance(weights, str) and weights.endswith(".zip"):
-        weights = weights.replace(".zip", "")
     
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = flow.load(attempt_download(w), map_location="cpu")  # load

@@ -45,7 +45,8 @@ from utils.general import (DATASETS_DIR, LOGGER, TQDM_BAR_FORMAT, WorkingDirecto
 from utils.loggers import GenericLogger
 from utils.plots import imshow_cls
 from utils.oneflow_utils import (ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP,
-                               smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first)
+                               smart_optimizer, smartCrossEntropyLoss, oneflow_distributed_zero_first)
+from utils.temp_repair_tool import model_save
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pyflow.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -72,7 +73,7 @@ def train(opt, device):
     logger = GenericLogger(opt=opt, console_logger=LOGGER) if RANK in {-1, 0} else None
 
     # Download Dataset
-    with torch_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
+    with oneflow_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
         data_dir = data if data.is_dir() else (DATASETS_DIR / data)
         if not data_dir.is_dir():
             LOGGER.info(f'\nDataset not found ⚠️, missing path {data_dir}, attempting download...')
@@ -106,7 +107,7 @@ def train(opt, device):
                                                       workers=nw)
 
     # Model
-    with torch_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
+    with oneflow_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
         if Path(opt.model).is_file() or opt.model.endswith('.pt'):
             model = attempt_load(opt.model, device='cpu', fuse=False)
         elif opt.model in flowvision.models.__dict__:  # flowvision models i.e. resnet50, efficientnet_b0
