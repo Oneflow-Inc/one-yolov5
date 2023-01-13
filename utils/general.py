@@ -40,6 +40,7 @@ from utils import TryExcept, emojis
 from utils.downloads import gsutil_getsize
 from utils.metrics import box_iou, fitness
 from utils.temp_repair_tool import get_file_size,model_save
+
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
 RANK = int(os.getenv('RANK', -1))
@@ -243,11 +244,11 @@ def init_seeds(seed=0, deterministic=False):
     flow.cuda.manual_seed(seed)
     flow.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
     # flow.backends.cudnn.benchmark = True  # AutoBatch problem https://github.com/ultralytics/yolov5/issues/9287
-    if deterministic and check_version(flow.__version__, '1.12.0'):  # https://github.com/ultralytics/yolov5/pull/8213
-        flow.use_deterministic_algorithms(True)
-        flow.backends.cudnn.deterministic = True
-        os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-        os.environ['PYTHONHASHSEED'] = str(seed)
+    # if deterministic and check_version(flow.__version__, '1.12.0'):  # https://github.com/ultralytics/yolov5/pull/8213
+    #     flow.use_deterministic_algorithms(True)
+    #     flow.backends.cudnn.deterministic = True
+    #     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+    #     os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def intersect_dicts(da, db, exclude=()):

@@ -148,9 +148,10 @@ def exif_transpose(image):
 def seed_worker(worker_id):
     # Set dataloader worker seed https://pyflow.org/docs/stable/notes/randomness.html#dataloader
     worker_seed = flow.initial_seed() % 2 ** 32
+    worker_seed = 1364139374 + worker_id
     np.random.seed(worker_seed)
     random.seed(worker_seed)
-
+    print(f'one-yolov5:{worker_seed=}')
 
 def create_dataloader(
     path,

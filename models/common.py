@@ -168,6 +168,7 @@ class C3(nn.Module):
         return self.cv3(flow.cat((self.m(self.cv1(x)), self.cv2(x)), 1))
 
 
+
 class C3x(C3):
     # C3 module with cross-convolutions
     def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5):

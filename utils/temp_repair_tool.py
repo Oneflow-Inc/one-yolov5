@@ -19,12 +19,15 @@ issues:
 
 import os
 import shutil
+import sys
 import psutil
 import subprocess
 import threading
 import time
 import threading
 import oneflow as flow
+import numpy as np
+from pathlib import Path
 
 
 class FlowCudaMemoryReserved:
@@ -134,4 +137,59 @@ def tensor_gt_(tensor: flow.tensor, other):
     dtype = tensor.dtype
     result = tensor.gt(other)
     return flow.tensor(result.numpy(), dtype=dtype, device=tensor.device)
+
+
+def intersect_dicts(da, db, exclude=()):
+    # Dictionary intersection of matching keys and shapes, omitting 'exclude' keys, using da values
+    return {
+        k: v
+        for k, v in da.items()
+        if k in db and all(x not in k for x in exclude) and v.shape == db[k].shape
+    }
+
+
+def load_torch_pretrained(LOCAL_RANK, weights, cfg, hyp, nc, resume, device):
+    import torch
+    from models.yolo import Model
+
+    ckpt = torch.load(
+        weights, map_location="cpu"
+    )  # load checkpoint to CPU to avoid CUDA memory leak
+    model = Model(
+        cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")
+    ).to(
+        device
+    )  # create
+
+    # csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
+    csd = dict()
+    for key, value in ckpt["model"].state_dict().items():
+        if value.detach().cpu().numpy().dtype == np.float16:
+            tval = flow.tensor(value.detach().cpu().numpy().astype(np.float32))
+        else:
+            tval = flow.tensor(value.detach().cpu().numpy())
+        csd[key] = tval
+
+    exclude = (
+        ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []
+    )  # exclude keys
+    csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+    model.load_state_dict(csd, strict=False)  # load
+
+    # add attributes
+    attributes = [
+        a
+        for a in dir(ckpt["model"])
+        if not callable(getattr(ckpt["model"], a))
+        and not a.startswith("__")
+        and not a[0] == "_"
+    ]
+    for attr in attributes:
+        get_attr = getattr(ckpt["model"], attr)
+        if not torch.is_tensor(get_attr):
+            setattr(model, attr, getattr(ckpt["model"], attr))
+            # print(f'{attr=}')
+
+    print(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")
+    return ckpt, csd, model
 
