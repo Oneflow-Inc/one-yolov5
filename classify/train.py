@@ -46,7 +46,7 @@ from utils.loggers import GenericLogger
 from utils.plots import imshow_cls
 from utils.oneflow_utils import (ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP,
                                smart_optimizer, smartCrossEntropyLoss, oneflow_distributed_zero_first)
-from utils.temp_repair_tool import model_save
+from utils.temp_repair_tool import model_save,attempt_load_torch
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pyflow.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -109,7 +109,7 @@ def train(opt, device):
     # Model
     with oneflow_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
         if Path(opt.model).is_file() or opt.model.endswith('.pt'):
-            model = attempt_load(opt.model, device='cpu', fuse=False)
+            model = attempt_load_torch(opt.model, device='cpu', fuse=False)
         elif opt.model in flowvision.models.__dict__:  # flowvision models i.e. resnet50, efficientnet_b0
             model = flowvision.models.__dict__[opt.model](weights='IMAGENET1K_V1' if pretrained else None)
         else:
@@ -311,7 +311,6 @@ def main(opt):
         assert flow.cuda.device_count() > LOCAL_RANK, 'insufficient CUDA devices for DDP command'
         flow.cuda.set_device(LOCAL_RANK)
         device = flow.device('cuda', LOCAL_RANK)
-        dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Parameters
     opt.save_dir = increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok)  # increment run

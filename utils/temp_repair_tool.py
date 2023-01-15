@@ -147,21 +147,61 @@ def intersect_dicts(da, db, exclude=()):
         if k in db and all(x not in k for x in exclude) and v.shape == db[k].shape
     }
 
+def load_pretrained(weights, cfg, hyp, nc, resume, device,mode='default'):
+    try:
+        return load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device,mode)
+    except:
+        return load_torch_pretrained(weights, cfg, hyp, nc, resume, device,mode)
 
-def load_torch_pretrained(LOCAL_RANK, weights, cfg, hyp, nc, resume, device):
-    import torch
-    from models.yolo import Model
+def load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device,mode='default'):
+    from utils.general import LOGGER
+    if mode == 'default':
+        from models.yolo import Model as Model
+    elif mode =="seg":
+        from models.yolo import SegmentationModel as Model        
+    elif mode == "cls":
+        pass
+    else:
+        assert mode in ['default','seg','cls']
+
+    ckpt = flow.load( weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
+    model = Model(
+            cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")
+        ).to(device)
+    exclude = (
+        ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []
+    )  # exclude keys
+    csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
+    csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+    model.load_state_dict(csd, strict=False)  # load
+    LOGGER.info(
+        f"load_oneflow_pretrained Transferred {len(csd)}/{len(model.state_dict())} items from {weights}"
+    )  # report
+    return ckpt, csd, model
+
+def load_torch_pretrained(weights, cfg, hyp, nc, resume, device,mode='default'):
+    """mode:选择模型类型
+    """
+    from utils.general import LOGGER
+    import torch 
+    
+    if mode == 'default':
+        from models.yolo import Model as Model
+    elif mode =="seg":
+        from models.yolo import SegmentationModel as Model        
+    elif mode == "cls":
+        pass 
+    else:
+        print(f'{mode=} worr')
+        raise ImportError
 
     ckpt = torch.load(
         weights, map_location="cpu"
     )  # load checkpoint to CPU to avoid CUDA memory leak
     model = Model(
         cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")
-    ).to(
-        device
-    )  # create
-
-    # csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
+    ).to(device)
+    
     csd = dict()
     for key, value in ckpt["model"].state_dict().items():
         if value.detach().cpu().numpy().dtype == np.float16:
@@ -190,6 +230,82 @@ def load_torch_pretrained(LOCAL_RANK, weights, cfg, hyp, nc, resume, device):
             setattr(model, attr, getattr(ckpt["model"], attr))
             # print(f'{attr=}')
 
-    print(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")
+    LOGGER.info(f"load_torch_pretrained Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")
     return ckpt, csd, model
+
+def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
+    # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
+    import torch
+    import oneflow.nn as nn 
+    from models.yolo import Detect, Model
+    from models.experimental import Ensemble
+    from models.yolo import ClassificationModel 
+    model = Ensemble()
+    
+    for w in weights if isinstance(weights, list) else [weights]:
+        ckpt = torch.load(w, map_location="cpu")  # load
+        ckpt = ckpt["model"]
+        csd = dict()
+        for key, value in ckpt["model"].state_dict().items():
+            if value.detach().cpu().numpy().dtype == np.float16:
+                tval = flow.tensor(value.detach().cpu().numpy().astype(np.float32))
+            else:
+                tval = flow.tensor(value.detach().cpu().numpy())
+            csd[key] = tval
+
+        exclude = ([])  # exclude keys
+        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+        tmodel = ClassificationModel()
+        tmodel.load_state_dict(csd, strict=False)  # load
+         # add attributes
+        attributes = [
+            a
+            for a in dir(ckpt["model"])
+            if not callable(getattr(ckpt["model"], a))
+            and not a.startswith("__")
+            and not a[0] == "_"
+        ]
+        for attr in attributes:
+            get_attr = getattr(ckpt["model"], attr)
+            if not torch.is_tensor(get_attr):
+                setattr(tmodel, attr, getattr(ckpt["model"], attr))
+
+        ckpt['model'] = tmodel
+
+        # Model compatibility updates
+        if not hasattr(ckpt, "stride"):
+            ckpt.stride = flow.tensor([32.0])
+        if hasattr(ckpt, "names") and isinstance(ckpt.names, (list, tuple)):
+            ckpt.names = dict(enumerate(ckpt.names))  # convert to dict
+
+        model.append(
+            ckpt.fuse().eval() if fuse and hasattr(ckpt, "fuse") else ckpt.eval()
+        )  # model in eval mode
+
+    # Module compatibility updates
+    for m in model.modules():
+        t = type(m)
+        if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
+            m.inplace = inplace  # torch 1.7.0 compatibility
+            if t is Detect and not isinstance(m.anchor_grid, list):
+                delattr(m, "anchor_grid")
+                setattr(m, "anchor_grid", [flow.zeros(1)] * m.nl)
+        elif t is nn.Upsample and not hasattr(m, "recompute_scale_factor"):
+            m.recompute_scale_factor = None  # torch 1.11.0 compatibility
+
+    # Return model
+    if len(model) == 1:
+        return model[-1]
+
+    # Return detection ensemble
+    print(f"Ensemble created with {weights}\n")
+    for k in "names", "nc", "yaml":
+        setattr(model, k, getattr(model[0], k))
+    model.stride = model[
+        flow.argmax(flow.tensor([m.stride.max() for m in model])).int()
+    ].stride  # max stride
+    assert all(
+        model[0].nc == m.nc for m in model
+    ), f"Models have different class counts: {[m.nc for m in model]}"
+    return model
 

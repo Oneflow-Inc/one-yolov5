@@ -87,11 +87,11 @@ from utils.oneflow_utils import (
     smart_resume,
     oneflow_distributed_zero_first,
 )
-from utils.temp_repair_tool import FlowCudaMemoryReserved, model_save
+from utils.temp_repair_tool import FlowCudaMemoryReserved, model_save,load_pretrained
 
 LOCAL_RANK = int(
     os.getenv("LOCAL_RANK", -1)
-)  # https://pyflow.org/docs/stable/elastic/run.html
+)  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
 WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 GIT_INFO = check_git_info()
@@ -179,21 +179,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         with oneflow_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
-        ckpt = flow.load(
-            weights, map_location="cpu"
-        )  # load checkpoint to CPU to avoid CUDA memory leak
-        model = SegmentationModel(
-            cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")
-        ).to(device)
-        exclude = (
-            ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []
-        )  # exclude keys
-        csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
-        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
-        model.load_state_dict(csd, strict=False)  # load
-        LOGGER.info(
-            f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}"
-        )  # report
+        ckpt,csd,model = load_pretrained(weights=weights,cfg=cfg,hyp=hyp,nc=nc,resume=resume,device=device,mode='seg')
     else:
         model = SegmentationModel(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(
             device
