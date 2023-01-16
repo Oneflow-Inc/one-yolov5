@@ -104,7 +104,8 @@ def train(opt, device):
                                                       augment=False,
                                                       cache=opt.cache,
                                                       rank=-1,
-                                                      workers=nw)
+                                                      workers=nw,
+                                                      shuffle=False)
 
     # Model
     with oneflow_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):

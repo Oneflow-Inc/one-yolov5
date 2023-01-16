@@ -244,9 +244,10 @@ def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
     
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = torch.load(w, map_location="cpu")  # load
-        ckpt = ckpt["model"]
+        for k,v in ckpt.items():
+            print(f'{k=} {v=}')
         csd = dict()
-        for key, value in ckpt["model"].state_dict().items():
+        for key, value in ckpt['model'].state_dict().items():
             if value.detach().cpu().numpy().dtype == np.float16:
                 tval = flow.tensor(value.detach().cpu().numpy().astype(np.float32))
             else:
@@ -270,16 +271,14 @@ def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
             if not torch.is_tensor(get_attr):
                 setattr(tmodel, attr, getattr(ckpt["model"], attr))
 
-        ckpt['model'] = tmodel
-
         # Model compatibility updates
-        if not hasattr(ckpt, "stride"):
-            ckpt.stride = flow.tensor([32.0])
-        if hasattr(ckpt, "names") and isinstance(ckpt.names, (list, tuple)):
-            ckpt.names = dict(enumerate(ckpt.names))  # convert to dict
+        if not hasattr(tmodel, "stride"):
+            tmodel.stride = flow.tensor([32.0])
+        if hasattr(tmodel, "names") and isinstance(tmodel.names, (list, tuple)):
+            tmodel.names = dict(enumerate(tmodel.names))  # convert to dict
 
         model.append(
-            ckpt.fuse().eval() if fuse and hasattr(ckpt, "fuse") else ckpt.eval()
+            tmodel.fuse().eval() if fuse and hasattr(tmodel, "fuse") else tmodel.eval()
         )  # model in eval mode
 
     # Module compatibility updates

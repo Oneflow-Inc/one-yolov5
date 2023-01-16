@@ -184,7 +184,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         model = SegmentationModel(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(
             device
         )  # create
-    amp = check_amp(model)  # check AMP
+    # amp = check_amp(model)  # check AMP
+    amp = False
 
     # Freeze
     freeze = [
@@ -257,7 +258,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         image_weights=opt.image_weights,
         quad=opt.quad,
         prefix=colorstr("train: "),
-        shuffle=True,
+        shuffle=False,
         mask_downsample_ratio=mask_ratio,
         overlap_mask=overlap,
     )
@@ -439,6 +440,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Forward
             # with flow.cuda.amp.autocast(amp):
+            imgs = flow.FloatTensor(np.load('/home/fengwen/datasets/temp/yolo.npy')).to(device)
+            np.save('runs/imgs',imgs.numpy())
             pred = model(imgs)  # forward
             loss, loss_items = compute_loss(
                 pred, targets.to(device), masks=masks.to(device).float()
