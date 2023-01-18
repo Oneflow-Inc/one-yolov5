@@ -88,11 +88,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     model = Ensemble()
     
     for w in weights if isinstance(weights, list) else [weights]:
-        import torch 
-        ckpt = torch.load(attempt_download(w), map_location="cpu")  # load
-        print(ckpt.keys())
-        for k,v in ckpt.items():
-            print(f'{k=},{v=}')
+        ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
 
         # Model compatibility updates

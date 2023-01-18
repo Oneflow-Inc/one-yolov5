@@ -228,7 +228,7 @@ def load_torch_pretrained(weights, cfg, hyp, nc, resume, device,mode='default'):
         get_attr = getattr(ckpt["model"], attr)
         if not torch.is_tensor(get_attr):
             setattr(model, attr, getattr(ckpt["model"], attr))
-            # print(f'{attr=}')
+
 
     LOGGER.info(f"load_torch_pretrained Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")
     return ckpt, csd, model
@@ -242,44 +242,64 @@ def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
     from models.yolo import ClassificationModel 
     model = Ensemble()
     
-    for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = torch.load(w, map_location="cpu")  # load
-        for k,v in ckpt.items():
-            print(f'{k=} {v=}')
-        csd = dict()
-        for key, value in ckpt['model'].state_dict().items():
-            if value.detach().cpu().numpy().dtype == np.float16:
-                tval = flow.tensor(value.detach().cpu().numpy().astype(np.float32))
-            else:
-                tval = flow.tensor(value.detach().cpu().numpy())
-            csd[key] = tval
+    ckpt = torch.load(weights, map_location="cpu")  # load
+    # attributes = [
+    #     a
+    #     for a in dir(ckpt["model"])
+    #     if not callable(getattr(ckpt["model"], a))
+    #     and not a.startswith("__")
+    #     and not a[0] == "_"
+    # ]
+    # for attr in attributes:
+    #     get_attr = getattr(ckpt["model"], attr)
+    #     print(f'{attr=} {get_attr=}')
+    # input('exit(0)')
+    # for m in ckpt['model'].children():
+    #     print(m)
+    # for k,v in ckpt.items():
+    #     print(f'{k=} {v=}')
+    of_model = Model(cfg='/home/fengwen/one-yolov5/models/yolov5s.yaml')
+    of_model = ClassificationModel(model=of_model).to('cuda:0')
+    csd = dict()
+    for key, value in ckpt['model'].state_dict().items():
+        if value.detach().cpu().numpy().dtype == np.float16:
+            tval = flow.tensor(value.detach().cpu().numpy().astype(np.float32))
+        else:
+            tval = flow.tensor(value.detach().cpu().numpy())
+        csd[key] = tval
 
-        exclude = ([])  # exclude keys
-        csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
-        tmodel = ClassificationModel()
-        tmodel.load_state_dict(csd, strict=False)  # load
-         # add attributes
-        attributes = [
-            a
-            for a in dir(ckpt["model"])
-            if not callable(getattr(ckpt["model"], a))
-            and not a.startswith("__")
-            and not a[0] == "_"
-        ]
-        for attr in attributes:
-            get_attr = getattr(ckpt["model"], attr)
-            if not torch.is_tensor(get_attr):
-                setattr(tmodel, attr, getattr(ckpt["model"], attr))
+    of_model.load_state_dict(csd, strict=False)  # load
+        # add attributes
+    attributes = [
+        a
+        for a in dir(ckpt["model"])
+        if not callable(getattr(ckpt["model"], a))
+        and not a.startswith("__")
+        and not a[0] == "_"
+    ]
 
-        # Model compatibility updates
-        if not hasattr(tmodel, "stride"):
-            tmodel.stride = flow.tensor([32.0])
-        if hasattr(tmodel, "names") and isinstance(tmodel.names, (list, tuple)):
-            tmodel.names = dict(enumerate(tmodel.names))  # convert to dict
+    for attr in attributes:
+        get_attr = getattr(ckpt["model"], attr)
+        if torch.is_tensor(get_attr):
+            continue
+        setattr(model, attr, getattr(ckpt["model"], attr))
 
-        model.append(
-            tmodel.fuse().eval() if fuse and hasattr(tmodel, "fuse") else tmodel.eval()
-        )  # model in eval mode
+    # Model compatibility updates
+    if not hasattr(of_model, "stride"):
+        of_model.stride = flow.tensor([32.0])
+    if hasattr(of_model, "names") and isinstance(ckpt.names, (list, tuple)):
+        of_model.names = dict(enumerate(ckpt.names))  # convert to dict
+    input("=00")
+    print(hasattr(of_model, "fuse"))
+    return of_model
+        # of_model.fuse()
+        # input("=01")
+        # of_model.eval()
+        # input("=02")
+        # # print(of_model)
+        # input("=03")
+        # for m in of_model.modules():
+        #     print(m)
 
     # Module compatibility updates
     for m in model.modules():
@@ -292,14 +312,12 @@ def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
         elif t is nn.Upsample and not hasattr(m, "recompute_scale_factor"):
             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
 
-    # Return model
-    if len(model) == 1:
-        return model[-1]
+    
 
     # Return detection ensemble
     print(f"Ensemble created with {weights}\n")
     for k in "names", "nc", "yaml":
-        setattr(model, k, getattr(model[0], k))
+        setattr(model, k, getattr(ckpt['model'], k))
     model.stride = model[
         flow.argmax(flow.tensor([m.stride.max() for m in model])).int()
     ].stride  # max stride
@@ -307,4 +325,80 @@ def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
         model[0].nc == m.nc for m in model
     ), f"Models have different class counts: {[m.nc for m in model]}"
     return model
+
+
+# def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
+#     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
+#     import torch
+#     import oneflow.nn as nn 
+#     from models.yolo import Detect, Model
+#     from models.experimental import Ensemble
+#     from models.yolo import ClassificationModel 
+#     model = Ensemble()
+    
+#     for w in weights if isinstance(weights, list) else [weights]:
+#         ckpt = torch.load(w, map_location="cpu")  # load
+#         tmodel = ckpt['model']
+#         csd = dict()
+#         for key, value in ckpt['model'].state_dict().items():
+#             if value.detach().cpu().numpy().dtype == np.float16:
+#                 tval = flow.tensor(value.detach().cpu().numpy().astype(np.float32))
+#             else:
+#                 tval = flow.tensor(value.detach().cpu().numpy())
+#             csd[key] = tval
+
+#         exclude = ([])  # exclude keys
+#         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
+#         tmodel.load_state_dict(csd, strict=False)  # load
+#         # add attributes
+#         attributes = [
+#             a
+#             for a in dir(ckpt["model"])
+#             if not callable(getattr(ckpt["model"], a))
+#             and not a.startswith("__")
+#             and not a[0] == "_"
+#         ]
+#         for attr in attributes:
+#             get_attr = getattr(ckpt["model"], attr)
+#             if not torch.is_tensor(get_attr):
+#                 setattr(tmodel, attr, getattr(ckpt["model"], attr))
+
+#         # Model compatibility updates
+#         if not hasattr(tmodel, "stride"):
+#             tmodel.stride = flow.tensor([32.0])
+#         if hasattr(tmodel, "names") and isinstance(tmodel.names, (list, tuple)):
+#             tmodel.names = dict(enumerate(tmodel.names))  # convert to dict
+
+#         model.append(
+#             tmodel.fuse().eval() if fuse and hasattr(tmodel, "fuse") else tmodel.eval()
+#         )  # model in eval mode
+
+#     print(model.modules())
+#     # Module compatibility updates
+#     for m in model.modules():
+#         t = type(m)
+#         if t in (nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model):
+#             m.inplace = inplace  # torch 1.7.0 compatibility
+#             if t is Detect and not isinstance(m.anchor_grid, list):
+#                 delattr(m, "anchor_grid")
+#                 setattr(m, "anchor_grid", [flow.zeros(1)] * m.nl)
+#         elif t is nn.Upsample and not hasattr(m, "recompute_scale_factor"):
+#             m.recompute_scale_factor = None  # torch 1.11.0 compatibility
+
+#     # Return model
+#     if len(model) == 1:
+#         return model[-1]
+
+#     # Return detection ensemble
+#     print(f"Ensemble created with {weights}\n")
+#     for k in "names", "nc", "yaml":
+#         setattr(model, k, getattr(model[0], k))
+#     model.stride = model[
+#         flow.argmax(flow.tensor([m.stride.max() for m in model])).int()
+#     ].stride  # max stride
+#     assert all(
+#         model[0].nc == m.nc for m in model
+#     ), f"Models have different class counts: {[m.nc for m in model]}"
+#     input(model)
+#     return model
 

@@ -87,7 +87,7 @@ from utils.oneflow_utils import (
     smart_resume,
     oneflow_distributed_zero_first,
 )
-from utils.temp_repair_tool import FlowCudaMemoryReserved, model_save,load_pretrained
+from utils.temp_repair_tool import FlowCudaMemoryReserved, model_save, load_pretrained
 
 LOCAL_RANK = int(
     os.getenv("LOCAL_RANK", -1)
@@ -179,7 +179,15 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         with oneflow_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
-        ckpt,csd,model = load_pretrained(weights=weights,cfg=cfg,hyp=hyp,nc=nc,resume=resume,device=device,mode='seg')
+        ckpt, csd, model = load_pretrained(
+            weights=weights,
+            cfg=cfg,
+            hyp=hyp,
+            nc=nc,
+            resume=resume,
+            device=device,
+            mode="seg",
+        )
     else:
         model = SegmentationModel(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(
             device
@@ -440,9 +448,14 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
             # Forward
             # with flow.cuda.amp.autocast(amp):
-            imgs = flow.FloatTensor(np.load('/home/fengwen/datasets/temp/yolo.npy')).to(device)
-            np.save('runs/imgs',imgs.numpy())
+            # np.save('runs/imgs',imgs.numpy())
             pred = model(imgs)  # forward
+            # for index,pp in enumerate(pred):
+            #     if flow.is_tensor(pp):
+            #         np.save("runs/pred_"+str(index), pp.numpy())
+            #     else:
+            #         print(index,type(pp))
+            # exit(0)
             loss, loss_items = compute_loss(
                 pred, targets.to(device), masks=masks.to(device).float()
             )
@@ -459,7 +472,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             if ni - last_opt_step >= accumulate:
                 # scaler.unscale_(optimizer)  # unscale gradients
                 # flow.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
-                # scaler.step(optimizer)  # optimizer.step
+                # scaler.step(optimizer)  #
                 # scaler.update()
                 optimizer.step()
                 optimizer.zero_grad()

@@ -560,11 +560,12 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
         #     if RANK != 0:
         #         stop = broadcast_list[0]
-        if stop:
-            break  # must break all DDP ranks
+        # if stop:
+        #     break  # must break all DDP ranks
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
+    exit(0)
     if RANK in {-1, 0}:
         LOGGER.info(
             f"\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours."
