@@ -10,7 +10,7 @@ Usage - Multi-GPU DDP training:
 
 Datasets:           --data mnist, fashion-mnist, cifar10, cifar100, imagenette, imagewoof, imagenet, or 'path/to/data'
 YOLOv5-cls models:  --model yolov5n-cls.pt, yolov5s-cls.pt, yolov5m-cls.pt, yolov5l-cls.pt, yolov5x-cls.pt
-Torchvision models: --model resnet50, efficientnet_b0, etc. See https://pyflow.org/vision/stable/models.html
+Torchvision models: --model resnet50, efficientnet_b0, etc. See https://pytorch.org/vision/stable/models.html
 """
 
 import argparse
@@ -46,7 +46,7 @@ from utils.loggers import GenericLogger
 from utils.plots import imshow_cls
 from utils.oneflow_utils import (ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP,
                                smart_optimizer, smartCrossEntropyLoss, oneflow_distributed_zero_first)
-from utils.temp_repair_tool import model_save,attempt_load_torch
+from utils.temp_repair_tool import load_pretrained, model_save,attempt_load_torch
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pyflow.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -94,7 +94,8 @@ def train(opt, device):
                                                    augment=True,
                                                    cache=opt.cache,
                                                    rank=LOCAL_RANK,
-                                                   workers=nw)
+                                                   workers=nw,
+                                                   shuffle=False)
 
     test_dir = data_dir / 'test' if (data_dir / 'test').exists() else data_dir / 'val'  # data/test or data/val
     if RANK in {-1, 0}:
@@ -110,7 +111,7 @@ def train(opt, device):
     # Model
     with oneflow_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
         if Path(opt.model).is_file() or opt.model.endswith('.pt'):
-            model = attempt_load(opt.model, device='cpu', fuse=False)
+            model = attempt_load_torch(opt.model, device='cpu', fuse=False)
         elif opt.model in flowvision.models.__dict__:  # flowvision models i.e. resnet50, efficientnet_b0
             model = flowvision.models.__dict__[opt.model](weights='IMAGENET1K_V1' if pretrained else None)
         else:
@@ -128,7 +129,8 @@ def train(opt, device):
     for p in model.parameters():
         p.requires_grad = True  # for training
     model = model.to(device)
-
+    model_info(model)
+    exit(0)
     # Info
     if RANK in {-1, 0}:
         model.names = trainloader.dataset.classes  # attach class names
@@ -139,7 +141,7 @@ def train(opt, device):
         images, labels = next(iter(trainloader))
         file = imshow_cls(images[:25], labels[:25], names=model.names, f=save_dir / 'train_images.jpg')
         logger.log_images(file, name='Train Examples')
-        logger.log_graph(model, imgsz)  # log model
+        # logger.log_graph(model, imgsz)  # log model
 
     # Optimizer
     optimizer = smart_optimizer(model, opt.optimizer, opt.lr0, momentum=0.9, decay=opt.decay)
@@ -158,12 +160,14 @@ def train(opt, device):
     # DDP mode
     if cuda and RANK != -1:
         model = smart_DDP(model)
-
+    
+    print(model)
+    input('=00')
     # Train
     t0 = time.time()
     criterion = smartCrossEntropyLoss(label_smoothing=opt.label_smoothing)  # loss function
     best_fitness = 0.0
-    scaler = amp.GradScaler(enabled=cuda)
+    # scaler = amp.GradScaler(enabled=cuda)
     val = test_dir.stem  # 'val' or 'test'
     LOGGER.info(f'Image sizes {imgsz} train, {imgsz} test\n'
                 f'Using {nw * WORLD_SIZE} dataloader workers\n'
@@ -179,20 +183,22 @@ def train(opt, device):
         if RANK in {-1, 0}:
             pbar = tqdm(enumerate(trainloader), total=len(trainloader), bar_format=TQDM_BAR_FORMAT)
         for i, (images, labels) in pbar:  # progress bar
-            images, labels = images.to(device, non_blocking=True), labels.to(device)
+            images, labels = images.to(device), labels.to(device)
 
             # Forward
-            with amp.autocast(enabled=cuda):  # stability issues when enabled
-                loss = criterion(model(images), labels)
+            # with amp.autocast(enabled=cuda):  # stability issues when enabled
+            loss = criterion(model(images), labels)
 
             # Backward
-            scaler.scale(loss).backward()
+            # scaler.scale(loss).backward()
+            loss.backward()
 
             # Optimize
-            scaler.unscale_(optimizer)  # unscale gradients
-            flow.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
-            scaler.step(optimizer)
-            scaler.update()
+            # scaler.unscale_(optimizer)  # unscale gradients
+            # flow.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
+            # scaler.step(optimizer)
+            # scaler.update()
+            optimizer.step()
             optimizer.zero_grad()
             if ema:
                 ema.update(model)
@@ -200,7 +206,8 @@ def train(opt, device):
             if RANK in {-1, 0}:
                 # Print
                 tloss = (tloss * i + loss.item()) / (i + 1)  # update mean losses
-                mem = '%.3gG' % (flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0)  # (GB)
+                # mem = '%.3gG' % (flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0)  # (GB)
+                mem = 'None'
                 pbar.desc = f"{f'{epoch + 1}/{epochs}':>10}{mem:>10}{tloss:>12.3g}" + ' ' * 36
 
                 # Test

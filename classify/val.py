@@ -65,6 +65,7 @@ def run(
     if training:  # called by train.py
         device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != 'cpu'  # half precision only supported on CUDA
+        half = False # TODO(fengwen) fp16开发中
         model.half() if half else model.float()
     else:  # called directly
         device = select_device(device, batch_size=batch_size)
@@ -102,19 +103,19 @@ def run(
     action = 'validating' if dataloader.dataset.root.stem == 'val' else 'testing'
     desc = f"{pbar.desc[:-36]}{action:>36}" if pbar else f"{action}"
     bar = tqdm(dataloader, desc, n, not training, bar_format=TQDM_BAR_FORMAT, position=0)
-    with flow.cuda.amp.autocast(enabled=device.type != 'cpu'):
-        for images, labels in bar:
-            with dt[0]:
-                images, labels = images.to(device, non_blocking=True), labels.to(device)
+    # with flow.cuda.amp.autocast(enabled=device.type != 'cpu'):
+    for images, labels in bar:
+        with dt[0]:
+            images, labels = images.to(device ), labels.to(device)
 
-            with dt[1]:
-                y = model(images)
+        with dt[1]:
+            y = model(images)
 
-            with dt[2]:
-                pred.append(y.argsort(1, descending=True)[:, :5])
-                targets.append(labels)
-                if criterion:
-                    loss += criterion(y, labels)
+        with dt[2]:
+            pred.append(y.argsort(1, descending=True)[:, :5])
+            targets.append(labels)
+            if criterion:
+                loss += criterion(y, labels)
 
     loss /= n
     pred, targets = flow.cat(pred), flow.cat(targets)

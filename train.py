@@ -195,7 +195,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         with oneflow_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
-        ckpt,csd,model = load_pretrained(weights=weights,cfg=cfg,hyp=hyp,nc=nc,resume=resume,device=device,mode='seg')
+        ckpt,csd,model = load_pretrained(weights=weights,cfg=cfg,hyp=hyp,nc=nc,resume=resume,device=device)
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
 
@@ -565,7 +565,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
-    exit(0)
     if RANK in {-1, 0}:
         LOGGER.info(
             f"\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours."
