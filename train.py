@@ -348,8 +348,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     )
 
     # temp_repair_tool
-    if RANK in {-1, 0}:
-        mem_tool = FlowCudaMemoryReserved("GPU" if cuda else "CPU")
+    # if RANK in {-1, 0}:
+    #     mem_tool = FlowCudaMemoryReserved("GPU" if cuda else "CPU")
 
     for epoch in range(
         start_epoch, epochs
@@ -392,6 +392,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         if RANK in {-1, 0}:
             pbar = tqdm(pbar, total=nb, bar_format=TQDM_BAR_FORMAT)  # progress bar
         optimizer.zero_grad()
+        input('exit0')
         for (
             i,
             (imgs, targets, paths, _),
@@ -440,14 +441,17 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # with flow.cuda.amp.autocast(amp):
             # imgs = flow.FloatTensor(np.load('/home/fengwen/datasets/temp/yolo.npy')).to(device)
             # np.save('runs/imgs',imgs.numpy())
+            input('exit01')
             pred = model(imgs)  # forward
             # for index,pp in enumerate(pred):
             #     if flow.is_tensor(pp):
             #         np.save("runs/pred_"+str(index), pp.numpy())
             # exit(0)
+            input('exit02')
             loss, loss_items = compute_loss(
                 pred, targets.to(device)
             )  # loss scaled by batch_size
+            input('exit03')
             if RANK != -1:  
                 loss *= WORLD_SIZE  # gradient averaged between devices in DDP mode
             if opt.quad:
@@ -473,7 +477,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
                 # mem = f'{flow.cuda.memory_reserved() / 1E9 if flow.cuda.is_available() else 0:.3g}G'  # (GB)
-                mem = mem_tool.cuda_memory_reserved("GB")
+                mem = '0.00GB'
                 pbar.set_description(
                     ("%11s" * 2 + "%11.4g" * 5)
                     % (
