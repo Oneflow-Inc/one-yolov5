@@ -268,15 +268,12 @@ def attempt_load_torch(weights, device=None, inplace=True, fuse=True):
 
     of_model.load_state_dict(csd, strict=False)  # load
     copy_model_attributes(ckpt["model"], of_model)  # add attributes
-    model_info(model=of_model,verbose=True)  
-    input("=00")
     # Model compatibility updates
     if not hasattr(of_model, "stride"):
         of_model.stride = flow.tensor([32.0])
     if hasattr(of_model, "names") and isinstance(of_model.names, (list, tuple)):
         of_model.names = dict(enumerate(of_model.names))  # convert to dict
 
-    print(hasattr(of_model, "fuse"))
     model.append(
         of_model.fuse().eval()
         if fuse and hasattr(of_model, "fuse")

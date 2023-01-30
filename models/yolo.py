@@ -154,18 +154,18 @@ class BaseModel(nn.Module):
     def _forward_once(self, x, profile=False, visualize=False):
         # print("    def _forward_once(self, x, profile=False, visualize=False):")
         y, dt = [], []  # outputs
-        # index = 0
-        # import numpy as np
-        # input(f'{self.count=}')
-        # self.count+=1
-        # def save_obj(path, obj):
-        #     print(f'{path=}')
-        #     if flow.is_tensor(obj):
-        #         np.save(path, obj.numpy)
-        #     for xx in obj:
-        #         if flow.is_tensor(xx):
-        #             np.save(path, xx.numpy())
-        #             break
+        index = 0
+        import numpy as np
+        input(f'{self.count=}')
+        self.count+=1
+        def save_obj(path, obj):
+            print(f'{path=}')
+            if flow.is_tensor(obj):
+                np.save(path, obj.numpy)
+            for xx in obj:
+                if flow.is_tensor(xx):
+                    np.save(path, xx.numpy())
+                    break
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = (
@@ -176,13 +176,15 @@ class BaseModel(nn.Module):
             if profile:
                 self._profile_one_layer(m, x, dt)
             
-            # print(flow.is_tensor(x))
-            # if flow.is_tensor(x):
-            #     print(f'{x.shape=} {x.dtype=}')
-            # save_obj("runs/input_" + str(index), x)
+            print(flow.is_tensor(x))
+            if flow.is_tensor(x):
+                print(f'{x.shape=} {x.dtype=}')
+            save_obj("runs/input_" + str(index), x)
+            if index == 9:
+                input(f'{index=} {m=}')
             x = m(x)  # run
-            # save_obj("runs/output_" + str(index), x)
-            # index = index + 1
+            save_obj("runs/output_" + str(index), x)
+            index = index + 1
             
             y.append(x if m.i in self.save else None)  # save output
             if visualize:
@@ -536,4 +538,22 @@ if __name__ == "__main__":
                 print(f"Error in {cfg}: {e}")
 
     else:  # report fused model summary
-        model.fuse()
+        # ckpt = flow.load('/home/fengwen/datasets/classify/weights/yolov5s-cls.pt',map_location='cpu')
+        def add_silu_if_not_exist(model):
+            for name, layer in model.named_children():
+                silu_exist = False
+                for _,sub_layer in layer.named_children():
+                    if isinstance(sub_layer, nn.SiLU):
+                            silu_exist = True
+                            break
+                if not silu_exist:
+                        silu = nn.SiLU
+                        setattr(model, name, nn.Sequential(layer, nn.SiLU))
+
+                else:
+                    add_silu_if_not_exist(layer)
+
+
+        model = ClassificationModel(model=model, nc=80, cutoff= 10)  # convert to classification model
+        add_silu_if_not_exist(model)
+        model_info(model=model)

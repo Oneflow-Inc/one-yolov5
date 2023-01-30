@@ -245,10 +245,10 @@ def init_seeds(seed=0, deterministic=False):
     flow.cuda.manual_seed_all(seed)  # for Multi-GPU, exception safe
     # flow.backends.cudnn.benchmark = True  # AutoBatch problem https://github.com/ultralytics/yolov5/issues/9287
     # if deterministic and check_version(flow.__version__, '1.12.0'):  # https://github.com/ultralytics/yolov5/pull/8213
-    #     flow.use_deterministic_algorithms(True)
-    #     flow.backends.cudnn.deterministic = True
-    #     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
-    #     os.environ['PYTHONHASHSEED'] = str(seed)
+    # flow.use_deterministic_algorithms(True)
+    flow.backends.cudnn.deterministic = True
+    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
+    os.environ['PYTHONHASHSEED'] = str(seed)
 
 
 def intersect_dicts(da, db, exclude=()):

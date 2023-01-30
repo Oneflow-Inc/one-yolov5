@@ -89,6 +89,7 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
+        input("=00")
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
 
         # Model compatibility updates

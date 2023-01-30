@@ -130,7 +130,7 @@ def train(opt, device):
         p.requires_grad = True  # for training
     model = model.to(device)
     model_info(model)
-    exit(0)
+    
     # Info
     if RANK in {-1, 0}:
         model.names = trainloader.dataset.classes  # attach class names
@@ -161,8 +161,6 @@ def train(opt, device):
     if cuda and RANK != -1:
         model = smart_DDP(model)
     
-    print(model)
-    input('=00')
     # Train
     t0 = time.time()
     criterion = smartCrossEntropyLoss(label_smoothing=opt.label_smoothing)  # loss function
@@ -187,8 +185,14 @@ def train(opt, device):
 
             # Forward
             # with amp.autocast(enabled=cuda):  # stability issues when enabled
-            loss = criterion(model(images), labels)
-
+            import numpy as np 
+            images = flow.ones([64, 3, 224, 224],device=device)
+            np.save('runs/images',images.numpy())
+            np.save('runs/labels',labels.numpy())
+            print(f'{images.shape=}')
+            x = (model(images))
+            loss = criterion(x, labels)
+            input(f'{loss=}')
             # Backward
             # scaler.scale(loss).backward()
             loss.backward()
