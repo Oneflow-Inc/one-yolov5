@@ -58,7 +58,6 @@ from pathlib import Path
 
 import pandas as pd
 import oneflow as torch
-from oneflow.utils.mobile_optimizer import optimize_for_mobile
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -123,7 +122,7 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr('TorchScript:'
     d = {"shape": im.shape, "stride": int(max(model.stride)), "names": model.names}
     extra_files = {'config.txt': json.dumps(d)}  # torch._C.ExtraFilesMap()
     if optimize:  # https://pytorch.org/tutorials/recipes/mobile_interpreter.html
-        optimize_for_mobile(ts)._save_for_lite_interpreter(str(f), _extra_files=extra_files)
+        LOGGER.info(f'\n error optimize_for_mobile(ts)._save_for_lite_interpreter(str(f), _extra_files=extra_files)')
     else:
         ts.save(str(f), _extra_files=extra_files)
     return f, None
