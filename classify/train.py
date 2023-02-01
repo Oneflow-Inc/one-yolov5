@@ -26,7 +26,7 @@ import oneflow as torch
 import oneflow.distributed as dist
 import oneflow.hub as hub
 import oneflow.optim.lr_scheduler as lr_scheduler
-import flowvision
+import flowvision as torchvision
 from oneflow.cuda import amp
 from tqdm import tqdm
 
@@ -161,7 +161,7 @@ def train(opt, device):
     t0 = time.time()
     criterion = smartCrossEntropyLoss(label_smoothing=opt.label_smoothing)  # loss function
     best_fitness = 0.0
-    scaler = amp.GradScaler(enabled=cuda)
+    # scaler = amp.GradScaler(enabled=cuda)
     val = test_dir.stem  # 'val' or 'test'
     LOGGER.info(f'Image sizes {imgsz} train, {imgsz} test\n'
                 f'Using {nw * WORLD_SIZE} dataloader workers\n'
@@ -180,17 +180,18 @@ def train(opt, device):
             images, labels = images.to(device), labels.to(device)
 
             # Forward
-            with amp.autocast(enabled=cuda):  # stability issues when enabled
-                loss = criterion(model(images), labels)
+            # with amp.autocast(enabled=cuda):  # stability issues when enabled
+            loss = criterion(model(images), labels)
 
             # Backward
-            scaler.scale(loss).backward()
+            loss.backward()
 
             # Optimize
-            scaler.unscale_(optimizer)  # unscale gradients
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
-            scaler.step(optimizer)
-            scaler.update()
+            # scaler.unscale_(optimizer)  # unscale gradients
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
+            # scaler.step(optimizer)
+            # scaler.update()
+            optimizer.step()
             optimizer.zero_grad()
             if ema:
                 ema.update(model)
@@ -198,7 +199,8 @@ def train(opt, device):
             if RANK in {-1, 0}:
                 # Print
                 tloss = (tloss * i + loss.item()) / (i + 1)  # update mean losses
-                mem = '%.3gG' % (torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0)  # (GB)
+                # mem = '%.3gG' % (torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0)  # (GB)
+                mem = 'None'
                 pbar.desc = f"{f'{epoch + 1}/{epochs}':>10}{mem:>10}{tloss:>12.3g}" + ' ' * 36
 
                 # Test
@@ -310,7 +312,6 @@ def main(opt):
         assert torch.cuda.device_count() > LOCAL_RANK, 'insufficient CUDA devices for DDP command'
         torch.cuda.set_device(LOCAL_RANK)
         device = torch.device('cuda', LOCAL_RANK)
-        dist.init_process_group(backend="nccl" if dist.is_nccl_available() else "gloo")
 
     # Parameters
     opt.save_dir = increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok)  # increment run

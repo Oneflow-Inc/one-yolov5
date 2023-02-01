@@ -102,19 +102,19 @@ def run(
     action = 'validating' if dataloader.dataset.root.stem == 'val' else 'testing'
     desc = f"{pbar.desc[:-36]}{action:>36}" if pbar else f"{action}"
     bar = tqdm(dataloader, desc, n, not training, bar_format=TQDM_BAR_FORMAT, position=0)
-    with torch.cuda.amp.autocast(enabled=device.type != 'cpu'):
-        for images, labels in bar:
-            with dt[0]:
-                images, labels = images.to(device), labels.to(device)
+    # with torch.cuda.amp.autocast(enabled=device.type != 'cpu'):
+    for images, labels in bar:
+        with dt[0]:
+            images, labels = images.to(device), labels.to(device)
 
-            with dt[1]:
-                y = model(images)
+        with dt[1]:
+            y = model(images)
 
-            with dt[2]:
-                pred.append(y.argsort(1, descending=True)[:, :5])
-                targets.append(labels)
-                if criterion:
-                    loss += criterion(y, labels)
+        with dt[2]:
+            pred.append(y.argsort(1, descending=True)[:, :5])
+            targets.append(labels)
+            if criterion:
+                loss += criterion(y, labels)
 
     loss /= n
     pred, targets = torch.cat(pred), torch.cat(targets)
