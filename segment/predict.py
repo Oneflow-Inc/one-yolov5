@@ -170,6 +170,7 @@ def run(
                 # Print results
                 for c in det[:, 5].unique():
                     n = (det[:, 5] == c).sum()  # detections per class
+                    c, n = c.item(), n.item()
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
 
                 # Mask plotting
