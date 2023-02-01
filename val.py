@@ -6,7 +6,7 @@ Usage:
     $ python val.py --weights yolov5s.pt --data coco128.yaml --img 640
 
 Usage - formats:
-    $ python val.py --weights yolov5s.pt                 # PyTorch
+    $ python val.py --weights yolov5s.pt                 # OneFlow
                               yolov5s.torchscript        # TorchScript
                               yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                               yolov5s_openvino_model     # OpenVINO
@@ -130,7 +130,7 @@ def run(
     if training:  # called by train.py
         device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != 'cpu'  # half precision only supported on CUDA
-        half = False # TODO(fengwen) 待fp16开发好
+        half = False # TODO(fengwen) 待fp16研发好
         model.half() if half else model.float()
     else:  # called directly
         device = select_device(device, batch_size=batch_size)
@@ -150,7 +150,7 @@ def run(
             device = model.device
             if not (pt or jit):
                 batch_size = 1  # export.py models default to batch-size 1
-                LOGGER.info(f'Forcing --batch-size 1 square inference (1,3,{imgsz},{imgsz}) for non-PyTorch models')
+                LOGGER.info(f'Forcing --batch-size 1 square inference (1,3,{imgsz},{imgsz}) for non-OneFlow models')
 
         # Data
         data = check_dataset(data)  # check

@@ -33,7 +33,6 @@ import numpy as np
 import pandas as pd
 import pkg_resources as pkg
 import oneflow as torch
-import flowvision
 import yaml
 
 from utils import TryExcept, emojis
@@ -317,7 +316,7 @@ def git_describe(path=ROOT):  # path must be a directory
 
 @TryExcept()
 @WorkingDirectory(ROOT)
-def check_git_status(repo='ultralytics/yolov5', branch='master'):
+def check_git_status(repo='Oneflow-Inc/one-yolov5', branch='master'):
     # YOLOv5 status check, recommend 'git pull' if code is out of date
     url = f'https://github.com/{repo}'
     msg = f', for updates see {url}'
@@ -330,7 +329,7 @@ def check_git_status(repo='ultralytics/yolov5', branch='master'):
     if any(matches):
         remote = splits[matches.index(True) - 1]
     else:
-        remote = 'ultralytics'
+        remote = 'Oneflow-Inc'
         check_output(f'git remote add {remote} {url}', shell=True)
     check_output(f'git fetch {remote}', shell=True, timeout=5)  # git fetch
     local_branch = check_output('git rev-parse --abbrev-ref HEAD', shell=True).decode().strip()  # checked out
