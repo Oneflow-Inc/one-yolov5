@@ -3,8 +3,8 @@
 Loss functions
 """
 
-import torch
-import torch.nn as nn
+import oneflow as torch
+import oneflow.nn as nn
 
 from utils.metrics import bbox_iou
 from utils.torch_utils import de_parallel

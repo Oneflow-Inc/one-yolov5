@@ -10,7 +10,7 @@ import urllib
 from pathlib import Path
 
 import requests
-import torch
+import oneflow as torch
 
 
 def is_url(url, check=True):

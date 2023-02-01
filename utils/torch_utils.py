@@ -13,11 +13,11 @@ from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 
-import torch
-import torch.distributed as dist
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.nn.parallel import DistributedDataParallel as DDP
+import oneflow as torch
+import oneflow.distributed as dist
+import oneflow.nn as nn
+import oneflow.nn.functional as F
+from oneflow.nn.parallel import DistributedDataParallel as DDP
 
 from utils.general import LOGGER, check_version, colorstr, file_date, git_describe
 
@@ -201,7 +201,7 @@ def profile(input, ops, n=10, device=None):
 
 def is_parallel(model):
     # Returns True if model is of type DP or DDP
-    return type(model) in (nn.parallel.DataParallel, nn.parallel.DistributedDataParallel)
+    return type(model) in (nn.parallel.DistributedDataParallel,)
 
 
 def de_parallel(model):
@@ -237,7 +237,7 @@ def sparsity(model):
 
 def prune(model, amount=0.3):
     # Prune model to requested global sparsity
-    import torch.nn.utils.prune as prune
+    import oneflow.nn.utils.prune as prune
     for name, m in model.named_modules():
         if isinstance(m, nn.Conv2d):
             prune.l1_unstructured(m, name='weight', amount=amount)  # prune

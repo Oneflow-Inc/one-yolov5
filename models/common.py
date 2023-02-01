@@ -19,11 +19,11 @@ import cv2
 import numpy as np
 import pandas as pd
 import requests
-import torch
-import torch.nn as nn
+import oneflow as torch
+import oneflow.nn as nn
 from IPython.display import display
 from PIL import Image
-from torch.cuda import amp
+from oneflow.cuda import amp
 
 from utils import TryExcept
 from utils.dataloaders import exif_transpose, letterbox

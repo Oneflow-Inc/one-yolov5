@@ -8,13 +8,13 @@ import random
 
 import cv2
 import numpy as np
-import torch
-from torch.utils.data import DataLoader, distributed
+import oneflow as torch
+from oneflow.utils.data import DataLoader, distributed
 
 from ..augmentations import augment_hsv, copy_paste, letterbox
 from ..dataloaders import InfiniteDataLoader, LoadImagesAndLabels, seed_worker
 from ..general import LOGGER, xyn2xy, xywhn2xyxy, xyxy2xywhn
-from ..torch_utils import torch_distributed_zero_first
+from ..torch_utils import oneflow as torch_distributed_zero_first
 from .augmentations import mixup, random_perspective
 
 RANK = int(os.getenv('RANK', -1))

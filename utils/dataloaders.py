@@ -20,12 +20,12 @@ from urllib.parse import urlparse
 
 import numpy as np
 import psutil
-import torch
-import torch.nn.functional as F
-import torchvision
+import oneflow as torch
+import oneflow.nn.functional as F
+import flowvision as torchvision
 import yaml
 from PIL import ExifTags, Image, ImageOps
-from torch.utils.data import DataLoader, Dataset, dataloader, distributed
+from oneflow.utils.data import DataLoader, Dataset, dataloader, distributed
 from tqdm import tqdm
 
 from utils.augmentations import (Albumentations, augment_hsv, classify_albumentations, classify_transforms, copy_paste,

@@ -22,12 +22,12 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 
-import torch
-import torch.distributed as dist
-import torch.hub as hub
-import torch.optim.lr_scheduler as lr_scheduler
-import torchvision
-from torch.cuda import amp
+import oneflow as torch
+import oneflow.distributed as dist
+import oneflow.hub as hub
+import oneflow.optim.lr_scheduler as lr_scheduler
+import flowvision
+from oneflow.cuda import amp
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
@@ -177,7 +177,7 @@ def train(opt, device):
         if RANK in {-1, 0}:
             pbar = tqdm(enumerate(trainloader), total=len(trainloader), bar_format=TQDM_BAR_FORMAT)
         for i, (images, labels) in pbar:  # progress bar
-            images, labels = images.to(device, non_blocking=True), labels.to(device)
+            images, labels = images.to(device), labels.to(device)
 
             # Forward
             with amp.autocast(enabled=cuda):  # stability issues when enabled

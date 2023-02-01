@@ -23,8 +23,8 @@ except (ModuleNotFoundError, ImportError):
     COMET_PROJECT_NAME = None
 
 import PIL
-import torch
-import torchvision.transforms as T
+import oneflow as torch
+import flowvision.transforms as T
 import yaml
 
 from utils.dataloaders import img2label_paths

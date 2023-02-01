@@ -8,8 +8,8 @@ import warnings
 from pathlib import Path
 
 import pkg_resources as pkg
-import torch
-from torch.utils.tensorboard import SummaryWriter
+import oneflow as torch
+# from oneflow.utils.tensorboard import SummaryWriter
 
 from utils.general import LOGGER, colorstr, cv2
 from utils.loggers.clearml.clearml_utils import ClearmlLogger
@@ -101,7 +101,7 @@ class Loggers():
         if 'tb' in self.include and not self.opt.evolve:
             prefix = colorstr('TensorBoard: ')
             self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
-            self.tb = SummaryWriter(str(s))
+            self.tb = None # SummaryWriter(str(s))
 
         # W&B
         if wandb and 'wandb' in self.include:

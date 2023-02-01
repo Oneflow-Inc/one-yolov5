@@ -5,8 +5,8 @@ Experimental modules
 import math
 
 import numpy as np
-import torch
-import torch.nn as nn
+import oneflow as torch
+import oneflow.nn as nn
 
 from utils.downloads import attempt_download
 

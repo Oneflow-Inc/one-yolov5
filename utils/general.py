@@ -32,8 +32,8 @@ import IPython
 import numpy as np
 import pandas as pd
 import pkg_resources as pkg
-import torch
-import torchvision
+import oneflow as torch
+import flowvision
 import yaml
 
 from utils import TryExcept, emojis
@@ -974,7 +974,7 @@ def non_max_suppression(
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
+        i = torch.nms(boxes, scores, iou_thres)  # NMS
         i = i[:max_det]  # limit detections
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
             # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)

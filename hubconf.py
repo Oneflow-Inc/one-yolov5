@@ -3,14 +3,14 @@
 PyTorch Hub models https://pytorch.org/hub/ultralytics_yolov5
 
 Usage:
-    import torch
+    import oneflow as torch
     model = torch.hub.load('ultralytics/yolov5', 'yolov5s')  # official model
     model = torch.hub.load('ultralytics/yolov5:master', 'yolov5s')  # from branch
     model = torch.hub.load('ultralytics/yolov5', 'custom', 'yolov5s.pt')  # custom/local model
     model = torch.hub.load('.', 'custom', 'yolov5s.pt', source='local')  # local repo
 """
 
-import torch
+import oneflow as torch
 
 
 def _create(name, pretrained=True, channels=3, classes=80, autoshape=True, verbose=True, device=None):

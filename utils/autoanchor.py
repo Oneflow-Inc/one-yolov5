@@ -6,7 +6,7 @@ AutoAnchor utils
 import random
 
 import numpy as np
-import torch
+import oneflow as torch
 import yaml
 from tqdm import tqdm
 

@@ -5,7 +5,7 @@ import os
 import sys
 from pathlib import Path
 
-import torch
+import oneflow as torch
 import yaml
 
 FILE = Path(__file__).resolve()

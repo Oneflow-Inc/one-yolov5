@@ -23,8 +23,8 @@ if str(ROOT) not in sys.path:
 
 import numpy as np
 import tensorflow as tf
-import torch
-import torch.nn as nn
+import oneflow as torch
+import oneflow.nn as nn
 from tensorflow import keras
 
 from models.common import (C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv,

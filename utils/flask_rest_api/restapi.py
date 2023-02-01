@@ -6,7 +6,7 @@ Run a Flask REST API exposing one or more YOLOv5s models
 import argparse
 import io
 
-import torch
+import oneflow as torch
 from flask import Flask, request
 from PIL import Image
 

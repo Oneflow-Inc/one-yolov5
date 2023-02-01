@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import torch
+import oneflow as torch
 
 from .. import threaded
 from ..general import xywh2xyxy

@@ -8,9 +8,9 @@ import random
 
 import cv2
 import numpy as np
-import torch
-import torchvision.transforms as T
-import torchvision.transforms.functional as TF
+import oneflow as torch
+import flowvision.transforms as T
+import flowvision.transforms.functional as TF
 
 from utils.general import LOGGER, check_version, colorstr, resample_segments, segment2box, xywhn2xyxy
 from utils.metrics import bbox_ioa

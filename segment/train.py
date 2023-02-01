@@ -26,11 +26,11 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-import torch
-import torch.distributed as dist
-import torch.nn as nn
+import oneflow as torch
+import oneflow.distributed as dist
+import oneflow.nn as nn
 import yaml
-from torch.optim import lr_scheduler
+from oneflow.optim import lr_scheduler
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
@@ -283,7 +283,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         for i, (imgs, targets, paths, _, masks) in pbar:  # batch ------------------------------------------------------
             # callbacks.run('on_train_batch_start')
             ni = i + nb * epoch  # number integrated batches (since train start)
-            imgs = imgs.to(device, non_blocking=True).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
+            imgs = imgs.to(device).float() / 255  # uint8 to float32, 0-255 to 0.0-1.0
 
             # Warmup
             if ni <= nw:

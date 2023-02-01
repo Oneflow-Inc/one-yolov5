@@ -28,7 +28,7 @@ from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
 import numpy as np
-import torch
+import oneflow as torch
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
@@ -37,7 +37,7 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-import torch.nn.functional as F
+import oneflow.nn.functional as F
 
 from models.common import DetectMultiBackend
 from models.yolo import SegmentationModel
@@ -242,7 +242,7 @@ def run(
         # callbacks.run('on_val_batch_start')
         with dt[0]:
             if cuda:
-                im = im.to(device, non_blocking=True)
+                im = im.to(device)
                 targets = targets.to(device)
                 masks = masks.to(device)
             masks = masks.float()

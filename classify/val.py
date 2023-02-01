@@ -25,7 +25,7 @@ import os
 import sys
 from pathlib import Path
 
-import torch
+import oneflow as torch
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
@@ -105,7 +105,7 @@ def run(
     with torch.cuda.amp.autocast(enabled=device.type != 'cpu'):
         for images, labels in bar:
             with dt[0]:
-                images, labels = images.to(device, non_blocking=True), labels.to(device)
+                images, labels = images.to(device), labels.to(device)
 
             with dt[1]:
                 y = model(images)

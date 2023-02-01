@@ -3,9 +3,9 @@
 Activation functions
 """
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import oneflow as torch
+import oneflow.nn as nn
+import oneflow.nn.functional as F
 
 
 class SiLU(nn.Module):
