@@ -169,6 +169,7 @@ def run(
     if training:  # called by train.py
         device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != 'cpu'  # half precision only supported on CUDA
+        half = False # TODO(fengwen) 待fp16研发好
         model.half() if half else model.float()
         nm = de_parallel(model).model[-1].nm  # number of masks
     else:  # called directly

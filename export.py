@@ -72,6 +72,7 @@ from utils.dataloaders import LoadImages
 from utils.general import (LOGGER, Profile, check_dataset, check_img_size, check_requirements, check_version,
                            check_yaml, colorstr, file_size, get_default_args, print_args, url2file, yaml_save)
 from utils.torch_utils import select_device, smart_inference_mode
+from oneflow_onnx.oneflow2onnx.util import convert_to_onnx_and_check
 
 MACOS = platform.system() == 'Darwin'  # macOS environment
 
@@ -129,59 +130,115 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr('TorchScript:'
 
 
 @try_export
-def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr('ONNX:')):
+# def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr('ONNX:')):
+#     # YOLOv5 ONNX export
+#     check_requirements('onnx>=1.12.0')
+#     import onnx
+
+#     LOGGER.info(f'\n{prefix} starting export with onnx {onnx.__version__}...')
+#     f = file.with_suffix('.onnx')
+
+#     output_names = ['output0', 'output1'] if isinstance(model, SegmentationModel) else ['output0']
+#     if dynamic:
+#         dynamic = {'images': {0: 'batch', 2: 'height', 3: 'width'}}  # shape(1,3,640,640)
+#         if isinstance(model, SegmentationModel):
+#             dynamic['output0'] = {0: 'batch', 1: 'anchors'}  # shape(1,25200,85)
+#             dynamic['output1'] = {0: 'batch', 2: 'mask_height', 3: 'mask_width'}  # shape(1,32,160,160)
+#         elif isinstance(model, DetectionModel):
+#             dynamic['output0'] = {0: 'batch', 1: 'anchors'}  # shape(1,25200,85)
+
+#     torch.onnx.export(
+#         model.cpu() if dynamic else model,  # --dynamic only compatible with cpu
+#         im.cpu() if dynamic else im,
+#         f,
+#         verbose=False,
+#         opset_version=opset,
+#         do_constant_folding=True,  # WARNING: DNN inference with torch>=1.12 may require do_constant_folding=False
+#         input_names=['images'],
+#         output_names=output_names,
+#         dynamic_axes=dynamic or None)
+
+#     # Checks
+#     model_onnx = onnx.load(f)  # load onnx model
+#     onnx.checker.check_model(model_onnx)  # check onnx model
+
+#     # Metadata
+#     d = {'stride': int(max(model.stride)), 'names': model.names}
+#     for k, v in d.items():
+#         meta = model_onnx.metadata_props.add()
+#         meta.key, meta.value = k, str(v)
+#     onnx.save(model_onnx, f)
+
+#     # Simplify
+#     if simplify:
+#         try:
+#             cuda = torch.cuda.is_available()
+#             check_requirements(('onnxruntime-gpu' if cuda else 'onnxruntime', 'onnx-simplifier>=0.4.1'))
+#             import onnxsim
+
+#             LOGGER.info(f'{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...')
+#             model_onnx, check = onnxsim.simplify(model_onnx)
+#             assert check, 'assert check failed'
+#             onnx.save(model_onnx, f)
+#         except Exception as e:
+#             LOGGER.info(f'{prefix} simplifier failure: {e}')
+#     return f, model_onnx
+
+def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
-    check_requirements('onnx>=1.12.0')
-    import onnx
+    try:
+        check_requirements(("onnx",))
+        import onnx
 
-    LOGGER.info(f'\n{prefix} starting export with onnx {onnx.__version__}...')
-    f = file.with_suffix('.onnx')
+        LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
+        f = file.with_suffix(".onnx")
 
-    output_names = ['output0', 'output1'] if isinstance(model, SegmentationModel) else ['output0']
-    if dynamic:
-        dynamic = {'images': {0: 'batch', 2: 'height', 3: 'width'}}  # shape(1,3,640,640)
-        if isinstance(model, SegmentationModel):
-            dynamic['output0'] = {0: 'batch', 1: 'anchors'}  # shape(1,25200,85)
-            dynamic['output1'] = {0: 'batch', 2: 'mask_height', 3: 'mask_width'}  # shape(1,32,160,160)
-        elif isinstance(model, DetectionModel):
-            dynamic['output0'] = {0: 'batch', 1: 'anchors'}  # shape(1,25200,85)
+        class YOLOGraph(torch.nn.Graph):
+            def __init__(self):
+                super().__init__()
+                self.model = model
 
-    torch.onnx.export(
-        model.cpu() if dynamic else model,  # --dynamic only compatible with cpu
-        im.cpu() if dynamic else im,
-        f,
-        verbose=False,
-        opset_version=opset,
-        do_constant_folding=True,  # WARNING: DNN inference with torch>=1.12 may require do_constant_folding=False
-        input_names=['images'],
-        output_names=output_names,
-        dynamic_axes=dynamic or None)
+            def build(self, x):
+                return self.model(x)
 
-    # Checks
-    model_onnx = onnx.load(f)  # load onnx model
-    onnx.checker.check_model(model_onnx)  # check onnx model
+        yolo_graph = YOLOGraph()
+        yolo_graph._compile(torch.randn(im.size()))
 
-    # Metadata
-    d = {'stride': int(max(model.stride)), 'names': model.names}
-    for k, v in d.items():
-        meta = model_onnx.metadata_props.add()
-        meta.key, meta.value = k, str(v)
-    onnx.save(model_onnx, f)
+        convert_to_onnx_and_check(yolo_graph, onnx_model_path=str(f), opset=opset)
 
-    # Simplify
-    if simplify:
-        try:
-            cuda = torch.cuda.is_available()
-            check_requirements(('onnxruntime-gpu' if cuda else 'onnxruntime', 'onnx-simplifier>=0.4.1'))
-            import onnxsim
+        # Checks
+        model_onnx = onnx.load(f)  # load onnx model
+        onnx.checker.check_model(model_onnx)  # check onnx model
 
-            LOGGER.info(f'{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...')
-            model_onnx, check = onnxsim.simplify(model_onnx)
-            assert check, 'assert check failed'
-            onnx.save(model_onnx, f)
-        except Exception as e:
-            LOGGER.info(f'{prefix} simplifier failure: {e}')
-    return f, model_onnx
+        # Metadata
+        d = {"stride": int(max(model.stride)), "names": model.names}
+        for k, v in d.items():
+            meta = model_onnx.metadata_props.add()
+            meta.key, meta.value = k, str(v)
+        onnx.save(model_onnx, f)
+
+        # Simplify
+        if simplify:
+            try:
+                cuda = torch.cuda.is_available()
+                check_requirements(
+                    (
+                        "onnxruntime-gpu" if cuda else "onnxruntime",
+                        "onnx-simplifier>=0.4.1",
+                    )
+                )
+                import onnxsim
+
+                LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
+                model_onnx, check = onnxsim.simplify(model_onnx)
+                assert check, "assert check failed"
+                onnx.save(model_onnx, f)
+            except Exception as e:
+                LOGGER.info(f"{prefix} simplifier failure: {e}")
+        LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
+        return f, model_onnx
+    except Exception as e:
+        LOGGER.info(f"{prefix} export failure: {e}")
 
 
 @try_export
@@ -554,7 +611,7 @@ def run(
 
     # Exports
     f = [''] * len(fmts)  # exported filenames
-    warnings.filterwarnings(action='ignore', category=torch.jit.TracerWarning)  # suppress TracerWarning
+    # warnings.filterwarnings(action='ignore', category=torch.jit.TracerWarning)  # suppress TracerWarning
     if jit:  # TorchScript
         f[0], _ = export_torchscript(model, im, file, optimize)
     if engine:  # TensorRT required before ONNX

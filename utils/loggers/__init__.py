@@ -335,7 +335,7 @@ class GenericLogger:
             prefix = colorstr('TensorBoard: ')
             self.console_logger.info(
                 f"{prefix}Start with 'tensorboard --logdir {self.save_dir.parent}', view at http://localhost:6006/")
-            self.tb = SummaryWriter(str(self.save_dir))
+            self.tb = None 
 
         if wandb and 'wandb' in self.include:
             self.wandb = wandb.init(project=web_project_name(str(opt.project)),
