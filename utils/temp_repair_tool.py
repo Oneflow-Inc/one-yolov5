@@ -149,9 +149,11 @@ def intersect_dicts(da, db, exclude=()):
 
 
 def load_pretrained(weights, cfg, hyp, nc, resume, device, mode="default"):
+    return load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device, mode)
+
     try:
         return load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device, mode)
-    except:
+    except :
         return load_torch_pretrained(weights, cfg, hyp, nc, resume, device, mode)
 
 
@@ -176,9 +178,11 @@ def load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device, mode="default
     exclude = (
         ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []
     )  # exclude keys
+    print('=02'*40)
     csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
     csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
     model.load_state_dict(csd, strict=False)  # load
+
     LOGGER.info(
         f"load_oneflow_pretrained Transferred {len(csd)}/{len(model.state_dict())} items from {weights}"
     )  # report

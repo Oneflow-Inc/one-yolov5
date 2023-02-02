@@ -88,10 +88,11 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     model = Ensemble()
     
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = flow.load(attempt_download(w), map_location="cpu")  # load
-        input("=00")
+        print('=d00'*40)
+        ckpt = flow.load(w, map_location="cpu")  # load
+        print('=d01'*40)
         ckpt = (ckpt.get("ema") or ckpt["model"]).to(device).float()  # FP32 model
-
+        print('=d02'*40)
         # Model compatibility updates
         if not hasattr(ckpt, "stride"):
             ckpt.stride = flow.tensor([32.0])

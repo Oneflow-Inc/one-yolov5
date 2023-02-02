@@ -93,7 +93,7 @@ def train(opt, device):
                                                    batch_size=bs // WORLD_SIZE,
                                                    augment=True,
                                                    cache=opt.cache,
-                                                   rank=LOCAL_RANK,
+                                                   rank= -1,
                                                    workers=nw,
                                                    shuffle=False)
 
@@ -186,13 +186,14 @@ def train(opt, device):
             # Forward
             # with amp.autocast(enabled=cuda):  # stability issues when enabled
             import numpy as np 
-            images = flow.ones([64, 3, 224, 224],device=device)
-            np.save('runs/images',images.numpy())
-            np.save('runs/labels',labels.numpy())
-            print(f'{images.shape=}')
-            x = (model(images))
-            loss = criterion(x, labels)
-            input(f'{loss=}')
+            # images = flow.ones(images.shape,device=device) 
+            # np.save('runs/images',images.numpy())
+            # exit(0)
+            # np.save('runs/labels',labels.numpy())
+            # print(f'{images.shape=}')
+            # x = (model(images))
+            loss = criterion(model(images), labels)
+            # input(f'{loss=}')
             # Backward
             # scaler.scale(loss).backward()
             loss.backward()
