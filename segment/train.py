@@ -63,6 +63,7 @@ LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 GIT_INFO = check_git_info()
+LOCAL_RANK, RANK,WORLD_SIZE = -1, -1, 1
 
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
@@ -164,11 +165,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
         del ckpt, csd
 
-    # DP mode
-    if cuda and RANK == -1 and torch.cuda.device_count() > 1:
-        LOGGER.warning('WARNING ⚠️ DP not recommended, use torch.distributed.run for best DDP Multi-GPU results.\n'
-                       'See Multi-GPU Tutorial at https://github.com/ultralytics/yolov5/issues/475 to get started.')
-        model = torch.nn.DataParallel(model)
 
     # SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
@@ -191,7 +187,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         image_weights=opt.image_weights,
         quad=opt.quad,
         prefix=colorstr('train: '),
-        shuffle=True,
+        shuffle=False,
         mask_downsample_ratio=mask_ratio,
         overlap_mask=overlap,
     )
@@ -405,13 +401,13 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 # callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
         # EarlyStopping
-        if RANK != -1:  # if DDP training
-            broadcast_list = [stop if RANK == 0 else None]
-            dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-            if RANK != 0:
-                stop = broadcast_list[0]
-        if stop:
-            break  # must break all DDP ranks
+        # if RANK != -1:  # if DDP training
+        #     broadcast_list = [stop if RANK == 0 else None]
+        #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
+        #     if RANK != 0:
+        #         stop = broadcast_list[0]
+        # if stop:
+        #     break  # must break all DDP ranks
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------

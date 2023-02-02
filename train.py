@@ -64,6 +64,7 @@ LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable
 RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 GIT_INFO = check_git_info()
+LOCAL_RANK, RANK,WORLD_SIZE = -1, -1, 1
 
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
@@ -129,7 +130,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-    amp = check_amp(model)  # check AMP
+    # amp = check_amp(model)  # check AMP
+    amp = False 
 
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
@@ -172,11 +174,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
         del ckpt, csd
 
-    # DP mode
-    if cuda and RANK == -1 and torch.cuda.device_count() > 1:
-        LOGGER.warning('WARNING ⚠️ DP not recommended, use torch.distributed.run for best DDP Multi-GPU results.\n'
-                       'See Multi-GPU Tutorial at https://github.com/ultralytics/yolov5/issues/475 to get started.')
-        model = torch.nn.DataParallel(model)
+
 
     # SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
@@ -198,7 +196,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                               image_weights=opt.image_weights,
                                               quad=opt.quad,
                                               prefix=colorstr('train: '),
-                                              shuffle=True,
+                                              shuffle=False,
                                               seed=opt.seed)
     labels = np.concatenate(dataset.labels, 0)
     mlc = int(labels[:, 0].max())  # max label class
@@ -250,7 +248,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     maps = np.zeros(nc)  # mAP per class
     results = (0, 0, 0, 0, 0, 0, 0)  # P, R, mAP@.5, mAP@.5-.95, val_loss(box, obj, cls)
     scheduler.last_epoch = start_epoch - 1  # do not move
-    scaler = torch.cuda.amp.GradScaler(enabled=amp)
+    # scaler = torch.cuda.amp.GradScaler(enabled=amp)
     stopper, stop = EarlyStopping(patience=opt.patience), False
     compute_loss = ComputeLoss(model)  # init loss class
     callbacks.run('on_train_start')
@@ -314,14 +312,16 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     loss *= 4.
 
             # Backward
-            scaler.scale(loss).backward()
+            # scaler.scale(loss).backward()
+            loss.backward()
 
             # Optimize - https://pytorch.org/docs/master/notes/amp_examples.html
             if ni - last_opt_step >= accumulate:
-                scaler.unscale_(optimizer)  # unscale gradients
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
-                scaler.step(optimizer)  # optimizer.step
-                scaler.update()
+                # scaler.unscale_(optimizer)  # unscale gradients
+                # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)  # clip gradients
+                # scaler.step(optimizer)  # optimizer.step
+                # scaler.update()
+                optimizer.step()
                 optimizer.zero_grad()
                 if ema:
                     ema.update(model)
@@ -391,13 +391,13 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
 
         # EarlyStopping
-        if RANK != -1:  # if DDP training
-            broadcast_list = [stop if RANK == 0 else None]
-            dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
-            if RANK != 0:
-                stop = broadcast_list[0]
-        if stop:
-            break  # must break all DDP ranks
+        # if RANK != -1:  # if DDP training
+        #     broadcast_list = [stop if RANK == 0 else None]
+        #     dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
+        #     if RANK != 0:
+        #         stop = broadcast_list[0]
+        # if stop:
+        #     break  # must break all DDP ranks
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
