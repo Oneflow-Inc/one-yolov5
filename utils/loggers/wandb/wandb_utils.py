@@ -515,7 +515,7 @@ class WandbLogger():
                         "class_score": conf},
                     "domain": "pixel"} for *xyxy, conf, cls in pred.tolist()]
                 boxes = {"predictions": {"box_data": box_data, "class_labels": names}}  # inference-space
-                self.bbox_media_panel_images.append(wandb.Image(im, boxes=boxes, caption=path.name))
+                self.bbox_media_panel_images.append(wandb.Image(im.permute(1, 2, 0), boxes=boxes, caption=path.name))
 
     def log(self, log_dict):
         """
