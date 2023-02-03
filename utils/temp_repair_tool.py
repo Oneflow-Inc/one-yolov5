@@ -1,15 +1,4 @@
 # One-YOLOv5 🚀 fix by OneFlow
-"""
-缺少：
-1. https://pytorch.org/docs/stable/mobile_optimizer.html?highlight=optimize_for_mobile#torch.utils.mobile_optimizer.optimize_for_mobile
-
-"""
-"""
-未对齐:
-1. i = flowvision.ops.nms(boxes, scores, iou_thres)  # NMS flow.nms()
-2. imgs = imgs.to(device).float 
-"""
-
 import os
 import psutil
 import subprocess
@@ -19,7 +8,6 @@ import threading
 import oneflow as flow
 import numpy as np
 from pathlib import Path
-
 
 class FlowCudaMemoryReserved:
     """实现思路
@@ -92,9 +80,6 @@ class FlowCudaMemoryReserved:
                 current_memory = process_memory[1].strip().split(" ")
                 return current_memory[0]
         return None
-
-
-
 
 def intersect_dicts(da, db, exclude=()):
     # Dictionary intersection of matching keys and shapes, omitting 'exclude' keys, using da values
