@@ -374,7 +374,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 ckpt = {
                     'epoch': epoch,
                     'best_fitness': best_fitness,
-                    'model': deepcopy(de_parallel(model)).half(),
+                    'model': de_parallel(model),
                     'ema': deepcopy(ema.ema).half(),
                     'updates': ema.updates,
                     'optimizer': optimizer.state_dict(),
@@ -395,7 +395,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         # EarlyStopping
         if RANK != -1:  # if DDP training
             broadcast_list = [stop if RANK == 0 else None]
-            dist.broadcast_object_list(broadcast_list, 0)  # broadcast 'stop' to all ranks
             if RANK != 0:
                 stop = broadcast_list[0]
         if stop:
@@ -433,7 +432,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         # callbacks.run('on_train_end', last, best, epoch, results)
         # on train end callback using genericLogger
-        logger.log_metrics(dict(zip(KEYS[4:16], results)), epochs)
+        logger.log_metrics(dict(zip(KEYS[4:16], results)), epoch)
         if not opt.evolve:
             logger.log_model(best, epoch)
         if plots:

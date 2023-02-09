@@ -223,7 +223,7 @@ def train(opt, device):
             # Log
             metrics = {
                 "train/loss": tloss,
-                f"{val}/loss": vloss,
+                f"{val}/loss": vloss.item(),
                 "metrics/accuracy_top1": top1,
                 "metrics/accuracy_top5": top5,
                 "lr/0": optimizer.param_groups[0]['lr']}  # learning rate

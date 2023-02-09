@@ -99,8 +99,8 @@ class Loggers():
         # TensorBoard
         s = self.save_dir
         if 'tb' in self.include and not self.opt.evolve:
-            prefix = colorstr('TensorBoard: ')
-            self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
+            # prefix = colorstr('TensorBoard: ')
+            # self.logger.info(f"{prefix}Start with 'tensorboard --logdir {s.parent}', view at http://localhost:6006/")
             self.tb = None # SummaryWriter(str(s))
 
         # W&B
@@ -125,7 +125,7 @@ class Loggers():
                 prefix = colorstr('ClearML: ')
                 LOGGER.warning(f'{prefix}WARNING ⚠️ ClearML is installed but not configured, skipping ClearML logging.'
                                f' See https://github.com/ultralytics/yolov5/tree/master/utils/loggers/clearml#readme')
-
+            self.clearml = None
         else:
             self.clearml = None
 
