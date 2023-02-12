@@ -1,12 +1,12 @@
 # One-YOLOv5 🚀 fix by OneFlow
-import os
-import psutil
-import subprocess
-import threading
-import time
-import threading
-import oneflow as flow
-import numpy as np
+import os  # noqa :E402
+import psutil  # noqa :E402
+import subprocess  # noqa :E402
+import threading  # noqa :E402
+import time  # noqa :E402
+import threading  # noqa :E402
+import oneflow as flow  # noqa :E402
+import numpy as np  # noqa :E402
 
 
 class FlowCudaMemoryReserved:
@@ -38,7 +38,7 @@ class FlowCudaMemoryReserved:
         try:
             if self._update_time > self._threshold:
                 return
-            if current_mem == "None" or previous_mem == None or previous_mem == "None":
+            if current_mem == "None" or previous_mem == "None":
                 return
             # If the difference between current_mem and previous_mem is small, increase the _update_time
             if abs(float(current_mem) - float(previous_mem)) < 0.1:

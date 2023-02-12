@@ -35,10 +35,10 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from models.common import DetectMultiBackend
-from utils.callbacks import Callbacks
-from utils.dataloaders import create_dataloader
-from utils.general import (
+from models.common import DetectMultiBackend  # noqa :E402
+from utils.callbacks import Callbacks  # noqa :E402
+from utils.dataloaders import create_dataloader  # noqa :E402
+from utils.general import (  # noqa :E402
     LOGGER,
     TQDM_BAR_FORMAT,
     Profile,
@@ -55,9 +55,9 @@ from utils.general import (
     xywh2xyxy,
     xyxy2xywh,
 )
-from utils.metrics import ConfusionMatrix, ap_per_class, box_iou
-from utils.plots import output_to_target, plot_images, plot_val_study
-from utils.torch_utils import select_device, smart_inference_mode
+from utils.metrics import ConfusionMatrix, ap_per_class, box_iou  # noqa :E402
+from utils.plots import output_to_target, plot_images, plot_val_study  # noqa :E402
+from utils.torch_utils import select_device, smart_inference_mode  # noqa :E402
 
 
 def save_one_txt(predn, save_conf, shape, file):

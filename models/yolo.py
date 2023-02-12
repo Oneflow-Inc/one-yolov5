@@ -8,9 +8,12 @@ Usage:
 
 import argparse
 import contextlib
+import math
 import os
 import platform
 import sys
+import oneflow as torch
+import oneflow.nn as nn
 from copy import deepcopy
 from pathlib import Path
 
@@ -21,12 +24,35 @@ if str(ROOT) not in sys.path:
 if platform.system() != "Windows":
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from models.common import *
-from models.experimental import *
-from utils.autoanchor import check_anchor_order
-from utils.general import LOGGER, check_version, check_yaml, make_divisible, print_args
-from utils.plots import feature_visualization
-from utils.torch_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync
+from models.common import (  # noqa :E402
+    C3,
+    C3SPP,
+    C3TR,
+    SPP,
+    SPPF,
+    Bottleneck,
+    BottleneckCSP,
+    C3Ghost,
+    C3x,
+    Classify,
+    Concat,
+    Contract,
+    Conv,
+    CrossConv,
+    DWConv,
+    DWConvTranspose2d,
+    DetectMultiBackend,
+    Expand,
+    Focus,
+    GhostBottleneck,
+    GhostConv,
+    Proto,
+)
+from utils.autoanchor import check_anchor_order  # noqa :E402
+from utils.general import LOGGER, check_version, check_yaml, colorstr, make_divisible, print_args  # noqa :E402
+from utils.plots import feature_visualization  # noqa :E402
+from utils.torch_utils import fuse_conv_and_bn, initialize_weights, model_info, profile, scale_img, select_device, time_sync  # noqa :E402
+from models.experimental import MixConv2d  # noqa :E402
 
 try:
     import thop  # for FLOPs computation
@@ -191,8 +217,14 @@ class DetectionModel(BaseModel):
         if isinstance(m, (Detect, Segment)):
             s = 256  # 2x min stride
             m.inplace = self.inplace
-            forward = lambda x: self.forward(x)[0] if isinstance(m, Segment) else self.forward(x)
-            m.stride = torch.tensor([s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))])  # forward
+
+            def process_forward_result(x):
+                if isinstance(m, Segment):
+                    return self.forward(x)[0]
+                else:
+                    return self.forward(x)
+
+            m.stride = torch.tensor([s / x.shape[-2] for x in process_forward_result(torch.zeros(1, ch, s, s))])  # forward
             check_anchor_order(m)
             m.anchors /= m.stride.view(-1, 1, 1)
             self.stride = m.stride

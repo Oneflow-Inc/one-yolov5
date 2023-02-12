@@ -27,11 +27,8 @@ from pathlib import Path
 
 import numpy as np
 import oneflow as torch
-import oneflow.distributed as dist
 import oneflow.nn as nn
 import yaml
-from oneflow.optim import lr_scheduler
-from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -39,14 +36,16 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-import segment.val as validate  # for end-of-epoch mAP
-from models.experimental import attempt_load
-from models.yolo import SegmentationModel
-from utils.autoanchor import check_anchors
-from utils.autobatch import check_train_batch_size
-from utils.callbacks import Callbacks
-from utils.downloads import attempt_download, is_url
-from utils.general import (
+import segment.val as validate  # noqa :E402 # for end-of-epoch mAP
+from oneflow.optim import lr_scheduler  # noqa :E402
+from tqdm import tqdm  # noqa :E402
+from models.experimental import attempt_load  # noqa :E402
+from models.yolo import SegmentationModel  # noqa :E402
+from utils.autoanchor import check_anchors  # noqa :E402
+from utils.autobatch import check_train_batch_size  # noqa :E402
+from utils.callbacks import Callbacks  # noqa :E402
+from utils.downloads import attempt_download, is_url  # noqa :E402
+from utils.general import (  # noqa :E402
     LOGGER,
     TQDM_BAR_FORMAT,
     check_amp,
@@ -71,14 +70,14 @@ from utils.general import (
     strip_optimizer,
     yaml_save,
 )
-from utils.loggers import GenericLogger
-from utils.plots import plot_evolve, plot_labels
-from utils.segment.dataloaders import create_dataloader
-from utils.segment.loss import ComputeLoss
-from utils.segment.metrics import KEYS, fitness
-from utils.segment.plots import plot_images_and_masks, plot_results_with_masks
-from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume, torch_distributed_zero_first
-from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved
+from utils.loggers import GenericLogger  # noqa :E402
+from utils.plots import plot_evolve, plot_labels  # noqa :E402
+from utils.segment.dataloaders import create_dataloader  # noqa :E402
+from utils.segment.loss import ComputeLoss  # noqa :E402
+from utils.segment.metrics import KEYS, fitness  # noqa :E402
+from utils.segment.plots import plot_images_and_masks, plot_results_with_masks  # noqa :E402
+from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume, torch_distributed_zero_first  # noqa :E402
+from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved  # noqa :E402
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
@@ -147,7 +146,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         with torch_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
-        model = load_pretrained(weights=weights, cfg=cfg, hyp=hyp, nc=nc, resume=resume, device=device, mode="seg")
+        ckpt, csd, model = load_pretrained(weights=weights, cfg=cfg, hyp=hyp, nc=nc, resume=resume, device=device, mode="seg")
     else:
         model = SegmentationModel(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
     # amp = check_amp(model)  # check AMP
@@ -182,7 +181,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if opt.cos_lr:
         lf = one_cycle(1, hyp["lrf"], epochs)  # cosine 1->hyp['lrf']
     else:
-        lf = lambda x: (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]  # linear
+
+        def linear_scheduler(x):
+            return (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]  # linear
+
+        lf = linear_scheduler  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
@@ -193,7 +196,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         if resume:
             best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
-
+        del ckpt, csd
     # SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)

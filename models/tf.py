@@ -12,8 +12,12 @@ Export:
 
 import argparse
 import sys
-from copy import deepcopy
-from pathlib import Path
+import numpy as np
+import tensorflow as tf
+import oneflow as torch
+import oneflow.nn as nn
+from copy import deepcopy  # noqa :E402
+from pathlib import Path  # noqa :E402
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -21,17 +25,13 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 # ROOT = ROOT.relative_to(Path.cwd())  # relative
 
-import numpy as np
-import tensorflow as tf
-import oneflow as torch
-import oneflow.nn as nn
-from tensorflow import keras
+from tensorflow import keras  # noqa :E402
 
-from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv, DWConvTranspose2d, Focus, autopad
-from models.experimental import MixConv2d, attempt_load
-from models.yolo import Detect, Segment
-from utils.activations import SiLU
-from utils.general import LOGGER, make_divisible, print_args
+from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv, DWConvTranspose2d, Focus, autopad  # noqa :E402
+from models.experimental import MixConv2d, attempt_load  # noqa :E402
+from models.yolo import Detect, Segment  # noqa :E402
+from utils.activations import SiLU  # noqa :E402
+from utils.general import LOGGER, make_divisible, print_args  # noqa :E402
 
 
 class TFBN(keras.layers.Layer):

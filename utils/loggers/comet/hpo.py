@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from pathlib import Path
+from pathlib import Path  # noqa :E402
 
 import comet_ml
 
@@ -14,10 +14,10 @@ ROOT = FILE.parents[3]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 
-from train import train
-from utils.callbacks import Callbacks
-from utils.general import increment_path
-from utils.torch_utils import select_device
+from train import train  # noqa :E402
+from utils.callbacks import Callbacks  # noqa :E402
+from utils.general import increment_path  # noqa :E402
+from utils.torch_utils import select_device  # noqa :E402
 
 # Project Configuration
 config = comet_ml.config.get_config()

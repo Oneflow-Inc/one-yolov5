@@ -37,12 +37,12 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-import oneflow.nn.functional as F
+import oneflow.nn.functional as F  # noqa :E402
 
-from models.common import DetectMultiBackend
-from models.yolo import SegmentationModel
-from utils.callbacks import Callbacks
-from utils.general import (
+from models.common import DetectMultiBackend  # noqa :E402
+from models.yolo import SegmentationModel  # noqa :E402
+from utils.callbacks import Callbacks  # noqa :E402
+from utils.general import (  # noqa :E402
     LOGGER,
     NUM_THREADS,
     TQDM_BAR_FORMAT,
@@ -60,13 +60,13 @@ from utils.general import (
     xywh2xyxy,
     xyxy2xywh,
 )
-from utils.metrics import ConfusionMatrix, box_iou
-from utils.plots import output_to_target, plot_val_study
-from utils.segment.dataloaders import create_dataloader
-from utils.segment.general import mask_iou, process_mask, process_mask_native, scale_image
-from utils.segment.metrics import Metrics, ap_per_class_box_and_mask
-from utils.segment.plots import plot_images_and_masks
-from utils.torch_utils import de_parallel, select_device, smart_inference_mode
+from utils.metrics import ConfusionMatrix, box_iou  # noqa :E402
+from utils.plots import output_to_target, plot_val_study  # noqa :E402
+from utils.segment.dataloaders import create_dataloader  # noqa :E402
+from utils.segment.general import mask_iou, process_mask, process_mask_native, scale_image  # noqa :E402
+from utils.segment.metrics import Metrics, ap_per_class_box_and_mask  # noqa :E402
+from utils.segment.plots import plot_images_and_masks  # noqa :E402
+from utils.torch_utils import de_parallel, select_device, smart_inference_mode  # noqa :E402
 
 
 def save_one_txt(predn, save_conf, shape, file):

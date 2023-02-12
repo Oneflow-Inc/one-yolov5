@@ -3,7 +3,7 @@
 Run YOLOv5 segmentation inference on images, videos, directories, streams, etc.
 
 Usage - sources:
-    $ python segment/predict.py --weights yolov5s-seg.pt --source 0                               # webcam
+    $ python segment/predict.py --weights yolov5s-seg.of --source 0                               # webcam
                                                                   img.jpg                         # image
                                                                   vid.mp4                         # video
                                                                   screen                          # screenshot
@@ -15,7 +15,7 @@ Usage - sources:
                                                                   'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream
 
 Usage - formats:
-    $ python segment/predict.py --weights yolov5s-seg.pt                 # PyTorch
+    $ python segment/predict.py --weights yolov5s-seg.of                 # PyTorch
                                           yolov5s-seg.torchscript        # TorchScript
                                           yolov5s-seg.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                           yolov5s-seg_openvino_model     # OpenVINO
@@ -42,9 +42,9 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from models.common import DetectMultiBackend
-from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
-from utils.general import (
+from models.common import DetectMultiBackend  # noqa :E402
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams  # noqa :E402
+from utils.general import (  # noqa :E402
     LOGGER,
     Profile,
     check_file,
@@ -60,14 +60,14 @@ from utils.general import (
     scale_segments,
     strip_optimizer,
 )
-from utils.plots import Annotator, colors, save_one_box
-from utils.segment.general import masks2segments, process_mask, process_mask_native
-from utils.torch_utils import select_device, smart_inference_mode
+from utils.plots import Annotator, colors, save_one_box  # noqa :E402
+from utils.segment.general import masks2segments, process_mask, process_mask_native  # noqa :E402
+from utils.torch_utils import select_device, smart_inference_mode  # noqa :E402
 
 
 @smart_inference_mode()
 def run(
-    weights=ROOT / "yolov5s-seg.pt",  # model.pt path(s)
+    weights=ROOT / "yolov5s-seg.of",  # model.of path(s)
     source=ROOT / "data/images",  # file/dir/URL/glob/screen/0(webcam)
     data=ROOT / "data/coco128.yaml",  # dataset.yaml path
     imgsz=(640, 640),  # inference size (height, width)

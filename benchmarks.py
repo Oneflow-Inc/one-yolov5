@@ -29,9 +29,9 @@ import argparse
 import platform
 import sys
 import time
-from pathlib import Path
+from pathlib import Path  # noqa :E402
 
-import pandas as pd
+import pandas as pd  # noqa :E402
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -39,14 +39,14 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 # ROOT = ROOT.relative_to(Path.cwd())  # relative
 
-import export
-from models.experimental import attempt_load
-from models.yolo import SegmentationModel
-from segment.val import run as val_seg
-from utils import notebook_init
-from utils.general import LOGGER, check_yaml, file_size, print_args
-from utils.torch_utils import select_device
-from val import run as val_det
+import export  # noqa :E402
+from models.experimental import attempt_load  # noqa :E402
+from models.yolo import SegmentationModel  # noqa :E402
+from segment.val import run as val_seg  # noqa :E402
+from utils import notebook_init  # noqa :E402
+from utils.general import LOGGER, check_yaml, file_size, print_args  # noqa :E402
+from utils.torch_utils import select_device  # noqa :E402
+from val import run as val_det  # noqa :E402
 
 
 def run(

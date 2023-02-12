@@ -23,12 +23,9 @@ from datetime import datetime
 from pathlib import Path
 
 import oneflow as torch
-import oneflow.distributed as dist
 import oneflow.hub as hub
 import oneflow.optim.lr_scheduler as lr_scheduler
 import flowvision as torchvision
-from oneflow.cuda import amp
-from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -36,11 +33,12 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-from classify import val as validate
-from models.experimental import attempt_load
-from models.yolo import ClassificationModel, DetectionModel
-from utils.dataloaders import create_classification_dataloader
-from utils.general import (
+from tqdm import tqdm  # noqa :E402
+from classify import val as validate  # noqa :E402
+from models.experimental import attempt_load  # noqa :E402
+from models.yolo import ClassificationModel, DetectionModel  # noqa :E402
+from utils.dataloaders import create_classification_dataloader  # noqa :E402
+from utils.general import (  # noqa :E402
     DATASETS_DIR,
     LOGGER,
     TQDM_BAR_FORMAT,
@@ -55,11 +53,11 @@ from utils.general import (
     print_args,
     yaml_save,
 )
-from utils.loggers import GenericLogger
-from utils.plots import imshow_cls
-from utils.torch_utils import ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP, smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first
+from utils.loggers import GenericLogger  # noqa :E402
+from utils.plots import imshow_cls  # noqa :E402
+from utils.torch_utils import ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP, smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first  # noqa :E402
 
-from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved
+from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved  # noqa :E402
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
@@ -153,10 +151,12 @@ def train(opt, device):
     optimizer = smart_optimizer(model, opt.optimizer, opt.lr0, momentum=0.9, decay=opt.decay, multi_tensor_optimizer=multi_tensor_optimizer)
 
     # Scheduler
-    lrf = 0.01  # final lr (fraction of lr0)
     # lf = lambda x: ((1 + math.cos(x * math.pi / epochs)) / 2) * (1 - lrf) + lrf  # cosine
-    lf = lambda x: (1 - x / epochs) * (1 - lrf) + lrf  # linear
-    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)
+    def linear_Scheduler(x):
+        lrf = 0.01  # final lr (fraction of lr0)
+        return (1 - x / epochs) * (1 - lrf) + lrf
+
+    scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=linear_Scheduler)
     # scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=lr0, total_steps=epochs, pct_start=0.1,
     #                                    final_div_factor=1 / 25 / lrf)
 

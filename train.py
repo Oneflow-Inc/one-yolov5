@@ -29,8 +29,6 @@ import numpy as np
 import oneflow as torch
 import oneflow.nn as nn
 import yaml
-from oneflow.optim import lr_scheduler
-from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -38,15 +36,17 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
-import val as validate  # for end-of-epoch mAP
-from models.experimental import attempt_load
-from models.yolo import Model
-from utils.autoanchor import check_anchors
-from utils.autobatch import check_train_batch_size
-from utils.callbacks import Callbacks
-from utils.dataloaders import create_dataloader
-from utils.downloads import attempt_download, is_url
-from utils.general import (
+import val as validate  # noqa :E402
+from oneflow.optim import lr_scheduler  # noqa :E402
+from tqdm import tqdm  # noqa :E402
+from models.experimental import attempt_load  # noqa :E402
+from models.yolo import Model  # noqa :E402
+from utils.autoanchor import check_anchors  # noqa :E402
+from utils.autobatch import check_train_batch_size  # noqa :E402
+from utils.callbacks import Callbacks  # noqa :E402
+from utils.dataloaders import create_dataloader  # noqa :E402
+from utils.downloads import attempt_download, is_url  # noqa :E402
+from utils.general import (  # noqa :E402
     LOGGER,
     TQDM_BAR_FORMAT,
     check_amp,
@@ -72,13 +72,13 @@ from utils.general import (
     strip_optimizer,
     yaml_save,
 )
-from utils.loggers import Loggers
-from utils.loggers.comet.comet_utils import check_comet_resume
-from utils.loss import ComputeLoss
-from utils.metrics import fitness
-from utils.plots import plot_evolve
-from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume, torch_distributed_zero_first
-from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved
+from utils.loggers import Loggers  # noqa :E402
+from utils.loggers.comet.comet_utils import check_comet_resume  # noqa :E402
+from utils.loss import ComputeLoss  # noqa :E402
+from utils.metrics import fitness  # noqa :E402
+from utils.plots import plot_evolve  # noqa :E402
+from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume, torch_distributed_zero_first  # noqa :E402
+from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved  # noqa :E402
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
@@ -188,7 +188,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if opt.cos_lr:
         lf = one_cycle(1, hyp["lrf"], epochs)  # cosine 1->hyp['lrf']
     else:
-        lf = lambda x: (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]  # linear
+
+        def linear_scheduler(x):
+            return (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]
+
+        lf = linear_scheduler  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
@@ -240,7 +244,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 check_anchors(dataset, model=model, thr=hyp["anchor_t"], imgsz=imgsz)  # run AutoAnchor
             model.half().float()  # pre-reduce anchor precision
 
-        # python_cuda_memory_reserved = FlowCudaMemoryReserved()
+        python_cuda_memory_reserved = FlowCudaMemoryReserved()
         callbacks.run("on_pretrain_routine_end", labels, names)
 
     # DDP mode
@@ -351,8 +355,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Log
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                # mem = python_cuda_memory_reserved('GB')  # (GB)
-                mem = "None"
+                mem = python_cuda_memory_reserved("GB")  # (GB)
                 pbar.set_description(("%11s" * 2 + "%11.4g" * 5) % (f"{epoch}/{epochs - 1}", mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run("on_train_batch_end", model, ni, imgs, targets, paths, list(mloss))
                 if callbacks.stop_training:
