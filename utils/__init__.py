@@ -8,14 +8,14 @@ import platform
 import threading
 
 
-def emojis(str=''):
+def emojis(str=""):
     # Return platform-dependent emoji-safe version of string
-    return str.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else str
+    return str.encode().decode("ascii", "ignore") if platform.system() == "Windows" else str
 
 
 class TryExcept(contextlib.ContextDecorator):
     # YOLOv5 TryExcept class. Usage: @TryExcept() decorator or 'with TryExcept():' context manager
-    def __init__(self, msg=''):
+    def __init__(self, msg=""):
         self.msg = msg
 
     def __enter__(self):
@@ -43,13 +43,13 @@ def join_threads(verbose=False):
     for t in threading.enumerate():
         if t is not main_thread:
             if verbose:
-                print(f'Joining thread {t.name}')
+                print(f"Joining thread {t.name}")
             t.join()
 
 
 def notebook_init(verbose=True):
     # Check system software and hardware
-    print('Checking setup...')
+    print("Checking setup...")
 
     import os
     import shutil
@@ -63,7 +63,7 @@ def notebook_init(verbose=True):
     from IPython import display  # to display images and clear console output
 
     if is_colab():
-        shutil.rmtree('/content/sample_data', ignore_errors=True)  # remove colab /sample_data directory
+        shutil.rmtree("/content/sample_data", ignore_errors=True)  # remove colab /sample_data directory
 
     # System info
     if verbose:
@@ -71,10 +71,10 @@ def notebook_init(verbose=True):
         ram = psutil.virtual_memory().total
         total, used, free = shutil.disk_usage("/")
         display.clear_output()
-        s = f'({os.cpu_count()} CPUs, {ram / gb:.1f} GB RAM, {(total - free) / gb:.1f}/{total / gb:.1f} GB disk)'
+        s = f"({os.cpu_count()} CPUs, {ram / gb:.1f} GB RAM, {(total - free) / gb:.1f}/{total / gb:.1f} GB disk)"
     else:
-        s = ''
+        s = ""
 
     select_device(newline=False)
-    print(emojis(f'Setup complete ✅ {s}'))
+    print(emojis(f"Setup complete ✅ {s}"))
     return display
