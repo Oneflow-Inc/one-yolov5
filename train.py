@@ -10,8 +10,8 @@ Usage - Single-GPU training:
 Usage - Multi-GPU DDP training:
     $ python -m oneflow.distributed.launch --nproc_per_node  4 train.py --data coco128.yaml --weights yolov5s.of --img 640 --device 0,1,2,3
 
-Models:     https://github.com/ultralytics/yolov5/tree/master/models
-Datasets:   https://github.com/ultralytics/yolov5/tree/master/data
+Models:     https://github.com/Oneflow-Inc/one-yolov5/tree/master/models
+Datasets:   https://github.com/Oneflow-Inc/one-yolov5/tree/master/data
 Tutorial:   https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
 """
 
@@ -120,7 +120,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         with torch_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
-        model = load_pretrained(weights=weights,cfg=cfg,hyp=hyp,nc=nc,resume=resume,device=device)
+        ckpt, csd , model = load_pretrained(weights=weights,cfg=cfg,hyp=hyp,nc=nc,resume=resume,device=device)
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
     # amp = check_amp(model)  # check AMP
@@ -164,8 +164,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         if resume:
             best_fitness, start_epoch, epochs = smart_resume(ckpt, optimizer, ema, weights, epochs, resume)
-
-
+        del ckpt,csd
+        
     # SyncBatchNorm
     if opt.sync_bn and cuda and RANK != -1:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
@@ -212,7 +212,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 check_anchors(dataset, model=model, thr=hyp['anchor_t'], imgsz=imgsz)  # run AutoAnchor
             model.half().float()  # pre-reduce anchor precision
         
-        python_cuda_memory_reserved = FlowCudaMemoryReserved()
+        # python_cuda_memory_reserved = FlowCudaMemoryReserved()
         callbacks.run('on_pretrain_routine_end', labels, names)
 
     # DDP mode
@@ -321,7 +321,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             # Log
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
-                mem = python_cuda_memory_reserved('GB')  # (GB)
+                # mem = python_cuda_memory_reserved('GB')  # (GB)
+                mem = "None"
                 pbar.set_description(('%11s' * 2 + '%11.4g' * 5) %
                                      (f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run('on_train_batch_end', model, ni, imgs, targets, paths, list(mloss))

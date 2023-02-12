@@ -22,15 +22,29 @@ class FlowCudaMemoryReserved:
         The memory usage of the process in MB.
 
     """
-    def __init__(self, device_type="GPU") -> None:
+    def __init__(self, device_type="GPU",default_update_time = 30.0) -> None:
         self._device_type = device_type
         self._pid = str(os.getpid())
-        self._memery_of_pid = "None"
-        self._update_time = 3.0
+        self._current_mem = None
+        self._update_time = default_update_time 
+        self._threshold = 30*60  # 30 min 
         thread = threading.Thread(target=self.update_data, args=())
         thread.daemon = True
         thread.start()
         print(f"current pid {self._pid=}")
+
+    def adjust_interval(self,previous_mem, current_mem):
+        try:
+            if self._update_time > self._threshold:
+                return 
+            if current_mem == "None" or previous_mem == None or previous_mem == "None":
+                return 
+            # If the difference between current_mem and previous_mem is small, increase the _update_time
+            if abs(float(current_mem) - float(previous_mem)) < 0.1:
+                self._update_time *= 1.5
+        except:
+            pass 
+  
 
     def __call__(self, mode="MB"):
         """
@@ -40,7 +54,7 @@ class FlowCudaMemoryReserved:
         Returns:
             memory usage of the current process.
         """
-        memory = self._memery_of_pid
+        memory = self._current_mem
         try:
             if mode == "MB":
                 return "%.3fMB" % (float(memory))
@@ -53,7 +67,9 @@ class FlowCudaMemoryReserved:
 
     def update_data(self):
         while True:
-            self._memery_of_pid = self.use_memory(mode="MB")
+            previous_mem = self._current_mem 
+            self._current_mem = self.use_memory(mode="MB")
+            self.adjust_interval(previous_mem = previous_mem , current_mem = self._current_mem)
             time.sleep(self._update_time)
 
         
@@ -160,7 +176,7 @@ def load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device, mode="default
     LOGGER.info(
         f"load_oneflow_pretrained Transferred {len(csd)}/{len(model.state_dict())} items from {weights}"
     )  # report
-    return model
+    return ckpt, csd ,model
 
 
 def copy_model_attributes(b, a):
@@ -217,5 +233,5 @@ def load_torch_pretrained(weights, cfg, hyp, nc, resume, device, mode="default")
     LOGGER.info(
         f"load_torch_pretrained Transferred {len(csd)}/{len(model.state_dict())} items from {weights}"
     )
-    return model
+    return ckpt, csd ,model
 

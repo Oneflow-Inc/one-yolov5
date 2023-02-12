@@ -8,10 +8,10 @@ Usage - Single-GPU training:
     $ python segment/train.py --data coco128-seg.yaml --weights '' --cfg yolov5s-seg.yaml --img 640  # from scratch
 
 Usage - Multi-GPU DDP training:
-    $ python -m torch.distributed.run --nproc_per_node 4 --master_port 1 segment/train.py --data coco128-seg.yaml --weights yolov5s-seg.of --img 640 --device 0,1,2,3
+    $ python -m oneflow.distributed.launch --nproc_per_node 4 segment/train.py --data coco128-seg.yaml --weights yolov5s-seg.of --img 640 --device 0,1,2,3
 
-Models:     https://github.com/ultralytics/yolov5/tree/master/models
-Datasets:   https://github.com/ultralytics/yolov5/tree/master/data
+Models:     https://github.com/Oneflow-Inc/one-yolov5/tree/master/models
+Datasets:   https://github.com/Oneflow-Inc/one-yolov5/tree/master/data
 Tutorial:   https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
 """
 
