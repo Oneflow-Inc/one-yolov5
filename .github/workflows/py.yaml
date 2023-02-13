@@ -31,6 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install flake8==3.8.1 isort==5.10.1
           python -m pip install black==21.4b2
+          python -m pip install –upgrade click==8.0.2
           flake8 --version
       - name: Lint
         id: py_check
