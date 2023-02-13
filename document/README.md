@@ -21,5 +21,3 @@ one-yolov5 : 是以 [OneFlow](https://github.com/Oneflow-Inc/oneflow) 为后端�
 <img src="https://oneflow-static.oss-cn-beijing.aliyuncs.com/one-yolo/document/concluding_remarks.gif" align="center">
 </a>
 
-
-
