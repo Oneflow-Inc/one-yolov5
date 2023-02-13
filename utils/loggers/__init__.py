@@ -328,8 +328,8 @@ class GenericLogger:
         self.console_logger = console_logger
         self.csv = self.save_dir / "results.csv"  # CSV logger
         if "tb" in self.include:
-            prefix = colorstr("TensorBoard: ")
-            self.console_logger.info(f"{prefix}Start with 'tensorboard --logdir {self.save_dir.parent}', view at http://localhost:6006/")
+            # prefix = colorstr("TensorBoard: ")
+            # self.console_logger.info(f"{prefix}Start with 'tensorboard --logdir {self.save_dir.parent}', view at http://localhost:6006/")
             self.tb = None
 
         if wandb and "wandb" in self.include:

@@ -141,7 +141,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     is_coco = isinstance(val_path, str) and val_path.endswith("coco/val2017.txt")  # COCO dataset
 
     # Model
-    check_suffix(weights, ["of", "pt"])  # check weights
+    check_suffix(weights, (".of",".pt"))  # check weights
     pretrained = weights.endswith(".of") or weights.endswith(".pt")
     if pretrained:
         with torch_distributed_zero_first(LOCAL_RANK):

@@ -404,6 +404,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     "updates": ema.updates,
                     "optimizer": optimizer.state_dict(),
                     "opt": vars(opt),
+                    "wandb_id": loggers.wandb.wandb_run.id if loggers.wandb else None,
                     "git": GIT_INFO,  # {remote, branch, commit} if a git repo
                     "date": datetime.now().isoformat(),
                 }

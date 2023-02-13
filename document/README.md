@@ -23,13 +23,3 @@ one-yolov5 : 是以 [OneFlow](https://github.com/Oneflow-Inc/oneflow) 为后端�
 
 
 
-| 单卡    | amp   | epoch | gpu | batch | 模型              | time(min) |
-| ------- | ----- | ----- | --- | ----- | ----------------- | --------- |
-| OneFlow | False | 1     | 1   | 8     | yolov5s           | 18:34     |
-| PyTorch | False | 1     | 1   | 8     | yolov5s           | 24:22     |
-| OneFlow | False | 1     | 1   | 8     | yolov5s-seg       | 25:40     |
-| PyTorch | False | 1     | 1   | 8     | yolov5s-seg       | 14:38     |
-
-`export NVIDIA_TF32_OVERRIDE=0` 
-
-

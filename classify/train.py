@@ -25,7 +25,7 @@ from pathlib import Path
 import oneflow as torch
 import oneflow.hub as hub
 import oneflow.optim.lr_scheduler as lr_scheduler
-import flowvision as torchvision
+import flowvision 
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -117,8 +117,8 @@ def train(opt, device):
     with torch_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
         if Path(opt.model).is_file() or opt.model.endswith(".of"):
             model = attempt_load(opt.model, device="cpu", fuse=False)
-        elif opt.model in torchvision.models.__dict__:  # TorchVision models i.e. resnet50, efficientnet_b0
-            model = torchvision.models.__dict__[opt.model](weights="IMAGENET1K_V1" if pretrained else None)
+        elif opt.model in flowvision.models.__dict__:  # TorchVision models i.e. resnet50, efficientnet_b0
+            model = flowvision.models.__dict__[opt.model](weights="IMAGENET1K_V1" if pretrained else None)
         else:
             m = hub.list("ultralytics/yolov5")  # + hub.list('pytorch/vision')  # models
             raise ModuleNotFoundError(f"--model {opt.model} not found. Available models are: \n" + "\n".join(m))
@@ -244,6 +244,7 @@ def train(opt, device):
                     "updates": ema.updates,
                     "optimizer": None,  # optimizer.state_dict(),
                     "opt": vars(opt),
+                    "wandb_id": logger.wandb.wandb_run.id if logger.wandb else None,
                     "git": GIT_INFO,  # {remote, branch, commit} if a git repo
                     "date": datetime.now().isoformat(),
                 }
