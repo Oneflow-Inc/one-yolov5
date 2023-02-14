@@ -108,7 +108,7 @@ def intersect_dicts(da, db, exclude=()):
 
 def load_pretrained(weights, cfg, hyp, nc, resume, device, mode="default"):
     """
-    Load a PyTorch model from a checkpoint.
+    Load a  model from a checkpoint.
     Parameters
     ----------
     weights : str
@@ -162,21 +162,23 @@ def load_oneflow_pretrained(weights, cfg, hyp, nc, resume, device, mode="default
 
 
 def copy_model_attributes(b, a):
-    import oneflow as torch
-
     # add attributes
     # Copy model attributes from b to a
     attributes = [x for x in dir(b) if not callable(getattr(b, x)) and not x.startswith("__") and not x[0] == "_"]
     for attr in attributes:
         get_attr = getattr(b, attr)
-        if torch.is_tensor(get_attr):
+        try:
+            #  print("get_attr is a tensor")
+            get_attr.shape
             get_attr = flow.tensor(get_attr.numpy())
+        except:
+            # print("get_attr is not a tensor")
+            pass 
         setattr(a, attr, getattr(b, attr))
 
 
 def load_torch_pretrained(weights, cfg, hyp, nc, resume, device, mode="default"):
     from utils.general import LOGGER
-    import oneflow as torch
 
     if mode == "default":
         from models.yolo import Model as Model
@@ -188,7 +190,7 @@ def load_torch_pretrained(weights, cfg, hyp, nc, resume, device, mode="default")
         print(f"{mode=} worr")
         raise ImportError
 
-    ckpt = torch.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
+    ckpt = flow.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
     model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)
 
     csd = dict()
