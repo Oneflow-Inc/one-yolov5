@@ -59,12 +59,11 @@ def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
         LOGGER.info("")
 
 
-def attempt_download(file, repo="ultralytics/yolov5", release="v7.0"):
+def attempt_download(file, repo="Oneflow-Inc/one-yolov5", release="v1.2.0"):
     # Attempt file download from GitHub release assets if not found locally. release = 'latest', 'v7.0', etc.
     from utils.general import LOGGER
-
     def github_assets(repository, version="latest"):
-        # Return GitHub repo tag (i.e. 'v7.0') and assets (i.e. ['yolov5s.pt', 'yolov5m.pt', ...])
+        # Return GitHub repo tag (i.e. 'v1.2.0') and assets (i.e. ['yolov5s.of', 'yolov5m.of', ...])
         if version != "latest":
             version = f"tags/{version}"  # i.e. tags/v7.0
         response = requests.get(f"https://api.github.com/repos/{repository}/releases/{version}").json()  # github api
@@ -84,8 +83,9 @@ def attempt_download(file, repo="ultralytics/yolov5", release="v7.0"):
             return file
 
         # GitHub assets
-        assets = [f"yolov5{size}{suffix}.pt" for size in "nsmlx" for suffix in ("", "6", "-cls", "-seg")]  # default
+        assets = [f"yolov5{size}{suffix}.of" for size in "nsmlx" for suffix in ("", "6", "-cls", "-seg")]  # default
         try:
+            input(f'{repo=} {release=}')
             tag, assets = github_assets(repo, release)
         except Exception:
             try:

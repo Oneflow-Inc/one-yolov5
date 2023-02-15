@@ -153,8 +153,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     check_suffix(weights, [".of", ".pt"])  # check weights
     pretrained = weights.endswith(".of") or weights.endswith(".pt")
     if pretrained:
-        with torch_distributed_zero_first(LOCAL_RANK):
-            weights = attempt_download(weights)  # download if not found locally
+        # with torch_distributed_zero_first(LOCAL_RANK):
+        weights = attempt_download(weights)  # download if not found locally
         ckpt, csd, model = load_pretrained(weights=weights, cfg=cfg, hyp=hyp, nc=nc, resume=resume, device=device)
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create

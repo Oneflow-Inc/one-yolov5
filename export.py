@@ -81,7 +81,7 @@ MACOS = platform.system() == 'Darwin'  # macOS environment
 def export_formats():
     # YOLOv5 export formats
     x = [
-        ['PyTorch', '-', '.pt', True, True],
+        ['OneFlow', '-', '.of', True, True],
         ['TorchScript', 'torchscript', '.torchscript', True, True],
         ['ONNX', 'onnx', '.onnx', True, True],
         ['OpenVINO', 'openvino', '_openvino_model', True, False],
