@@ -95,11 +95,11 @@ jobs:
           python --version
           pip --version
           pip list
-          # if [ "${{ matrix.oneflow }}" == "0.9.0" ]; then
-          #     pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu117
-          # else
-          #     pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
-          # fi
+          if [ "${{ matrix.oneflow }}" == "0.9.0" ]; then
+              pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu117
+          else
+              pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+          fi
         shell: bash  # for Windows compatibility
       - name: Check environment
         run: |
