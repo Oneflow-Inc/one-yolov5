@@ -3,10 +3,10 @@
 Validate a trained YOLOv5 detection model on a detection dataset
 
 Usage:
-    $ python val.py --weights yolov5s.pt --data coco128.yaml --img 640
+    $ python val.py --weights yolov5s.of --data coco128.yaml --img 640
 
 Usage - formats:
-    $ python val.py --weights yolov5s.pt                 # OneFlow
+    $ python val.py --weights yolov5s.of                 # OneFlow
                               yolov5s.torchscript        # TorchScript
                               yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                               yolov5s_openvino_model     # OpenVINO
@@ -151,14 +151,14 @@ def run(
 
         # Load model
         model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
-        stride, pt, jit, engine = model.stride, model.pt, model.jit, model.engine
+        stride, of, jit, engine = model.stride, model.of, model.jit, model.engine
         imgsz = check_img_size(imgsz, s=stride)  # check image size
         half = model.fp16  # FP16 supported on limited backends with CUDA
         if engine:
             batch_size = model.batch_size
         else:
             device = model.device
-            if not (pt or jit):
+            if not (of or jit):
                 batch_size = 1  # export.py models default to batch-size 1
                 LOGGER.info(f"Forcing --batch-size 1 square inference (1,3,{imgsz},{imgsz}) for non-OneFlow models")
 
@@ -175,13 +175,13 @@ def run(
 
     # Dataloader
     if not training:
-        if pt and not single_cls:  # check --weights are trained on --data
+        if of and not single_cls:  # check --weights are trained on --data
             ncm = model.model.nc
             assert ncm == nc, (
                 f"{weights} ({ncm} classes) trained on different --data than what you passed ({nc} " f"classes). Pass correct combination of --weights and --data that are trained together."
             )
-        model.warmup(imgsz=(1 if pt else batch_size, 3, imgsz, imgsz))  # warmup
-        pad, rect = (0.0, False) if task == "speed" else (0.5, pt)  # square inference for benchmarks
+        model.warmup(imgsz=(1 if of else batch_size, 3, imgsz, imgsz))  # warmup
+        pad, rect = (0.0, False) if task == "speed" else (0.5, of)  # square inference for benchmarks
         task = task if task in ("train", "val", "test") else "val"  # path to train/val/test images
         dataloader = create_dataloader(data[task], imgsz, batch_size, stride, single_cls, pad=pad, rect=rect, workers=workers, prefix=colorstr(f"{task}: "))[0]
 
