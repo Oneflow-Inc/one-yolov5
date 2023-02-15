@@ -4,7 +4,7 @@ Export a YOLOv5 PyTorch model to other formats. TensorFlow exports authored by h
 
 Format                      | `export.py --include`         | Model
 ---                         | ---                           | ---
-PyTorch                     | -                             | yolov5s.pt
+OneFlow                     | -                             | yolov5s.of
 TorchScript                 | `torchscript`                 | yolov5s.torchscript
 ONNX                        | `onnx`                        | yolov5s.onnx
 OpenVINO                    | `openvino`                    | yolov5s_openvino_model/
@@ -25,7 +25,7 @@ Usage:
     $ python export.py --weights yolov5s.pt --include torchscript onnx openvino engine coreml tflite ...
 
 Inference:
-    $ python detect.py --weights yolov5s.pt                 # PyTorch
+    $ python detect.py --weights yolov5s.of                 # OneFlow
                                  yolov5s.torchscript        # TorchScript
                                  yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                  yolov5s_openvino_model     # OpenVINO
@@ -200,7 +200,7 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX
 
             def build(self, x):
                 return self.model(x)
-        input(f'{im.dtype=} {im.shape=}')
+
         yolo_graph = YOLOGraph(model=model)
         yolo_graph._compile(im)
 
@@ -210,7 +210,6 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX
                                     opset=opset)
 
         # Checks
-        input("onnx")
         model_onnx = onnx.load(f)  # load onnx model
         onnx.checker.check_model(model_onnx)  # check onnx model
 
@@ -578,9 +577,9 @@ def run(
     flags = [x in include for x in fmts]
     assert sum(flags) == len(include), f'ERROR: Invalid --include {include}, valid --include arguments are {fmts}'
     jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle = flags  # export booleans
-    file = Path(url2file(weights) if str(weights).startswith(('http:/', 'https:/')) else weights)  # PyTorch weights
+    file = Path(url2file(weights) if str(weights).startswith(('http:/', 'https:/')) else weights)  # OneFlow weights
 
-    # Load PyTorch model
+    # Load OneFlow model
     device = select_device(device)
     if half:
         assert device.type != 'cpu' or coreml, '--half only compatible with GPU export, i.e. use --device 0'
@@ -611,7 +610,7 @@ def run(
         im, model = im.half(), model.half()  # to FP16
     shape = tuple((y[0] if isinstance(y, tuple) else y).shape)  # model output shape
     metadata = {'stride': int(max(model.stride)), 'names': model.names}  # model metadata
-    LOGGER.info(f"\n{colorstr('PyTorch:')} starting from {file} with output shape {shape} ({file_size(file):.1f} MB)")
+    LOGGER.info(f"\n{colorstr('OneFlow:')} starting from {file} with output shape {shape} ({file_size(file):.1f} MB)")
 
     # Exports
     f = [''] * len(fmts)  # exported filenames

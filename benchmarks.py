@@ -4,7 +4,7 @@ Run YOLOv5 benchmarks on all supported export formats
 
 Format                      | `export.py --include`         | Model
 ---                         | ---                           | ---
-PyTorch                     | -                             | yolov5s.pt
+OneFlow                     | -                             | yolov5s.of
 TorchScript                 | `torchscript`                 | yolov5s.torchscript
 ONNX                        | `onnx`                        | yolov5s.onnx
 OpenVINO                    | `openvino`                    | yolov5s_openvino_model/
@@ -22,7 +22,7 @@ Requirements:
     $ pip install -U nvidia-tensorrt --index-url https://pypi.ngc.nvidia.com  # TensorRT
 
 Usage:
-    $ python benchmarks.py --weights yolov5s.pt --img 640
+    $ python benchmarks.py --weights yolov5s.of --img 640
 """
 
 import argparse
@@ -50,20 +50,21 @@ from val import run as val_det  # noqa :E402
 
 
 def run(
-    weights=ROOT / "yolov5s.pt",  # weights path
+    weights=ROOT / "yolov5s.of",  # weights path
     imgsz=640,  # inference size (pixels)
     batch_size=1,  # batch size
     data=ROOT / "data/coco128.yaml",  # dataset.yaml path
     device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
     half=False,  # use FP16 half-precision inference
     test=False,  # test exports only
-    pt_only=False,  # test PyTorch only
+    pt_only=False,  # test OneFlow only
     hard_fail=False,  # throw error on benchmark failure
 ):
     y, t = [], time.time()
     device = select_device(device)
     model_type = type(attempt_load(weights, fuse=False))  # DetectionModel, SegmentationModel, etc.
     for i, (name, f, suffix, cpu, gpu) in export.export_formats().iterrows():  # index, (name, file, suffix, CPU, GPU)
+        input(f'{i=} {name=} {f=} {suffix=} {cpu=} {gpu=}')
         try:
             assert i not in (9, 10), "inference not supported"  # Edge TPU and TF.js are unsupported
             assert i != 5 or platform.system() == "Darwin", "inference only supported on macOS>=10.13"  # CoreML
@@ -74,7 +75,7 @@ def run(
 
             # Export
             if f == "-":
-                w = weights  # PyTorch format
+                w = weights  # OneFlow format
             else:
                 w = export.run(weights=weights, imgsz=[imgsz], include=[f], device=device, half=half)[-1]  # all others
             assert suffix in str(w), "export failed"
@@ -94,7 +95,7 @@ def run(
             LOGGER.warning(f"WARNING ⚠️ Benchmark failure for {name}: {e}")
             y.append([name, None, None, None])  # mAP, t_inference
         if pt_only and i == 0:
-            break  # break after PyTorch
+            break  # break after OneFlow
 
     # Print results
     LOGGER.info("\n")
@@ -112,14 +113,14 @@ def run(
 
 
 def test(
-    weights=ROOT / "yolov5s.pt",  # weights path
+    weights=ROOT / "yolov5s.of",  # weights path
     imgsz=640,  # inference size (pixels)
     batch_size=1,  # batch size
     data=ROOT / "data/coco128.yaml",  # dataset.yaml path
     device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
     half=False,  # use FP16 half-precision inference
     test=False,  # test exports only
-    pt_only=False,  # test PyTorch only
+    pt_only=False,  # test OneFlow only
     hard_fail=False,  # throw error on benchmark failure
 ):
     y, t = [], time.time()
@@ -144,14 +145,14 @@ def test(
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.pt", help="weights path")
+    parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.of", help="weights path")
     parser.add_argument("--imgsz", "--img", "--img-size", type=int, default=640, help="inference size (pixels)")
     parser.add_argument("--batch-size", type=int, default=1, help="batch size")
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
     parser.add_argument("--half", action="store_true", help="use FP16 half-precision inference")
     parser.add_argument("--test", action="store_true", help="test exports only")
-    parser.add_argument("--pt-only", action="store_true", help="test PyTorch only")
+    parser.add_argument("--pt-only", action="store_true", help="test OneFlow only")
     parser.add_argument("--hard-fail", nargs="?", const=True, default=False, help="Exception on error or < min metric")
     opt = parser.parse_args()
     opt.data = check_yaml(opt.data)  # check YAML
