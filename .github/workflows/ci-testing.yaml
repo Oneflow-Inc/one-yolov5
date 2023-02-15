@@ -96,7 +96,7 @@ jobs:
           pip --version
           pip list
           if [ "${{ matrix.oneflow }}" == "0.9.0" ]; then
-              pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu117
+              pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cpu
           else
               pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
           fi
@@ -120,9 +120,11 @@ jobs:
           m=${{ matrix.model }}  # official weights
           b=runs/train/exp/weights/best  # best.of checkpoint
           python train.py --imgsz 64 --batch 32 --weights $m.of --cfg $m.yaml --epochs 1  # train
-          for w in $m $b; do  # weights
-            python val.py --imgsz 64 --batch 32 --weights $w.of --device $d  # val
-            python detect.py --imgsz 64 --weights $w.of --device $d  # detect
+          for d in cpu; do  # devices
+            for w in $m $b; do  # weights
+              python val.py --imgsz 64 --batch 32 --weights $w.pt --device $d  # val
+              python detect.py --imgsz 64 --weights $w.pt --device $d  # detect
+            done
           done
           python hubconf.py --model $m  # hub
           # python models/tf.py --weights $m.of  # build TF model
