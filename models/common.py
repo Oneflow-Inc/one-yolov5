@@ -756,7 +756,8 @@ class Detections:
             if pred.shape[0]:
                 for c in pred[:, -1].unique():
                     n = (pred[:, -1] == c).sum()  # detections per class
-                    
+                    LOGGER.log(f'{c=} {n=}')
+                    c, n = c.item(), n.item()
                     s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
                 s = s.rstrip(", ")
                 if show or save or render or crop:
