@@ -138,7 +138,7 @@ def process_batch(detections, labels, iouv, pred_masks=None, gt_masks=None, over
 @smart_inference_mode()
 def run(
     data,
-    weights=None,  # model.pt path(s)
+    weights=None,  #path(s)
     batch_size=32,  # batch size
     imgsz=640,  # inference size (pixels)
     conf_thres=0.001,  # confidence threshold

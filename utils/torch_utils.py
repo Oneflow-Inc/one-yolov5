@@ -45,10 +45,10 @@ def smart_inference_mode(torch_1_9=check_version(torch.__version__, "0.9.0")):
 
 def smartCrossEntropyLoss(label_smoothing=0.0):
     # Returns nn.CrossEntropyLoss with label smoothing enabled for torch>=1.10.0
-    if check_version(torch.__version__, "1.10.0"):
+    if check_version(torch.__version__, "0.9.0"):
         return nn.CrossEntropyLoss(label_smoothing=label_smoothing)
     if label_smoothing > 0:
-        LOGGER.warning(f"WARNING ⚠️ label smoothing {label_smoothing} requires torch>=1.10.0")
+        LOGGER.warning(f"WARNING ⚠️ label smoothing {label_smoothing} requires oneflow >= 1.10.0")
     return nn.CrossEntropyLoss()
 
 
@@ -102,7 +102,7 @@ def device_count():
 
 def select_device(device="", batch_size=0, newline=True):
     # device = None or 'cpu' or 0 or '0' or '0,1,2,3'
-    s = f"YOLOv5 🚀 {git_describe() or file_date()} Python-{platform.python_version()} torch-{torch.__version__} "
+    s = f"YOLOv5 🚀 {git_describe() or file_date()} Python-{platform.python_version()} oneflow-{torch.__version__} "
     device = str(device).strip().lower().replace("cuda:", "").replace("none", "")  # to string, 'cuda:0' to '0'
     cpu = device == "cpu"
     mps = device == "mps"  # Apple Metal Performance Shaders (MPS)
@@ -339,10 +339,10 @@ def smart_optimizer(model, name="Adam", lr=0.001, momentum=0.9, decay=1e-5, mult
 
 def smart_hub_load(repo="ultralytics/yolov5", model="yolov5s", **kwargs):
     # YOLOv5 torch.hub.load() wrapper with smart error/issue handling
-    if check_version(torch.__version__, "1.9.1"):
+    if check_version(torch.__version__, "0.9.0"):
         kwargs["skip_validation"] = True  # validation causes GitHub API rate limit errors
-    if check_version(torch.__version__, "1.12.0"):
-        kwargs["trust_repo"] = True  # argument required starting in torch 0.12
+    # if check_version(torch.__version__, "1.12.0"):
+    #     kwargs["trust_repo"] = True  # argument required starting in torch 0.12
     try:
         return torch.hub.load(repo, model, **kwargs)
     except Exception:

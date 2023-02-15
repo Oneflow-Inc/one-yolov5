@@ -4,10 +4,10 @@ Validate a trained YOLOv5 classification model on a classification dataset
 
 Usage:
     $ bash data/scripts/get_imagenet.sh --val  # download ImageNet val split (6.3G, 50000 images)
-    $ python classify/val.py --weights yolov5m-cls.pt --data ../datasets/imagenet --img 224  # validate ImageNet
+    $ python classify/val.py --weights yolov5m-cls.of --data ../datasets/imagenet --img 224  # validate ImageNet
 
 Usage - formats:
-    $ python classify/val.py --weights yolov5s-cls.pt                 # PyTorch
+    $ python classify/val.py --weights yolov5s-cls.of                 # PyTorch
                                        yolov5s-cls.torchscript        # TorchScript
                                        yolov5s-cls.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                        yolov5s-cls_openvino_model     # OpenVINO
@@ -43,7 +43,7 @@ from utils.torch_utils import select_device, smart_inference_mode  # noqa :E402
 @smart_inference_mode()
 def run(
     data=ROOT / "../datasets/mnist",  # dataset dir
-    weights=ROOT / "yolov5s-cls.pt",  # model.pt path(s)
+    weights=ROOT / "yolov5s-cls.of",  #path(s)
     batch_size=128,  # batch size
     imgsz=224,  # inference size (pixels)
     device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
@@ -74,7 +74,7 @@ def run(
 
         # Load model
         model = DetectMultiBackend(weights, device=device, dnn=dnn, fp16=half)
-        stride, pt, jit, engine = model.stride, model.pt, model.jit, model.engine
+        stride, pt, jit, engine = model.stride, model.of, model.jit, model.engine
         imgsz = check_img_size(imgsz, s=stride)  # check image size
         half = model.fp16  # FP16 supported on limited backends with CUDA
         if engine:
@@ -138,7 +138,7 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default=ROOT / "../datasets/mnist", help="dataset path")
-    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s-cls.pt", help="model.pt path(s)")
+    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s-cls.of", help="model.of path(s)")
     parser.add_argument("--batch-size", type=int, default=128, help="batch size")
     parser.add_argument("--imgsz", "--img", "--img-size", type=int, default=224, help="inference size (pixels)")
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")

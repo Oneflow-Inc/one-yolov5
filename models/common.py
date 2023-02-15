@@ -23,7 +23,7 @@ import oneflow as torch
 import oneflow.nn as nn
 from IPython.display import display
 from PIL import Image
-from oneflow.cuda import amp
+# from oneflow.cuda import amp
 
 from utils import TryExcept
 from utils.dataloaders import exif_transpose, letterbox
@@ -325,9 +325,9 @@ class Concat(nn.Module):
 
 class DetectMultiBackend(nn.Module):
     # YOLOv5 MultiBackend class for python inference on various backends
-    def __init__(self, weights="yolov5s.pt", device=torch.device("cpu"), dnn=False, data=None, fp16=False, fuse=True):
+    def __init__(self, weights="yolov5s.of", device=torch.device("cpu"), dnn=False, data=None, fp16=False, fuse=True):
         # Usage:
-        #   PyTorch:              weights = *.pt
+        #   OneFlow:              weights = *.of
         #   TorchScript:                    *.torchscript
         #   ONNX Runtime:                   *.onnx
         #   ONNX OpenCV DNN:                *.onnx --dnn
@@ -343,22 +343,22 @@ class DetectMultiBackend(nn.Module):
 
         super().__init__()
         w = str(weights[0] if isinstance(weights, list) else weights)
-        pt, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle, triton = self._model_type(w)
-        fp16 &= pt or jit or onnx or engine  # FP16
+        of, jit, onnx, xml, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle, triton = self._model_type(w)
+        fp16 &= of or jit or onnx or engine  # FP16
         nhwc = coreml or saved_model or pb or tflite or edgetpu  # BHWC formats (vs torch BCWH)
         stride = 32  # default stride
         cuda = torch.cuda.is_available() and device.type != "cpu"  # use CUDA
-        if not (pt or triton):
+        if not (of or triton):
             w = attempt_download(w)  # download if not local
 
-        if pt:  # PyTorch
+        if of:  # OneFlow
             model = attempt_load(weights if isinstance(weights, list) else w, device=device, inplace=True, fuse=fuse)
             stride = max(int(model.stride.max()), 32)  # model stride
             names = model.module.names if hasattr(model, "module") else model.names  # get class names
             model.half() if fp16 else model.float()
             self.model = model  # explicitly assign for to(), cpu(), cuda(), half()
         elif jit:  # TorchScript
-            LOGGER.info(f"Loading {w} for TorchScript inference...")
+            LOGGER.info(f"Loading {w} for TorchScriof inference...")
             extra_files = {"config.txt": ""}  # model metadata
             model = torch.jit.load(w, _extra_files=extra_files, map_location=device)
             model.half() if fp16 else model.float()
@@ -527,7 +527,7 @@ class DetectMultiBackend(nn.Module):
         if self.nhwc:
             im = im.permute(0, 2, 3, 1)  # torch BCHW to numpy BHWC shape(1,320,192,3)
 
-        if self.pt:  # PyTorch
+        if self.of:  # PyTorch
             y = self.model(im, augment=augment, visualize=visualize) if augment or visualize else self.model(im)
         elif self.jit:  # TorchScript
             y = self.model(im)
@@ -606,7 +606,7 @@ class DetectMultiBackend(nn.Module):
 
     def warmup(self, imgsz=(1, 3, 640, 640)):
         # Warmup model by running inference once
-        warmup_types = self.pt, self.jit, self.onnx, self.engine, self.saved_model, self.pb, self.triton
+        warmup_types = self.of, self.jit, self.onnx, self.engine, self.saved_model, self.pb, self.triton
         if any(warmup_types) and (self.device.type != "cpu" or self.triton):
             im = torch.empty(*imgsz, dtype=torch.half if self.fp16 else torch.float, device=self.device)  # input
             for _ in range(2 if self.jit else 1):  #
@@ -653,9 +653,9 @@ class AutoShape(nn.Module):
             LOGGER.info("Adding AutoShape... ")
         copy_attr(self, model, include=("yaml", "nc", "hyp", "names", "stride", "abc"), exclude=())  # copy attributes
         self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
-        self.pt = not self.dmb or model.pt  # PyTorch model
+        self.of = not self.dmb or  model.of # OneFlow model
         self.model = model.eval()
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.inplace = False  # Detect.inplace=False for safe multithread inference
             m.export = True  # do not output loss values
@@ -663,7 +663,7 @@ class AutoShape(nn.Module):
     def _apply(self, fn):
         # Apply to(), cpu(), cuda(), half() to model tensors that are not parameters or registered buffers
         self = super()._apply(fn)
-        if self.pt:
+        if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
             m.stride = fn(m.stride)
             m.grid = list(map(fn, m.grid))
@@ -686,11 +686,11 @@ class AutoShape(nn.Module):
         with dt[0]:
             if isinstance(size, int):  # expand
                 size = (size, size)
-            p = next(self.model.parameters()) if self.pt else torch.empty(1, device=self.model.device)  # param
+            p = next(self.model.parameters()) if self.of else torch.empty(1, device=self.model.device)  # param
             autocast = self.amp and (p.device.type != "cpu")  # Automatic Mixed Precision (AMP) inference
             if isinstance(ims, torch.Tensor):  # torch
-                with amp.autocast(autocast):
-                    return self.model(ims.to(p.device).type_as(p), augment=augment)  # inference
+                # with amp.autocast(autocast):
+                return self.model(ims.to(p.device).type_as(p), augment=augment)  # inference
 
             # Pre-process
             n, ims = (len(ims), list(ims)) if isinstance(ims, (list, tuple)) else (1, [ims])  # number, list of images
@@ -716,18 +716,18 @@ class AutoShape(nn.Module):
             x = np.ascontiguousarray(np.array(x).transpose((0, 3, 1, 2)))  # stack and BHWC to BCHW
             x = torch.from_numpy(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
 
-        with amp.autocast(autocast):
-            # Inference
-            with dt[1]:
-                y = self.model(x, augment=augment)  # forward
+        # with amp.autocast(autocast):
+        # Inference
+        with dt[1]:
+            y = self.model(x, augment=augment)  # forward
 
-            # Post-process
-            with dt[2]:
-                y = non_max_suppression(y if self.dmb else y[0], self.conf, self.iou, self.classes, self.agnostic, self.multi_label, max_det=self.max_det)  # NMS
-                for i in range(n):
-                    scale_boxes(shape1, y[i][:, :4], shape0[i])
+        # Post-process
+        with dt[2]:
+            y = non_max_suppression(y if self.dmb else y[0], self.conf, self.iou, self.classes, self.agnostic, self.multi_label, max_det=self.max_det)  # NMS
+            for i in range(n):
+                scale_boxes(shape1, y[i][:, :4], shape0[i])
 
-            return Detections(ims, y, files, dt, self.names, x.shape)
+        return Detections(ims, y, files, dt, self.names, x.shape)
 
 
 class Detections:
@@ -756,6 +756,7 @@ class Detections:
             if pred.shape[0]:
                 for c in pred[:, -1].unique():
                     n = (pred[:, -1] == c).sum()  # detections per class
+                    
                     s += f"{n} {self.names[int(c)]}{'s' * (n > 1)}, "  # add to string
                 s = s.rstrip(", ")
                 if show or save or render or crop:

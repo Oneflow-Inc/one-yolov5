@@ -7,12 +7,13 @@ import logging
 import os
 import subprocess
 import urllib
+import ssl
 from pathlib import Path
-
 import requests
 import oneflow as torch
 
 
+ssl._create_default_https_context = ssl._create_unverified_context
 def is_url(url, check=True):
     # Check if string is URL and check if URL exists
     try:
@@ -85,7 +86,6 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5", release="v1.2.0"):
         # GitHub assets
         assets = [f"yolov5{size}{suffix}.of" for size in "nsmlx" for suffix in ("", "6", "-cls", "-seg")]  # default
         try:
-            input(f'{repo=} {release=}')
             tag, assets = github_assets(repo, release)
         except Exception:
             try:

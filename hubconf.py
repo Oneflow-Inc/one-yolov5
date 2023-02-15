@@ -6,8 +6,8 @@ Usage:
     import oneflow as torch
     model = torch.hub.load('ultralytics/yolov5', 'yolov5s')  # official model
     model = torch.hub.load('ultralytics/yolov5:master', 'yolov5s')  # from branch
-    model = torch.hub.load('ultralytics/yolov5', 'custom', 'yolov5s.pt')  # custom/local model
-    model = torch.hub.load('.', 'custom', 'yolov5s.pt', source='local')  # local repo
+    model = torch.hub.load('ultralytics/yolov5', 'custom', 'yolov5s.of')  # custom/local model
+    model = torch.hub.load('.', 'custom', 'yolov5s.of', source='local')  # local repo
 """
 
 import oneflow as torch
@@ -17,7 +17,7 @@ def _create(name, pretrained=True, channels=3, classes=80, autoshape=True, verbo
     """Creates or loads a YOLOv5 model
 
     Arguments:
-        name (str): model name 'yolov5s' or path 'path/to/best.pt'
+        name (str): model name 'yolov5s' or path 'path/to/best.of'
         pretrained (bool): load pretrained weights into the model
         channels (int): number of input channels
         classes (int): number of model classes
@@ -41,16 +41,16 @@ def _create(name, pretrained=True, channels=3, classes=80, autoshape=True, verbo
         LOGGER.setLevel(logging.WARNING)
     check_requirements(exclude=("opencv-python", "tensorboard", "thop"))
     name = Path(name)
-    path = name.with_suffix(".pt") if name.suffix == "" and not name.is_dir() else name  # checkpoint path
+    path = name.with_suffix(".of") if name.suffix == "" and not name.is_dir() else name  # checkpoint path
     try:
         device = select_device(device)
         if pretrained and channels == 3 and classes == 80:
             try:
                 model = DetectMultiBackend(path, device=device, fuse=autoshape)  # detection model
                 if autoshape:
-                    if model.pt and isinstance(model.model, ClassificationModel):
+                    if model.of and isinstance(model.model, ClassificationModel):
                         LOGGER.warning("WARNING ⚠️ YOLOv5 ClassificationModel is not yet AutoShape compatible. " "You must pass torch tensors in BCHW to this model, i.e. shape(1,3,224,224).")
-                    elif model.pt and isinstance(model.model, SegmentationModel):
+                    elif model.of and isinstance(model.model, SegmentationModel):
                         LOGGER.warning("WARNING ⚠️ YOLOv5 SegmentationModel is not yet AutoShape compatible. " "You will not be able to run inference with this model.")
                     else:
                         model = AutoShape(model)  # for file/URI/PIL/cv2/np inputs and NMS
@@ -76,7 +76,7 @@ def _create(name, pretrained=True, channels=3, classes=80, autoshape=True, verbo
         raise Exception(s) from e
 
 
-def custom(path="path/to/model.pt", autoshape=True, _verbose=True, device=None):
+def custom(path="path/to/model.of", autoshape=True, _verbose=True, device=None):
     # YOLOv5 custom or local model
     return _create(path, autoshape=autoshape, verbose=_verbose, device=device)
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
     # Model
     model = _create(name=opt.model, pretrained=True, channels=3, classes=80, autoshape=True, verbose=True)
-    # model = custom(path='path/to/model.pt')  # custom
+    # model = custom(path='path/to/model.of')  # custom
 
     # Images
     imgs = [
