@@ -186,62 +186,60 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr('TorchScript:'
 @try_export
 def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
-    try:
-        check_requirements(("onnx",))
-        import onnx
+    check_requirements(("onnx",))
+    import onnx
 
-        LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
-        f = file.with_suffix(".onnx")
+    LOGGER.info(f"\n{prefix} starting export with onnx {onnx.__version__}...")
+    f = file.with_suffix(".onnx")
 
-        class YOLOGraph(torch.nn.Graph):
-            def __init__(self,model):
-                super().__init__()
-                self.model = model
+    class YOLOGraph(torch.nn.Graph):
+        def __init__(self,model):
+            super().__init__()
+            self.model = model
 
-            def build(self, x):
-                return self.model(x)
+        def build(self, x):
+            return self.model(x)
 
-        yolo_graph = YOLOGraph(model=model)
-        yolo_graph._compile(im)
+    yolo_graph = YOLOGraph(model=model)
+    yolo_graph._compile(im)
+    import pdb; pdb.set_trace()
+    convert_to_onnx_and_check(yolo_graph, 
+                                onnx_model_path=str(f), 
+                                dynamic_batch_size = dynamic,
+                                opset=opset)
 
-        convert_to_onnx_and_check(yolo_graph, 
-                                    onnx_model_path=str(f), 
-                                    dynamic_batch_size = dynamic,
-                                    opset=opset)
+    # Checks
+    model_onnx = onnx.load(f)  # load onnx model
+    onnx.checker.check_model(model_onnx)  # check onnx model
 
-        # Checks
-        model_onnx = onnx.load(f)  # load onnx model
-        onnx.checker.check_model(model_onnx)  # check onnx model
+    # Metadata
+    d = {"stride": int(max(model.stride)), "names": model.names}
+    for k, v in d.items():
+        meta = model_onnx.metadata_props.add()
+        meta.key, meta.value = k, str(v)
+    onnx.save(model_onnx, f)
 
-        # Metadata
-        d = {"stride": int(max(model.stride)), "names": model.names}
-        for k, v in d.items():
-            meta = model_onnx.metadata_props.add()
-            meta.key, meta.value = k, str(v)
-        onnx.save(model_onnx, f)
-
-        # Simplify
-        if simplify:
-            try:
-                cuda = torch.cuda.is_available()
-                check_requirements(
-                    (
-                        "onnxruntime-gpu" if cuda else "onnxruntime",
-                        "onnx-simplifier>=0.4.1",
-                    )
+    # Simplify
+    if simplify:
+        try:
+            cuda = torch.cuda.is_available()
+            check_requirements(
+                (
+                    "onnxruntime-gpu" if cuda else "onnxruntime",
+                    "onnx-simplifier>=0.4.1",
                 )
-                import onnxsim
+            )
+            import onnxsim
 
-                LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
-                model_onnx, check = onnxsim.simplify(model_onnx)
-                assert check, "assert check failed"
-                onnx.save(model_onnx, f)
-            except Exception as e:
-                LOGGER.info(f"{prefix} simplifier failure: {e}")
-        LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
-        return f, model_onnx
-    except Exception as e:
-        LOGGER.info(f"{prefix} export failure: {e}")
+            LOGGER.info(f"{prefix} simplifying with onnx-simplifier {onnxsim.__version__}...")
+            model_onnx, check = onnxsim.simplify(model_onnx)
+            assert check, "assert check failed"
+            onnx.save(model_onnx, f)
+        except Exception as e:
+            LOGGER.info(f"{prefix} simplifier failure: {e}")
+    LOGGER.info(f"{prefix} export success, saved as {f} ({file_size(f):.1f} MB)")
+    return f, model_onnx
+ 
 
 
 @try_export
