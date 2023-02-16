@@ -244,7 +244,6 @@ def train(opt, device):
                     "updates": ema.updates,
                     "optimizer": None,  # optimizer.state_dict(),
                     "opt": vars(opt),
-                    "wandb_id": logger.wandb.wandb_run.id if logger.wandb else None,
                     "git": GIT_INFO,  # {remote, branch, commit} if a git repo
                     "date": datetime.now().isoformat(),
                 }
