@@ -202,11 +202,11 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX
 
     yolo_graph = YOLOGraph(model=model)
     yolo_graph._compile(im)
-    import pdb; pdb.set_trace()
     convert_to_onnx_and_check(yolo_graph, 
                                 onnx_model_path=str(f), 
                                 dynamic_batch_size = dynamic,
-                                opset=opset)
+                                opset=opset,
+                                device="gpu" if im.is_cuda else "cpu")
 
     # Checks
     model_onnx = onnx.load(f)  # load onnx model
