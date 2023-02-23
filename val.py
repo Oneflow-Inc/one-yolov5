@@ -159,8 +159,8 @@ def run(
         else:
             device = model.device
             if not (of or jit):
-                batch_size = 1  # export.py models default to batch-size 1
-                LOGGER.info(f"Forcing --batch-size 1 square inference (1,3,{imgsz},{imgsz}) for non-OneFlow models")
+                batch_size = opt.batch_size  # export.py models default to batch-size 1
+                # LOGGER.info(f"Forcing --batch-size {batch_size} square inference (1,3,{imgsz},{imgsz}) for non-OneFlow models")
 
         # Data
         data = check_dataset(data)  # check

@@ -76,9 +76,6 @@ def attempt_load(weights, device=None, inplace=True, fuse=True):
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
         ckpt = torch.load(attempt_download(w), map_location="cpu")  # load
-        temp = (ckpt.get("ema") or ckpt["model"])
-        print(f'{type(temp)=}') 
-        
         ckpt = (ckpt.get("ema") or ckpt["model"]) 
         ckpt = ckpt.to(device).float() if device else ckpt.cuda().float()  # FP32 model
 
