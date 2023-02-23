@@ -257,3 +257,4 @@ crashlytics-build.properties
 fabric.properties
 .cometml-runs/
 val_wandb_ddp/
+log/*
