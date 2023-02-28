@@ -527,7 +527,7 @@ class DetectMultiBackend(nn.Module):
         if self.nhwc:
             im = im.permute(0, 2, 3, 1)  # torch BCHW to numpy BHWC shape(1,320,192,3)
 
-        if self.of:  # PyTorch
+        if self.of:  # OneFlow
             y = self.model(im, augment=augment, visualize=visualize) if augment or visualize else self.model(im)
         elif self.jit:  # TorchScript
             y = self.model(im)

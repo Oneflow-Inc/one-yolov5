@@ -66,7 +66,7 @@ if platform.system() != 'Windows':
     ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.experimental import attempt_load  # noqa :E402
-from models.yolo import ClassificationModel, Detect, DetectionModel, SegmentationModel  # noqa :E402
+from models.yolo import ClassificationModel, Detect, Segment, DetectionModel, SegmentationModel  # noqa :E402
 from utils.dataloaders import LoadImages
 from utils.general import ( # noqa :E402
             LOGGER, Profile, check_dataset, check_img_size, check_requirements, check_version,
@@ -183,7 +183,7 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr('TorchScript:'
 #         except Exception as e:
 #             LOGGER.info(f'{prefix} simplifier failure: {e}')
 #     return f, model_onnx
-@try_export
+# @try_export
 def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
     check_requirements(("onnx",))
@@ -193,14 +193,15 @@ def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX
     f = file.with_suffix(".onnx")
 
     class YOLOGraph(torch.nn.Graph):
-        def __init__(self,model):
+        def __init__(self):
             super().__init__()
             self.model = model
 
         def build(self, x):
+            print(f'{type(x)}')
             return self.model(x)
 
-    yolo_graph = YOLOGraph(model=model)
+    yolo_graph = YOLOGraph()
     yolo_graph._compile(im)
     convert_to_onnx_and_check(yolo_graph, 
                                 onnx_model_path=str(f), 
@@ -601,7 +602,6 @@ def run(
             m.inplace = inplace
             m.dynamic = dynamic
             m.export = True
-
     for _ in range(2):
         y = model(im)  # dry runs
     if half and not coreml:

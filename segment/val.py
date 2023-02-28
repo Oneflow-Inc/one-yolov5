@@ -4,10 +4,10 @@ Validate a trained YOLOv5 segment model on a segment dataset
 
 Usage:
     $ bash data/scripts/get_coco.sh --val --segments  # download COCO-segments val split (1G, 5000 images)
-    $ python segment/val.py --weights yolov5s-seg.pt --data coco.yaml --img 640  # validate COCO-segments
+    $ python segment/val.py --weights yolov5s-seg.of --data coco.yaml --img 640  # validate COCO-segments
 
 Usage - formats:
-    $ python segment/val.py --weights yolov5s-seg.pt                 # PyTorch
+    $ python segment/val.py --weights yolov5s-seg.of                 # OneFlow
                                       yolov5s-seg.torchscript        # TorchScript
                                       yolov5s-seg.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                       yolov5s-seg_openvino_label     # OpenVINO
@@ -191,7 +191,7 @@ def run(
 
         # Load model
         model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
-        stride, pt, jit, engine = model.stride, model.pt, model.jit, model.engine
+        stride, of, jit, engine = model.stride, model.of, model.jit, model.engine
         imgsz = check_img_size(imgsz, s=stride)  # check image size
         half = model.fp16  # FP16 supported on limited backends with CUDA
         nm = de_parallel(model).model.model[-1].nm if isinstance(model, SegmentationModel) else 32  # number of masks
@@ -199,7 +199,7 @@ def run(
             batch_size = model.batch_size
         else:
             device = model.device
-            if not (pt or jit):
+            if not (of or jit):
                 batch_size = 1  # export.py models default to batch-size 1
                 LOGGER.info(f"Forcing --batch-size 1 square inference (1,3,{imgsz},{imgsz}) for non-PyTorch models")
 
@@ -216,13 +216,13 @@ def run(
 
     # Dataloader
     if not training:
-        if pt and not single_cls:  # check --weights are trained on --data
+        if of and not single_cls:  # check --weights are trained on --data
             ncm = model.model.nc
             assert ncm == nc, (
                 f"{weights} ({ncm} classes) trained on different --data than what you passed ({nc} " f"classes). Pass correct combination of --weights and --data that are trained together."
             )
-        model.warmup(imgsz=(1 if pt else batch_size, 3, imgsz, imgsz))  # warmup
-        pad, rect = (0.0, False) if task == "speed" else (0.5, pt)  # square inference for benchmarks
+        model.warmup(imgsz=(1 if of else batch_size, 3, imgsz, imgsz))  # warmup
+        pad, rect = (0.0, False) if task == "speed" else (0.5, of)  # square inference for benchmarks
         task = task if task in ("train", "val", "test") else "val"  # path to train/val/test images
         dataloader = create_dataloader(
             data[task], imgsz, batch_size, stride, single_cls, pad=pad, rect=rect, workers=workers, prefix=colorstr(f"{task}: "), overlap_mask=overlap, mask_downsample_ratio=mask_downsample_ratio
@@ -397,7 +397,7 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128-seg.yaml", help="dataset.yaml path")
-    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s-seg.pt", help="model path(s)")
+    parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s-seg.of", help="model path(s)")
     parser.add_argument("--batch-size", type=int, default=32, help="batch size")
     parser.add_argument("--imgsz", "--img", "--img-size", type=int, default=640, help="inference size (pixels)")
     parser.add_argument("--conf-thres", type=float, default=0.001, help="confidence threshold")
@@ -440,13 +440,13 @@ def main(opt):
         weights = opt.weights if isinstance(opt.weights, list) else [opt.weights]
         opt.half = torch.cuda.is_available() and opt.device != "cpu"  # FP16 for fastest results
         if opt.task == "speed":  # speed benchmarks
-            # python val.py --task speed --data coco.yaml --batch 1 --weights yolov5n.pt yolov5s.pt...
+            # python val.py --task speed --data coco.yaml --batch 1 --weights yolov5n.of yolov5s.of...
             opt.conf_thres, opt.iou_thres, opt.save_json = 0.25, 0.45, False
             for opt.weights in weights:
                 run(**vars(opt), plots=False)
 
         elif opt.task == "study":  # speed vs mAP benchmarks
-            # python val.py --task study --data coco.yaml --iou 0.7 --weights yolov5n.pt yolov5s.pt...
+            # python val.py --task study --data coco.yaml --iou 0.7 --weights yolov5n.of yolov5s.of...
             for opt.weights in weights:
                 f = f"study_{Path(opt.data).stem}_{Path(opt.weights).stem}.txt"  # filename to save to
                 x, y = list(range(256, 1536 + 128, 128)), []  # x axis (image sizes), y axis
