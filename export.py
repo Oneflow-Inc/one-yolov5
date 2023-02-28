@@ -183,7 +183,7 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr('TorchScript:'
 #         except Exception as e:
 #             LOGGER.info(f'{prefix} simplifier failure: {e}')
 #     return f, model_onnx
-# @try_export
+@try_export
 def export_onnx(model, im, file, opset, dynamic, simplify, prefix=colorstr("ONNX:")):
     # YOLOv5 ONNX export
     check_requirements(("onnx",))

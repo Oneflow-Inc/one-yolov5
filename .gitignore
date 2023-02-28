@@ -258,3 +258,4 @@ fabric.properties
 .cometml-runs/
 val_wandb_ddp/
 log/*
+One-YOLOv5_v_1_2_0_train/

@@ -536,7 +536,7 @@ class DetectMultiBackend(nn.Module):
             self.net.setInput(im)
             y = self.net.forward()
         elif self.onnx:  # ONNX Runtime
-            im = im.cpu().numpy()  # torch to numpy
+            im = im.cpu().numpy()  # torch to numpy 
             y = self.session.run(self.output_names, {self.session.get_inputs()[0].name: im})
         elif self.xml:  # OpenVINO
             im = im.cpu().numpy()  # FP32

@@ -163,6 +163,11 @@ def train(opt, device):
     # EMA
     ema = ModelEMA(model) if RANK in {-1, 0} else None
 
+    # SyncBatchNorm
+    if opt.sync_bn and cuda and RANK != -1:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
+        LOGGER.info("Using SyncBatchNorm()")
+        
     # DDP mode
     if cuda and RANK != -1:
         model = smart_DDP(model)
@@ -301,6 +306,7 @@ def parse_opt(known=False):
     parser.add_argument("--verbose", action="store_true", help="Verbose mode")
     parser.add_argument("--seed", type=int, default=0, help="Global training seed")
     parser.add_argument("--local_rank", type=int, default=-1, help="Automatic DDP Multi-GPU argument, do not modify")
+    parser.add_argument("--sync-bn", action="store_true", help="use SyncBatchNorm, only available in DDP mode")
     parser.add_argument("--multi_tensor_optimizer", action="store_true", help="apply multi_tensor implement in optimizer")
 
     return parser.parse_known_args()[0] if known else parser.parse_args()
