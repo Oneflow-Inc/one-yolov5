@@ -58,7 +58,7 @@ from utils.loggers import GenericLogger  # noqa :E402
 from utils.plots import imshow_cls  # noqa :E402
 from utils.torch_utils import ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP, smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first  # noqa :E402
 
-from utils.temp_repair_tool import load_pretrained, FlowCudaMemoryReserved  # noqa :E402
+from utils.temp_repair_tool import FlowCudaMemoryReserved  # noqa :E402
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
@@ -127,7 +127,9 @@ def train(opt, device):
                 value = value.detach().cpu().numpy()
                 csd[key] = torch.tensor(value.astype(np.float32) if value.dtype == np.float16 else value)
             # convert to classification model
-            model = ClassificationModel(model = model, nc = ckpt['model'].nc, cutoff = len(ckpt['model'].model) )
+            nc  =   nc  if not isinstance(ckpt["model"], ClassificationModel) else  ckpt['model'].nc
+            cutoff = 10 if not isinstance(ckpt["model"], ClassificationModel) else  len(ckpt['model'].model)
+            model = ClassificationModel(model = model, nc = nc , cutoff = cutoff)
             model.load_state_dict(csd, strict=False)  # load
             LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {opt.model}')  # report
             del ckpt, csd
