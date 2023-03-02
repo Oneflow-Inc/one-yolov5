@@ -18,6 +18,7 @@ import os
 import subprocess
 import sys
 import time
+import numpy as np 
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -115,8 +116,21 @@ def train(opt, device):
 
     # Model
     with torch_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
-        if Path(opt.model).is_file() or opt.model.endswith(".of"):
+        if Path(opt.model).is_file() and opt.model.endswith(".of"):
             model = attempt_load(opt.model, device="cpu", fuse=False)
+        if Path(opt.model).is_file() and opt.model.endswith(".pt"):
+            w = Path(opt.model).name.replace('.pt','').replace('-cls','')
+            ckpt = torch.load(opt.model, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
+            model = DetectionModel(cfg = f'models/{w}.yaml', ch = 3)  # create
+            csd = dict()
+            for key, value in ckpt["model"].state_dict().items():
+                value = value.detach().cpu().numpy()
+                csd[key] = torch.tensor(value.astype(np.float32) if value.dtype == np.float16 else value)
+            # convert to classification model
+            model = ClassificationModel(model = model, nc = ckpt['model'].nc, cutoff = len(ckpt['model'].model) )
+            model.load_state_dict(csd, strict=False)  # load
+            LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {opt.model}')  # report
+            del ckpt, csd
         elif opt.model in flowvision.models.__dict__:  # TorchVision models i.e. resnet50, efficientnet_b0
             model = flowvision.models.__dict__[opt.model](weights="IMAGENET1K_V1" if pretrained else None)
         else:
