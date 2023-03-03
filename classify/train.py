@@ -336,6 +336,7 @@ def parse_opt(known=False):
     parser.add_argument("--local_rank", type=int, default=-1, help="Automatic DDP Multi-GPU argument, do not modify")
     parser.add_argument("--sync-bn", action="store_true", help="use SyncBatchNorm, only available in DDP mode")
     parser.add_argument("--multi_tensor_optimizer", action="store_true", help="apply multi_tensor implement in optimizer")
+    parser.add_argument("--patience", type=int, default=100, help="EarlyStopping patience (epochs without improvement)")
 
     return parser.parse_known_args()[0] if known else parser.parse_args()
 
