@@ -56,7 +56,7 @@ from utils.general import (  # noqa :E402
 )
 from utils.loggers import GenericLogger  # noqa :E402
 from utils.plots import imshow_cls  # noqa :E402
-from utils.torch_utils import ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP, smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first  # noqa :E402
+from utils.torch_utils import EarlyStopping, ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP, smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first  # noqa :E402
 
 from utils.temp_repair_tool import FlowCudaMemoryReserved  # noqa :E402
 
@@ -193,6 +193,7 @@ def train(opt, device):
     criterion = smartCrossEntropyLoss(label_smoothing=opt.label_smoothing)  # loss function
     best_fitness = 0.0
     # scaler = amp.GradScaler(enabled=cuda)
+    stopper, stop = EarlyStopping(patience=opt.patience), False
     val = test_dir.stem  # 'val' or 'test'
     LOGGER.info(
         f"Image sizes {imgsz} train, {imgsz} test\n"
@@ -249,13 +250,13 @@ def train(opt, device):
             # Best fitness
             if fitness > best_fitness:
                 best_fitness = fitness
-
+            stop = stopper(epoch=epoch, fitness=fitness)  # early stop check
             # Log
             metrics = {"train/loss": tloss, f"{val}/loss": vloss.item(), "metrics/accuracy_top1": top1, "metrics/accuracy_top5": top5, "lr/0": optimizer.param_groups[0]["lr"]}  # learning rate
             logger.log_metrics(metrics, epoch)
 
             # Save model
-            final_epoch = epoch + 1 == epochs
+            final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
             if (not opt.nosave) or final_epoch:
                 ckpt = {
                     "epoch": epoch,
@@ -274,6 +275,17 @@ def train(opt, device):
                 if best_fitness == fitness:
                     torch.save(ckpt, best)
                 del ckpt
+        
+        # EarlyStopping
+        if RANK != -1:  # if DDP training
+            broadcast_list = torch.BoolTensor([stop if RANK == 0 else False])
+            torch.comm.broadcast(broadcast_list, 0)
+            if RANK != 0:
+                stop = broadcast_list[0]
+        if stop:
+            break  # must break all DDP ranks
+        # end epoch ----------------------------------------------------------------------------------------------------
+    # end training -----------------------------------------------------------------------------------------------------
 
     # Train complete
     if RANK in {-1, 0} and final_epoch:
