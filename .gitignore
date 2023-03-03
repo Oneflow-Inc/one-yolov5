@@ -259,3 +259,4 @@ fabric.properties
 val_wandb_ddp/
 log/*
 One-YOLOv5_v_1_2_0_*
+test_ci_project/
