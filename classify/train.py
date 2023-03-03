@@ -116,7 +116,6 @@ def train(opt, device):
 
     # Model
     with torch_distributed_zero_first(LOCAL_RANK), WorkingDirectory(ROOT):
-        import pdb;pdb.set_trace()
         if Path(opt.model).is_file() and opt.model.endswith(".of"):
             model = attempt_load(opt.model, device="cpu", fuse=False)
         elif Path(opt.model).is_file() and opt.model.endswith(".pt"):
