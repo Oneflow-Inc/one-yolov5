@@ -295,7 +295,7 @@ def train(opt, device):
             f"\nPredict:         python classify/predict.py --weights {best} --source im.jpg"
             f"\nValidate:        python classify/val.py --weights {best} --data {data_dir}"
             f"\nExport:          python export.py --weights {best} --include onnx"
-            f"\nPyTorch Hub:     model = torch.hub.load('ultralytics/yolov5', 'custom', '{best}')"
+            f"\nOneFlow Hub:     model = oneflow.hub.load('ultralytics/yolov5', 'custom', '{best}')"
             f"\nVisualize:       https://netron.app\n"
         )
 
