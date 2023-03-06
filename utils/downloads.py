@@ -66,6 +66,9 @@ def attempt_download(file, repo="Oneflow-Inc/one-yolov5", release="v1.2.0"):
     # Attempt file download from GitHub release assets if not found locally. release = 'latest', 'v7.0', etc.
     from utils.general import LOGGER
 
+    if file.endswith(".pt"):
+        repo, release = "ultralytics/yolov5", "v7.0"
+
     def github_assets(repository, version="latest"):
         # Return GitHub repo tag (i.e. 'v1.2.0') and assets (i.e. ['yolov5s.of', 'yolov5m.of', ...])
         if version != "latest":

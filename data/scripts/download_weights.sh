@@ -4,8 +4,8 @@
 # Example usage: bash data/scripts/download_weights.sh
 # parent
 # └── yolov5
-#     ├── yolov5s.pt  ← downloads here
-#     ├── yolov5m.pt
+#     ├── one-yolov5s.pt  ← downloads here
+#     ├── one-yolov5m.pt
 #     └── ...
 
 python - <<EOF
