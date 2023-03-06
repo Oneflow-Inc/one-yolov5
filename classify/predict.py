@@ -53,7 +53,7 @@ from utils.torch_utils import select_device, smart_inference_mode  # noqa :E402
 
 @smart_inference_mode()
 def run(
-    weights=ROOT / "yolov5s-cls.of",  #path(s)
+    weights=ROOT / "yolov5s-cls.of",  # path(s)
     source=ROOT / "data/images",  # file/dir/URL/glob/screen/0(webcam)
     data=ROOT / "data/coco128.yaml",  # dataset.yaml path
     imgsz=(224, 224),  # inference size (height, width)

@@ -23,6 +23,7 @@ import oneflow as torch
 import oneflow.nn as nn
 from IPython.display import display
 from PIL import Image
+
 # from oneflow.cuda import amp
 
 from utils import TryExcept
@@ -65,9 +66,10 @@ class Conv(nn.Module):
         super().__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p, d), groups=g, dilation=d, bias=False)
         self.bn = nn.BatchNorm2d(c2)
-        # TODO(fengwen): issues https://github.com/ultralytics/yolov5/issues/10542 
+        # TODO(fengwen): issues https://github.com/ultralytics/yolov5/issues/10542
         # self.act = self.default_act if act is True else act if isinstance(act, nn.Module) else nn.Identity()
         self.act = nn.SiLU() if act is True else act if isinstance(act, nn.Module) else nn.Identity()
+
     def forward(self, x):
         return self.act(self.bn(self.conv(x)))
 
@@ -537,7 +539,7 @@ class DetectMultiBackend(nn.Module):
             self.net.setInput(im)
             y = self.net.forward()
         elif self.onnx:  # ONNX Runtime
-            im = im.cpu().numpy()  # torch to numpy 
+            im = im.cpu().numpy()  # torch to numpy
             y = self.session.run(self.output_names, {self.session.get_inputs()[0].name: im})
         elif self.xml:  # OpenVINO
             im = im.cpu().numpy()  # FP32
@@ -654,7 +656,7 @@ class AutoShape(nn.Module):
             LOGGER.info("Adding AutoShape... ")
         copy_attr(self, model, include=("yaml", "nc", "hyp", "names", "stride", "abc"), exclude=())  # copy attributes
         self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
-        self.of = not self.dmb or  model.of # OneFlow model
+        self.of = not self.dmb or model.of  # OneFlow model
         self.model = model.eval()
         if self.of:
             m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
@@ -688,7 +690,7 @@ class AutoShape(nn.Module):
             if isinstance(size, int):  # expand
                 size = (size, size)
             p = next(self.model.parameters()) if self.of else torch.empty(1, device=self.model.device)  # param
-            autocast = self.amp and (p.device.type != "cpu")  # Automatic Mixed Precision (AMP) inference
+            # autocast = self.amp and (p.device.type != "cpu")  # Automatic Mixed Precision (AMP) inference
             if isinstance(ims, torch.Tensor):  # torch
                 # with amp.autocast(autocast):
                 return self.model(ims.to(p.device).type_as(p), augment=augment)  # inference

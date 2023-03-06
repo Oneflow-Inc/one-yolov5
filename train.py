@@ -78,7 +78,7 @@ from utils.loss import ComputeLoss  # noqa :E402
 from utils.metrics import fitness  # noqa :E402
 from utils.plots import plot_evolve  # noqa :E402
 from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume, torch_distributed_zero_first  # noqa :E402
-from utils.temp_repair_tool import  FlowCudaMemoryReserved  # noqa :E402
+from utils.temp_repair_tool import FlowCudaMemoryReserved  # noqa :E402
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
@@ -155,20 +155,20 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if pretrained:
         with torch_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
-        ckpt = torch.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
-        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-        exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
+        ckpt = torch.load(weights, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
+        model = Model(cfg or ckpt["model"].yaml, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
+        exclude = ["anchor"] if (cfg or hyp.get("anchors")) and not resume else []  # exclude keys
         # checkpoint state_dict as FP32
-        if weights.endswith(".pt"): # PyTorch model
+        if weights.endswith(".pt"):  # PyTorch model
             csd = dict()
             for key, value in ckpt["model"].state_dict().items():
                 value = value.detach().cpu().numpy()
                 csd[key] = torch.tensor(value.astype(np.float32) if value.dtype == np.float16 else value)
-        else: # OneFlow model
+        else:  # OneFlow model
             csd = ckpt["model"].float().state_dict()  # checkpoint state_dict as FP32
         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
-        LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
+        LOGGER.info(f"Transferred {len(csd)}/{len(model.state_dict())} items from {weights}")  # report
     else:
         model = Model(cfg, ch=3, nc=nc, anchors=hyp.get("anchors")).to(device)  # create
     # amp = check_amp(model)  # check AMP

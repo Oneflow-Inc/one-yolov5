@@ -18,7 +18,7 @@ import os
 import subprocess
 import sys
 import time
-import numpy as np 
+import numpy as np
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -26,7 +26,7 @@ from pathlib import Path
 import oneflow as torch
 import oneflow.hub as hub
 import oneflow.optim.lr_scheduler as lr_scheduler
-import flowvision 
+import flowvision
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -56,7 +56,17 @@ from utils.general import (  # noqa :E402
 )
 from utils.loggers import GenericLogger  # noqa :E402
 from utils.plots import imshow_cls  # noqa :E402
-from utils.torch_utils import EarlyStopping, ModelEMA, model_info, reshape_classifier_output, select_device, smart_DDP, smart_optimizer, smartCrossEntropyLoss, torch_distributed_zero_first  # noqa :E402
+from utils.torch_utils import (  # noqa :E402
+    EarlyStopping,
+    ModelEMA,
+    model_info,
+    reshape_classifier_output,
+    select_device,
+    smart_DDP,
+    smart_optimizer,
+    smartCrossEntropyLoss,
+    torch_distributed_zero_first,
+)  # noqa :E402
 
 from utils.temp_repair_tool import FlowCudaMemoryReserved  # noqa :E402
 
@@ -119,19 +129,19 @@ def train(opt, device):
         if Path(opt.model).is_file() and opt.model.endswith(".of"):
             model = attempt_load(opt.model, device="cpu", fuse=False)
         elif Path(opt.model).is_file() and opt.model.endswith(".pt"):
-            w = Path(opt.model).name.replace('.pt','').replace('-cls','')
-            ckpt = torch.load(opt.model, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
-            model = DetectionModel(cfg = f'models/{w}.yaml', ch = 3)  # create
+            w = Path(opt.model).name.replace(".pt", "").replace("-cls", "")
+            ckpt = torch.load(opt.model, map_location="cpu")  # load checkpoint to CPU to avoid CUDA memory leak
+            model = DetectionModel(cfg=f"models/{w}.yaml", ch=3)  # create
             csd = dict()
             for key, value in ckpt["model"].state_dict().items():
                 value = value.detach().cpu().numpy()
                 csd[key] = torch.tensor(value.astype(np.float32) if value.dtype == np.float16 else value)
             # convert to classification model
-            nc  =   nc  if not isinstance(ckpt["model"], ClassificationModel) else  ckpt['model'].nc
-            cutoff = 10 if not isinstance(ckpt["model"], ClassificationModel) else  len(ckpt['model'].model)
-            model = ClassificationModel(model = model, nc = nc , cutoff = cutoff)
+            nc = nc if not isinstance(ckpt["model"], ClassificationModel) else ckpt["model"].nc
+            cutoff = 10 if not isinstance(ckpt["model"], ClassificationModel) else len(ckpt["model"].model)
+            model = ClassificationModel(model=model, nc=nc, cutoff=cutoff)
             model.load_state_dict(csd, strict=False)  # load
-            LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {opt.model}')  # report
+            LOGGER.info(f"Transferred {len(csd)}/{len(model.state_dict())} items from {opt.model}")  # report
             del ckpt, csd
         elif opt.model in flowvision.models.__dict__:  # TorchVision models i.e. resnet50, efficientnet_b0
             model = flowvision.models.__dict__[opt.model](weights="IMAGENET1K_V1" if pretrained else None)
@@ -183,7 +193,7 @@ def train(opt, device):
     if opt.sync_bn and cuda and RANK != -1:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model).to(device)
         LOGGER.info("Using SyncBatchNorm()")
-        
+
     # DDP mode
     if cuda and RANK != -1:
         model = smart_DDP(model)
@@ -275,7 +285,7 @@ def train(opt, device):
                 if best_fitness == fitness:
                     torch.save(ckpt, best)
                 del ckpt
-        
+
         # EarlyStopping
         if RANK != -1:  # if DDP training
             broadcast_list = torch.BoolTensor([stop if RANK == 0 else False])

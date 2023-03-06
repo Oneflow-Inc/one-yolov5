@@ -138,7 +138,7 @@ def process_batch(detections, labels, iouv, pred_masks=None, gt_masks=None, over
 @smart_inference_mode()
 def run(
     data,
-    weights=None,  #path(s)
+    weights=None,  # path(s)
     batch_size=32,  # batch size
     imgsz=640,  # inference size (pixels)
     conf_thres=0.001,  # confidence threshold
@@ -177,7 +177,7 @@ def run(
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
-        device, pt, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
+        device, _, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != "cpu"  # half precision only supported on CUDA
         half = False  # TODO(fengwen) 待fp16研发好
         model.half() if half else model.float()

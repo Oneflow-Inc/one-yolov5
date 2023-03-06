@@ -14,6 +14,8 @@ import oneflow as torch
 
 
 ssl._create_default_https_context = ssl._create_unverified_context
+
+
 def is_url(url, check=True):
     # Check if string is URL and check if URL exists
     try:
@@ -63,6 +65,7 @@ def safe_download(file, url, url2=None, min_bytes=1e0, error_msg=""):
 def attempt_download(file, repo="Oneflow-Inc/one-yolov5", release="v1.2.0"):
     # Attempt file download from GitHub release assets if not found locally. release = 'latest', 'v7.0', etc.
     from utils.general import LOGGER
+
     def github_assets(repository, version="latest"):
         # Return GitHub repo tag (i.e. 'v1.2.0') and assets (i.e. ['yolov5s.of', 'yolov5m.of', ...])
         if version != "latest":

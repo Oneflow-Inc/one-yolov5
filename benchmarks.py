@@ -64,7 +64,7 @@ def run(
     device = select_device(device)
     model_type = type(attempt_load(weights, fuse=False))  # DetectionModel, SegmentationModel, etc.
     for i, (name, f, suffix, cpu, gpu) in export.export_formats().iterrows():  # index, (name, file, suffix, CPU, GPU)
-        input(f'{i=} {name=} {f=} {suffix=} {cpu=} {gpu=}')
+        input(f"{i=} {name=} {f=} {suffix=} {cpu=} {gpu=}")
         try:
             assert i not in (9, 10), "inference not supported"  # Edge TPU and TF.js are unsupported
             assert i != 5 or platform.system() == "Darwin", "inference only supported on macOS>=10.13"  # CoreML
