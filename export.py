@@ -138,7 +138,7 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr("TorchScript:"
     extra_files = {"config.txt": json.dumps(d)}  # torch._C.ExtraFilesMap()
 
     if optimize:  # https://pytorch.org/tutorials/recipes/mobile_interpreter.html
-        LOGGER.info(f"\n error optimize_for_mobile(ts)._save_for_lite_interpreter(str(f), _extra_files=extra_files)")
+        LOGGER.info("\n error optimize_for_mobile(ts)._save_for_lite_interpreter(str(f), _extra_files=extra_files)")
     else:
         ts.save(str(f), _extra_files=extra_files)
     return f, None
