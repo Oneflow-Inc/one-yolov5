@@ -5,12 +5,7 @@ from clearml import Task
 from clearml.automation import HyperParameterOptimizer, UniformParameterRange
 from clearml.automation.optuna import OptimizerOptuna
 
-task = Task.init(
-    project_name="Hyper-Parameter Optimization",
-    task_name="YOLOv5",
-    task_type=Task.TaskTypes.optimizer,
-    reuse_last_task_id=False,
-)
+task = Task.init(project_name="Hyper-Parameter Optimization", task_name="YOLOv5", task_type=Task.TaskTypes.optimizer, reuse_last_task_id=False)
 
 # Example use case:
 optimizer = HyperParameterOptimizer(
@@ -73,7 +68,7 @@ optimizer = HyperParameterOptimizer(
 )
 
 # report every 10 seconds, this is way too often, but we are testing here
-optimizer.set_report_period(10)
+optimizer.set_report_period(10 / 60)
 # You can also use the line below instead to run all the optimizer tasks locally, without using queues or agent
 # an_optimizer.start_locally(job_complete_callback=job_complete_callback)
 # set the time limit for the optimization process (2 hours)

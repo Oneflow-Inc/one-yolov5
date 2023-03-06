@@ -9,7 +9,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import oneflow as flow
+import oneflow as torch
+
+from utils import TryExcept, threaded
 
 
 def fitness(x):
@@ -26,7 +28,7 @@ def smooth(y, f=0.05):
     return np.convolve(yp, np.ones(nf) / nf, mode="valid")  # y-smoothed
 
 
-def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir=".", names=(), eps=1e-16):
+def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir=".", names=(), eps=1e-16, prefix=""):
     """Compute the average precision, given the recall and precision curves.
     Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
     # Arguments
@@ -81,10 +83,10 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir=".", names
     names = [v for k, v in names.items() if k in unique_classes]  # list: only classes that have data
     names = dict(enumerate(names))  # to dict
     if plot:
-        plot_pr_curve(px, py, ap, Path(save_dir) / "PR_curve.png", names)
-        plot_mc_curve(px, f1, Path(save_dir) / "F1_curve.png", names, ylabel="F1")
-        plot_mc_curve(px, p, Path(save_dir) / "P_curve.png", names, ylabel="Precision")
-        plot_mc_curve(px, r, Path(save_dir) / "R_curve.png", names, ylabel="Recall")
+        plot_pr_curve(px, py, ap, Path(save_dir) / f"{prefix}PR_curve.png", names)
+        plot_mc_curve(px, f1, Path(save_dir) / f"{prefix}F1_curve.png", names, ylabel="F1")
+        plot_mc_curve(px, p, Path(save_dir) / f"{prefix}P_curve.png", names, ylabel="Precision")
+        plot_mc_curve(px, r, Path(save_dir) / f"{prefix}R_curve.png", names, ylabel="Recall")
 
     i = smooth(f1.mean(0), 0.1).argmax()  # max F1 index
     p, r, f1 = p[:, i], r[:, i], f1[:, i]
@@ -141,7 +143,7 @@ class ConfusionMatrix:
         """
         if detections is None:
             gt_classes = labels.int()
-            for i, gc in enumerate(gt_classes):
+            for gc in gt_classes:
                 self.matrix[self.nc, gc] += 1  # background FN
             return
 
@@ -150,9 +152,9 @@ class ConfusionMatrix:
         detection_classes = detections[:, 5].int()
         iou = box_iou(labels[:, 1:], detections[:, :4])
 
-        x = flow.where(iou > self.iou_thres)
+        x = torch.where(iou > self.iou_thres)
         if x[0].shape[0]:
-            matches = flow.cat((flow.stack(x, 1), iou[x[0], x[1]][:, None]), 1).cpu().numpy()
+            matches = torch.cat((torch.stack(x, 1), iou[x[0], x[1]][:, None]), 1).cpu().numpy()
             if x[0].shape[0] > 1:
                 matches = matches[matches[:, 2].argsort()[::-1]]
                 matches = matches[np.unique(matches[:, 1], return_index=True)[1]]
@@ -168,15 +170,12 @@ class ConfusionMatrix:
             if n and sum(j) == 1:
                 self.matrix[detection_classes[m1[j]], gc] += 1  # correct
             else:
-                self.matrix[self.nc, gc] += 1  # background FP
+                self.matrix[self.nc, gc] += 1  # true background
 
         if n:
             for i, dc in enumerate(detection_classes):
                 if not any(m1 == i):
-                    self.matrix[dc, self.nc] += 1  # background FN
-
-    def matrix(self):
-        return self.matrix
+                    self.matrix[dc, self.nc] += 1  # predicted background
 
     def tp_fp(self):
         tp = self.matrix.diagonal()  # true positives
@@ -184,37 +183,26 @@ class ConfusionMatrix:
         # fn = self.matrix.sum(0) - tp  # false negatives (missed detections)
         return tp[:-1], fp[:-1]  # remove background class
 
+    @TryExcept("WARNING ⚠️ ConfusionMatrix plot failure")
     def plot(self, normalize=True, save_dir="", names=()):
-        try:
-            import seaborn as sn
+        import seaborn as sn
 
-            array = self.matrix / ((self.matrix.sum(0).reshape(1, -1) + 1e-9) if normalize else 1)  # normalize columns
-            array[array < 0.005] = np.nan  # don't annotate (would appear as 0.00)
+        array = self.matrix / ((self.matrix.sum(0).reshape(1, -1) + 1e-9) if normalize else 1)  # normalize columns
+        array[array < 0.005] = np.nan  # don't annotate (would appear as 0.00)
 
-            fig = plt.figure(figsize=(12, 9), tight_layout=True)
-            nc, nn = self.nc, len(names)  # number of classes, names
-            sn.set(font_scale=1.0 if nc < 50 else 0.8)  # for label size
-            labels = (0 < nn < 99) and (nn == nc)  # apply names to ticklabels
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")  # suppress empty matrix RuntimeWarning: All-NaN slice encountered
-                sn.heatmap(
-                    array,
-                    annot=nc < 30,
-                    annot_kws={"size": 8},
-                    cmap="Blues",
-                    fmt=".2f",
-                    square=True,
-                    vmin=0.0,
-                    xticklabels=names + ["background FP"] if labels else "auto",
-                    yticklabels=names + ["background FN"] if labels else "auto",
-                ).set_facecolor((1, 1, 1))
-            fig.axes[0].set_xlabel("True")
-            fig.axes[0].set_ylabel("Predicted")
-            plt.title("Confusion Matrix")
-            fig.savefig(Path(save_dir) / "confusion_matrix.png", dpi=250)
-            plt.close()
-        except Exception as e:
-            print(f"WARNING: ConfusionMatrix plot failure: {e}")
+        fig, ax = plt.subplots(1, 1, figsize=(12, 9), tight_layout=True)
+        nc, nn = self.nc, len(names)  # number of classes, names
+        sn.set(font_scale=1.0 if nc < 50 else 0.8)  # for label size
+        labels = (0 < nn < 99) and (nn == nc)  # apply names to ticklabels
+        ticklabels = (names + ["background"]) if labels else "auto"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # suppress empty matrix RuntimeWarning: All-NaN slice encountered
+            sn.heatmap(array, ax=ax, annot=nc < 30, annot_kws={"size": 8}, cmap="Blues", fmt=".2f", square=True, vmin=0.0, xticklabels=ticklabels, yticklabels=ticklabels).set_facecolor((1, 1, 1))
+        ax.set_xlabel("True")
+        ax.set_ylabel("Predicted")
+        ax.set_title("Confusion Matrix")
+        fig.savefig(Path(save_dir) / "confusion_matrix.png", dpi=250)
+        plt.close(fig)
 
     def print(self):
         for i in range(self.nc + 1):
@@ -226,56 +214,54 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
 
     # Get the coordinates of bounding boxes
     if xywh:  # transform from xywh to xyxy
-        (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, 1), box2.chunk(4, 1)
+        (x1, y1, w1, h1), (x2, y2, w2, h2) = box1.chunk(4, -1), box2.chunk(4, -1)
         if bbox_iou_optim:
-            b1_x1, b1_x2, b1_y1, b1_y2, b2_x1, b2_x2, b2_y1, b2_y2 = flow._C.fused_get_boundding_boxes_coord(x1, y1, w1, h1, x2, y2, w2, h2)
+            b1_x1, b1_x2, b1_y1, b1_y2, b2_x1, b2_x2, b2_y1, b2_y2 = torch._C.fused_get_boundding_boxes_coord(x1, y1, w1, h1, x2, y2, w2, h2)
         else:
             w1_, h1_, w2_, h2_ = w1 / 2, h1 / 2, w2 / 2, h2 / 2
             b1_x1, b1_x2, b1_y1, b1_y2 = x1 - w1_, x1 + w1_, y1 - h1_, y1 + h1_
             b2_x1, b2_x2, b2_y1, b2_y2 = x2 - w2_, x2 + w2_, y2 - h2_, y2 + h2_
     else:  # x1, y1, x2, y2 = box1
-        b1_x1, b1_y1, b1_x2, b1_y2 = box1.chunk(4, 1)
-        b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, 1)
-        w1, h1 = b1_x2 - b1_x1, b1_y2 - b1_y1
-        w2, h2 = b2_x2 - b2_x1, b2_y2 - b2_y1
+        b1_x1, b1_y1, b1_x2, b1_y2 = box1.chunk(4, -1)
+        b2_x1, b2_y1, b2_x2, b2_y2 = box2.chunk(4, -1)
+        w1, h1 = b1_x2 - b1_x1, (b1_y2 - b1_y1).clamp(eps)
+        w2, h2 = b2_x2 - b2_x1, (b2_y2 - b2_y1).clamp(eps)
 
     # Intersection area
+
     if bbox_iou_optim:
-        inter = flow._C.fused_get_intersection_area(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
+        inter = torch._C.fused_get_intersection_area(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
     else:
-        inter = (flow.min(b1_x2, b2_x2) - flow.max(b1_x1, b2_x1)).clamp(0) * (flow.min(b1_y2, b2_y2) - flow.max(b1_y1, b2_y1)).clamp(0)
+        inter = (b1_x2.minimum(b2_x2) - b1_x1.maximum(b2_x1)).clamp(0) * (b1_y2.minimum(b2_y2) - b1_y1.maximum(b2_y1)).clamp(0)
+
+    # Union Area
 
     if bbox_iou_optim and CIoU:
-        iou = flow._C.fused_get_iou(w1, h1, w2, h2, inter, eps)
+        iou = torch._C.fused_get_iou(w1, h1, w2, h2, inter, eps)
     else:
-        # Union Area
         union = w1 * h1 + w2 * h2 - inter + eps
-
         # IoU
         iou = inter / union
-
     if CIoU or DIoU or GIoU:
-        if not bbox_iou_optim:
-            cw = flow.max(b1_x2, b2_x2) - flow.min(b1_x1, b2_x1)  # convex (smallest enclosing box) width
-            ch = flow.max(b1_y2, b2_y2) - flow.min(b1_y1, b2_y1)  # convex height
+        cw = b1_x2.maximum(b2_x2) - b1_x1.minimum(b2_x1)  # convex (smallest enclosing box) width
+        ch = b1_y2.maximum(b2_y2) - b1_y1.minimum(b2_y1)  # convex height
         if CIoU or DIoU:  # Distance or Complete IoU https://arxiv.org/abs/1911.08287v1
             if bbox_iou_optim:
-                c2 = flow._C.fused_get_convex_diagonal_squared(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2, eps)
+                c2 = torch._C.fused_get_convex_diagonal_squared(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2, eps)
             else:
                 c2 = cw ** 2 + ch ** 2 + eps  # convex diagonal squared
+            c2 = torch._C.fused_get_convex_diagonal_squared(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2, eps) if bbox_iou_optim else (cw ** 2 + ch ** 2 + eps)
             if bbox_iou_optim:
-                rho2 = flow._C.fused_get_center_dist(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
+                rho2 = torch._C.fused_get_center_dist(b1_x1, b1_x2, b2_x1, b2_x2, b1_y1, b1_y2, b2_y1, b2_y2)
             else:
                 rho2 = ((b2_x1 + b2_x2 - b1_x1 - b1_x2) ** 2 + (b2_y1 + b2_y2 - b1_y1 - b1_y2) ** 2) / 4  # center dist ** 2
-
-            if CIoU:
+            if CIoU:  # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
                 if bbox_iou_optim:
-                    v = flow._C.fused_get_ciou_diagonal_angle(w1, h1, w2, h2, eps)
-                    return flow._C.fused_get_ciou_result(v, iou, rho2, c2, eps)[0]
+                    v = torch._C.fused_get_ciou_diagonal_angle(w1, h1, w2, h2, eps)
+                    return torch._C.fused_get_ciou_result(v, iou, rho2, c2, eps)[0]
                 else:
-                    # https://github.com/Zzh-tju/DIoU-SSD-pytorch/blob/master/utils/box/box_utils.py#L47
-                    v = (4 / math.pi ** 2) * flow.pow(flow.atan(w2 / (h2 + eps)) - flow.atan(w1 / (h1 + eps)), 2)
-                    with flow.no_grad():
+                    v = (4 / math.pi ** 2) * (torch.atan(w2 / h2) - torch.atan(w1 / h1)).pow(2)
+                    with torch.no_grad():
                         alpha = v / (v - iou + (1 + eps))
                     return iou - (rho2 / c2 + v * alpha)  # CIoU
             return iou - rho2 / c2  # DIoU
@@ -284,13 +270,8 @@ def bbox_iou(box1, box2, xywh=True, GIoU=False, DIoU=False, CIoU=False, bbox_iou
     return iou  # IoU
 
 
-def box_area(box):
-    # box = xyxy(4,n)
-    return (box[2] - box[0]) * (box[3] - box[1])
-
-
 def box_iou(box1, box2, eps=1e-7):
-    # https://github.com/pyflow/vision/blob/master/flowvision/ops/boxes.py
+    # https://github.com/pytorch/vision/blob/master/torchvision/ops/boxes.py
     """
     Return intersection-over-union (Jaccard index) of boxes.
     Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
@@ -303,11 +284,11 @@ def box_iou(box1, box2, eps=1e-7):
     """
 
     # inter(N,M) = (rb(N,M,2) - lt(N,M,2)).clamp(0).prod(2)
-    (a1, a2), (b1, b2) = box1[:, None].chunk(2, 2), box2.chunk(2, 1)
-    inter = (flow.min(a2, b2) - flow.max(a1, b1)).clamp(0).prod(2)
+    (a1, a2), (b1, b2) = box1.unsqueeze(1).chunk(2, 2), box2.unsqueeze(0).chunk(2, 2)
+    inter = (torch.min(a2, b2) - torch.max(a1, b1)).clamp(0).prod(2)
 
     # IoU = inter / (area1 + area2 - inter)
-    return inter / (box_area(box1.T)[:, None] + box_area(box2.T) - inter + eps)
+    return inter / ((a2 - a1).prod(2) + (b2 - b1).prod(2) - inter + eps)
 
 
 def bbox_ioa(box1, box2, eps=1e-7):
@@ -335,13 +316,14 @@ def wh_iou(wh1, wh2, eps=1e-7):
     # Returns the nxm IoU matrix. wh1 is nx2, wh2 is mx2
     wh1 = wh1[:, None]  # [N,1,2]
     wh2 = wh2[None]  # [1,M,2]
-    inter = flow.min(wh1, wh2).prod(2)  # [N,M]
+    inter = torch.min(wh1, wh2).prod(2)  # [N,M]
     return inter / (wh1.prod(2) + wh2.prod(2) - inter + eps)  # iou = inter / (area1 + area2 - inter)
 
 
 # Plots ----------------------------------------------------------------------------------------------------------------
 
 
+@threaded
 def plot_pr_curve(px, py, ap, save_dir=Path("pr_curve.png"), names=()):
     # Precision-recall curve
     fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
@@ -353,23 +335,18 @@ def plot_pr_curve(px, py, ap, save_dir=Path("pr_curve.png"), names=()):
     else:
         ax.plot(px, py, linewidth=1, color="grey")  # plot(recall, precision)
 
-    ax.plot(
-        px,
-        py.mean(1),
-        linewidth=3,
-        color="blue",
-        label="all classes %.3f mAP@0.5" % ap[:, 0].mean(),
-    )
+    ax.plot(px, py.mean(1), linewidth=3, color="blue", label="all classes %.3f mAP@0.5" % ap[:, 0].mean())
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    plt.title("Precision-Recall Curve")
+    ax.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+    ax.set_title("Precision-Recall Curve")
     fig.savefig(save_dir, dpi=250)
-    plt.close()
+    plt.close(fig)
 
 
+@threaded
 def plot_mc_curve(px, py, save_dir=Path("mc_curve.png"), names=(), xlabel="Confidence", ylabel="Metric"):
     # Metric-confidence curve
     fig, ax = plt.subplots(1, 1, figsize=(9, 6), tight_layout=True)
@@ -386,7 +363,7 @@ def plot_mc_curve(px, py, save_dir=Path("mc_curve.png"), names=(), xlabel="Confi
     ax.set_ylabel(ylabel)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    plt.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
-    plt.title(f"{ylabel}-Confidence Curve")
+    ax.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+    ax.set_title(f"{ylabel}-Confidence Curve")
     fig.savefig(save_dir, dpi=250)
-    plt.close()
+    plt.close(fig)

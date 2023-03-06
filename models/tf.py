@@ -7,31 +7,31 @@ Usage:
     $ python models/tf.py --weights yolov5s.pt
 
 Export:
-    $ python path/to/export.py --weights yolov5s.pt --include saved_model pb tflite tfjs
+    $ python export.py --weights yolov5s.pt --include saved_model pb tflite tfjs
 """
 
 import argparse
 import sys
-from copy import deepcopy
-from pathlib import Path
-
 import numpy as np
 import tensorflow as tf
-import torch
-import torch.nn as nn
-from tensorflow import keras
-
-from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv, DWConvTranspose2d, Focus, autopad
-from models.experimental import MixConv2d, attempt_load
-from models.yolo import Detect
-from utils.activations import SiLU
-from utils.general import LOGGER, make_divisible, print_args
+import oneflow as torch
+import oneflow.nn as nn
+from copy import deepcopy  # noqa :E402
+from pathlib import Path  # noqa :E402
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 # ROOT = ROOT.relative_to(Path.cwd())  # relative
+
+from tensorflow import keras  # noqa :E402
+
+from models.common import C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv, DWConvTranspose2d, Focus, autopad  # noqa :E402
+from models.experimental import MixConv2d, attempt_load  # noqa :E402
+from models.yolo import Detect, Segment  # noqa :E402
+from utils.activations import SiLU  # noqa :E402
+from utils.general import LOGGER, make_divisible, print_args  # noqa :E402
 
 
 class TFBN(keras.layers.Layer):
@@ -147,12 +147,7 @@ class TFFocus(keras.layers.Layer):
 
     def call(self, inputs):  # x(b,w,h,c) -> y(b,w/2,h/2,4c)
         # inputs = inputs / 255  # normalize 0-255 to 0-1
-        inputs = [
-            inputs[:, ::2, ::2, :],
-            inputs[:, 1::2, ::2, :],
-            inputs[:, ::2, 1::2, :],
-            inputs[:, 1::2, 1::2, :],
-        ]
+        inputs = [inputs[:, ::2, ::2, :], inputs[:, 1::2, ::2, :], inputs[:, ::2, 1::2, :], inputs[:, 1::2, 1::2, :]]
         return self.conv(tf.concat(inputs, 3))
 
 
@@ -310,18 +305,18 @@ class TFDetect(keras.layers.Layer):
             x[i] = tf.reshape(x[i], [-1, ny * nx, self.na, self.no])
 
             if not self.training:  # inference
-                y = tf.sigmoid(x[i])
+                y = x[i]
                 grid = tf.transpose(self.grid[i], [0, 2, 1, 3]) - 0.5
                 anchor_grid = tf.transpose(self.anchor_grid[i], [0, 2, 1, 3]) * 4
-                xy = (y[..., 0:2] * 2 + grid) * self.stride[i]  # xy
-                wh = y[..., 2:4] ** 2 * anchor_grid
+                xy = (tf.sigmoid(y[..., 0:2]) * 2 + grid) * self.stride[i]  # xy
+                wh = tf.sigmoid(y[..., 2:4]) ** 2 * anchor_grid
                 # Normalize xywh to 0-1 to reduce calibration error
                 xy /= tf.constant([[self.imgsz[1], self.imgsz[0]]], dtype=tf.float32)
                 wh /= tf.constant([[self.imgsz[1], self.imgsz[0]]], dtype=tf.float32)
-                y = tf.concat([xy, wh, y[..., 4:]], -1)
+                y = tf.concat([xy, wh, tf.sigmoid(y[..., 4 : 5 + self.nc]), y[..., 5 + self.nc :]], -1)
                 z.append(tf.reshape(y, [-1, self.na * ny * nx, self.no]))
 
-        return tf.transpose(x, [0, 2, 1, 3]) if self.training else (tf.concat(z, 1), x)
+        return tf.transpose(x, [0, 2, 1, 3]) if self.training else (tf.concat(z, 1),)
 
     @staticmethod
     def _make_grid(nx=20, ny=20):
@@ -331,12 +326,43 @@ class TFDetect(keras.layers.Layer):
         return tf.cast(tf.reshape(tf.stack([xv, yv], 2), [1, 1, ny * nx, 2]), dtype=tf.float32)
 
 
+class TFSegment(TFDetect):
+    # YOLOv5 Segment head for segmentation models
+    def __init__(self, nc=80, anchors=(), nm=32, npr=256, ch=(), imgsz=(640, 640), w=None):
+        super().__init__(nc, anchors, ch, imgsz, w)
+        self.nm = nm  # number of masks
+        self.npr = npr  # number of protos
+        self.no = 5 + nc + self.nm  # number of outputs per anchor
+        self.m = [TFConv2d(x, self.no * self.na, 1, w=w.m[i]) for i, x in enumerate(ch)]  # output conv
+        self.proto = TFProto(ch[0], self.npr, self.nm, w=w.proto)  # protos
+        self.detect = TFDetect.call
+
+    def call(self, x):
+        p = self.proto(x[0])
+        # p = TFUpsample(None, scale_factor=4, mode='nearest')(self.proto(x[0]))  # (optional) full-size protos
+        p = tf.transpose(p, [0, 3, 1, 2])  # from shape(1,160,160,32) to shape(1,32,160,160)
+        x = self.detect(self, x)
+        return (x, p) if self.training else (x[0], p)
+
+
+class TFProto(keras.layers.Layer):
+    def __init__(self, c1, c_=256, c2=32, w=None):
+        super().__init__()
+        self.cv1 = TFConv(c1, c_, k=3, w=w.cv1)
+        self.upsample = TFUpsample(None, scale_factor=2, mode="nearest")
+        self.cv2 = TFConv(c_, c_, k=3, w=w.cv2)
+        self.cv3 = TFConv(c_, c2, w=w.cv3)
+
+    def call(self, inputs):
+        return self.cv3(self.cv2(self.upsample(self.cv1(inputs))))
+
+
 class TFUpsample(keras.layers.Layer):
     # TF version of torch.nn.Upsample()
     def __init__(self, size, scale_factor, mode, w=None):  # warning: all arguments needed including 'w'
         super().__init__()
-        assert scale_factor == 2, "scale_factor must be 2"
-        self.upsample = lambda x: tf.image.resize(x, (x.shape[1] * 2, x.shape[2] * 2), method=mode)
+        assert scale_factor % 2 == 0, "scale_factor must be multiple of 2"
+        self.upsample = lambda x: tf.image.resize(x, (x.shape[1] * scale_factor, x.shape[2] * scale_factor), mode)
         # self.upsample = keras.layers.UpSampling2D(size=scale_factor, interpolation=mode)
         # with default arguments: align_corners=False, half_pixel_centers=False
         # self.upsample = lambda x: tf.raw_ops.ResizeNearestNeighbor(images=x,
@@ -374,21 +400,7 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
                 pass
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m in [
-            nn.Conv2d,
-            Conv,
-            DWConv,
-            DWConvTranspose2d,
-            Bottleneck,
-            SPP,
-            SPPF,
-            MixConv2d,
-            Focus,
-            CrossConv,
-            BottleneckCSP,
-            C3,
-            C3x,
-        ]:
+        if m in [nn.Conv2d, Conv, DWConv, DWConvTranspose2d, Bottleneck, SPP, SPPF, MixConv2d, Focus, CrossConv, BottleneckCSP, C3, C3x]:
             c1, c2 = ch[f], args[0]
             c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
 
@@ -400,10 +412,12 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
             args = [ch[f]]
         elif m is Concat:
             c2 = sum(ch[-1 if x == -1 else x + 1] for x in f)
-        elif m is Detect:
+        elif m in [Detect, Segment]:
             args.append([ch[x + 1] for x in f])
             if isinstance(args[1], int):  # number of anchors
                 args[1] = [list(range(args[1] * 2))] * len(f)
+            if m is Segment:
+                args[3] = make_divisible(args[3] * gw, 8)
             args.append(imgsz)
         else:
             c2 = ch[f]
@@ -441,16 +455,7 @@ class TFModel:
             self.yaml["nc"] = nc  # override yaml value
         self.model, self.savelist = parse_model(deepcopy(self.yaml), ch=[ch], model=model, imgsz=imgsz)
 
-    def predict(
-        self,
-        inputs,
-        tf_nms=False,
-        agnostic_nms=False,
-        topk_per_class=100,
-        topk_all=100,
-        iou_thres=0.45,
-        conf_thres=0.25,
-    ):
+    def predict(self, inputs, tf_nms=False, agnostic_nms=False, topk_per_class=100, topk_all=100, iou_thres=0.45, conf_thres=0.25):
         y = []  # outputs
         x = inputs
         for m in self.model.layers:
@@ -471,9 +476,9 @@ class TFModel:
             else:
                 boxes = tf.expand_dims(boxes, 2)
                 nms = tf.image.combined_non_max_suppression(boxes, scores, topk_per_class, topk_all, iou_thres, conf_thres, clip_boxes=False)
-            return nms, x[1]
-        return x[0]  # output only first tensor [1,6300,85] = [xywh, conf, class0, class1, ...]
-        # x = x[0][0]  # [x(1,6300,85), ...] to x(6300,85)
+            return (nms,)
+        return x  # output [1,6300,85] = [xywh, conf, class0, class1, ...]
+        # x = x[0]  # [x(1,6300,85), ...] to x(6300,85)
         # xywh = x[..., :4]  # x(6300,4) boxes
         # conf = x[..., 4:5]  # x(6300,1) confidences
         # cls = tf.reshape(tf.cast(tf.argmax(x[..., 5:], axis=1), tf.float32), (-1, 1))  # x(6300,1)  classes
@@ -490,46 +495,20 @@ class AgnosticNMS(keras.layers.Layer):
     # TF Agnostic NMS
     def call(self, input, topk_all, iou_thres, conf_thres):
         # wrap map_fn to avoid TypeSpec related error https://stackoverflow.com/a/65809989/3036450
-        return tf.map_fn(
-            lambda x: self._nms(x, topk_all, iou_thres, conf_thres),
-            input,
-            fn_output_signature=(tf.float32, tf.float32, tf.float32, tf.int32),
-            name="agnostic_nms",
-        )
+        return tf.map_fn(lambda x: self._nms(x, topk_all, iou_thres, conf_thres), input, fn_output_signature=(tf.float32, tf.float32, tf.float32, tf.int32), name="agnostic_nms")
 
     @staticmethod
     def _nms(x, topk_all=100, iou_thres=0.45, conf_thres=0.25):  # agnostic NMS
         boxes, classes, scores = x
         class_inds = tf.cast(tf.argmax(classes, axis=-1), tf.float32)
         scores_inp = tf.reduce_max(scores, -1)
-        selected_inds = tf.image.non_max_suppression(
-            boxes,
-            scores_inp,
-            max_output_size=topk_all,
-            iou_threshold=iou_thres,
-            score_threshold=conf_thres,
-        )
+        selected_inds = tf.image.non_max_suppression(boxes, scores_inp, max_output_size=topk_all, iou_threshold=iou_thres, score_threshold=conf_thres)
         selected_boxes = tf.gather(boxes, selected_inds)
-        padded_boxes = tf.pad(
-            selected_boxes,
-            paddings=[[0, topk_all - tf.shape(selected_boxes)[0]], [0, 0]],
-            mode="CONSTANT",
-            constant_values=0.0,
-        )
+        padded_boxes = tf.pad(selected_boxes, paddings=[[0, topk_all - tf.shape(selected_boxes)[0]], [0, 0]], mode="CONSTANT", constant_values=0.0)
         selected_scores = tf.gather(scores_inp, selected_inds)
-        padded_scores = tf.pad(
-            selected_scores,
-            paddings=[[0, topk_all - tf.shape(selected_boxes)[0]]],
-            mode="CONSTANT",
-            constant_values=-1.0,
-        )
+        padded_scores = tf.pad(selected_scores, paddings=[[0, topk_all - tf.shape(selected_boxes)[0]]], mode="CONSTANT", constant_values=-1.0)
         selected_classes = tf.gather(class_inds, selected_inds)
-        padded_classes = tf.pad(
-            selected_classes,
-            paddings=[[0, topk_all - tf.shape(selected_boxes)[0]]],
-            mode="CONSTANT",
-            constant_values=-1.0,
-        )
+        padded_classes = tf.pad(selected_classes, paddings=[[0, topk_all - tf.shape(selected_boxes)[0]]], mode="CONSTANT", constant_values=-1.0)
         valid_detections = tf.shape(selected_inds)[0]
         return padded_boxes, padded_scores, padded_classes, valid_detections
 
@@ -585,15 +564,7 @@ def run(
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.pt", help="weights path")
-    parser.add_argument(
-        "--imgsz",
-        "--img",
-        "--img-size",
-        nargs="+",
-        type=int,
-        default=[640],
-        help="inference size h,w",
-    )
+    parser.add_argument("--imgsz", "--img", "--img-size", nargs="+", type=int, default=[640], help="inference size h,w")
     parser.add_argument("--batch-size", type=int, default=1, help="batch size")
     parser.add_argument("--dynamic", action="store_true", help="dynamic batch size")
     opt = parser.parse_args()

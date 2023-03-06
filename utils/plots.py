@@ -3,7 +3,9 @@
 Plotting utils
 """
 
+import contextlib
 import math
+import os
 from copy import copy
 from pathlib import Path
 from urllib.error import URLError
@@ -12,16 +14,18 @@ import cv2
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import oneflow as flow
 import pandas as pd
 import seaborn as sn
+import oneflow as torch
 from PIL import Image, ImageDraw, ImageFont
 
-from utils.general import CONFIG_DIR, FONT, LOGGER, Timeout, check_font, check_requirements, clip_coords, increment_path, is_ascii, threaded, try_except, xywh2xyxy, xyxy2xywh
+from utils import TryExcept, threaded
+from utils.general import CONFIG_DIR, FONT, LOGGER, check_font, check_requirements, clip_boxes, increment_path, is_ascii, xywh2xyxy, xyxy2xywh
 from utils.metrics import fitness
+from utils.segment.general import scale_image
 
 # Settings
-RANK = -1  # int(os.getenv('RANK', -1))
+RANK = int(os.getenv("RANK", -1))
 matplotlib.rc("font", **{"size": 11})
 matplotlib.use("Agg")  # for writing to files only
 
@@ -92,10 +96,7 @@ class Annotator:
         if self.pil:  # use PIL
             self.im = im if isinstance(im, Image.Image) else Image.fromarray(im)
             self.draw = ImageDraw.Draw(self.im)
-            self.font = check_pil_font(
-                font="Arial.Unicode.ttf" if non_ascii else font,
-                size=font_size or max(round(sum(self.im.size) / 2 * 0.035), 12),
-            )
+            self.font = check_pil_font(font="Arial.Unicode.ttf" if non_ascii else font, size=font_size or max(round(sum(self.im.size) / 2 * 0.035), 12))
         else:  # use cv2
             self.im = im
         self.lw = line_width or max(round(sum(im.shape) / 2 * 0.003), 2)  # line width
@@ -105,24 +106,15 @@ class Annotator:
         if self.pil or not is_ascii(label):
             self.draw.rectangle(box, width=self.lw, outline=color)  # box
             if label:
-                w, h = self.font.getsize(label)  # text width, height
+                w, h = self.font.getsize(label)  # text width, height (WARNING: deprecated) in 9.2.0
+                # _, _, w, h = self.font.getbbox(label)  # text width, height (New)
                 outside = box[1] - h >= 0  # label fits outside box
                 self.draw.rectangle(
-                    (
-                        box[0],
-                        box[1] - h if outside else box[1],
-                        box[0] + w + 1,
-                        box[1] + 1 if outside else box[1] + h + 1,
-                    ),
+                    (box[0], box[1] - h if outside else box[1], box[0] + w + 1, box[1] + 1 if outside else box[1] + h + 1),
                     fill=color,
                 )
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
-                self.draw.text(
-                    (box[0], box[1] - h if outside else box[1]),
-                    label,
-                    fill=txt_color,
-                    font=self.font,
-                )
+                self.draw.text((box[0], box[1] - h if outside else box[1]), label, fill=txt_color, font=self.font)
         else:  # cv2
             p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
             cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
@@ -132,25 +124,53 @@ class Annotator:
                 outside = p1[1] - h >= 3
                 p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
                 cv2.rectangle(self.im, p1, p2, color, -1, cv2.LINE_AA)  # filled
-                cv2.putText(
-                    self.im,
-                    label,
-                    (p1[0], p1[1] - 2 if outside else p1[1] + h + 2),
-                    0,
-                    self.lw / 3,
-                    txt_color,
-                    thickness=tf,
-                    lineType=cv2.LINE_AA,
-                )
+                cv2.putText(self.im, label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2), 0, self.lw / 3, txt_color, thickness=tf, lineType=cv2.LINE_AA)
+
+    def masks(self, masks, colors, im_gpu, alpha=0.5, retina_masks=False):
+        """Plot masks at once.
+        Args:
+            masks (tensor): predicted masks on cuda, shape: [n, h, w]
+            colors (List[List[Int]]): colors for predicted masks, [[r, g, b] * n]
+            im_gpu (tensor): img is in cuda, shape: [3, h, w], range: [0, 1]
+            alpha (float): mask transparency: 0.0 fully transparent, 1.0 opaque
+        """
+        if self.pil:
+            # convert to numpy first
+            self.im = np.asarray(self.im).copy()
+        if len(masks) == 0:
+            self.im[:] = im_gpu.permute(1, 2, 0).contiguous().cpu().numpy() * 255
+        colors = torch.tensor(colors, device=im_gpu.device, dtype=torch.float32) / 255.0
+        colors = colors[:, None, None]  # shape(n,1,1,3)
+        masks = masks.unsqueeze(3)  # shape(n,h,w,1)
+        masks_color = masks * (colors * alpha)  # shape(n,h,w,3)
+
+        inv_alph_masks = (1 - masks * alpha).cumprod(0)  # shape(n,h,w,1)
+        mcs = (masks_color * inv_alph_masks).sum(0) * 2  # mask color summand shape(n,h,w,3)
+
+        im_gpu = im_gpu.flip(dims=[0])  # flip channel
+        im_gpu = im_gpu.permute(1, 2, 0).contiguous()  # shape(h,w,3)
+        im_gpu = im_gpu * inv_alph_masks[-1] + mcs
+        im_mask = (im_gpu * 255).byte().cpu().numpy()
+        self.im[:] = im_mask if retina_masks else scale_image(im_gpu.shape, im_mask, self.im.shape)
+        if self.pil:
+            # convert im back to PIL and update draw
+            self.fromarray(self.im)
 
     def rectangle(self, xy, fill=None, outline=None, width=1):
         # Add rectangle to image (PIL-only)
         self.draw.rectangle(xy, fill, outline, width)
 
-    def text(self, xy, text, txt_color=(255, 255, 255)):
+    def text(self, xy, text, txt_color=(255, 255, 255), anchor="top"):
         # Add text to image (PIL-only)
-        w, h = self.font.getsize(text)  # text width, height
-        self.draw.text((xy[0], xy[1] - h + 1), text, fill=txt_color, font=self.font)
+        if anchor == "bottom":  # start y from font bottom
+            w, h = self.font.getsize(text)  # text width, height
+            xy[1] += 1 - h
+        self.draw.text(xy, text, fill=txt_color, font=self.font)
+
+    def fromarray(self, im):
+        # Update self.im from a numpy array
+        self.im = im if isinstance(im, Image.Image) else Image.fromarray(im)
+        self.draw = ImageDraw.Draw(self.im)
 
     def result(self):
         # Return annotated image as array
@@ -170,7 +190,7 @@ def feature_visualization(x, module_type, stage, n=32, save_dir=Path("runs/detec
         if height > 1 and width > 1:
             f = save_dir / f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
 
-            blocks = flow.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
+            blocks = torch.chunk(x[0].cpu(), channels, dim=0)  # select batch index 0, block by channels
             n = min(n, channels)  # number of plots
             fig, ax = plt.subplots(math.ceil(n / 8), 8, tight_layout=True)  # 8 rows x n/8 cols
             ax = ax.ravel()
@@ -180,7 +200,6 @@ def feature_visualization(x, module_type, stage, n=32, save_dir=Path("runs/detec
                 ax[i].axis("off")
 
             LOGGER.info(f"Saving {f}... ({n}/{channels})")
-            plt.title("Features")
             plt.savefig(f, dpi=300, bbox_inches="tight")
             plt.close()
             np.save(str(f.with_suffix(".npy")), x[0].cpu().numpy())  # npy save
@@ -208,27 +227,31 @@ def butter_lowpass_filtfilt(data, cutoff=1500, fs=50000, order=5):
     return filtfilt(b, a, data)  # forward-backward filter
 
 
-def output_to_target(output):
-    # Convert model output to target format [batch_id, class_id, x, y, w, h, conf]
+def output_to_target(output, max_det=300):
+    # Convert model output to target format [batch_id, class_id, x, y, w, h, conf] for plotting
     targets = []
     for i, o in enumerate(output):
-        for *box, conf, cls in o.cpu().numpy():
-            targets.append([i, cls, *list(*xyxy2xywh(np.array(box)[None])), conf])
-    return np.array(targets)
+        box, conf, cls = o[:max_det, :6].cpu().split((4, 1, 1), 1)
+        j = torch.full((conf.shape[0], 1), i)
+        targets.append(torch.cat((j, cls, xyxy2xywh(box), conf), 1))
+    return torch.cat(targets, 0).numpy()
 
 
 @threaded
-def plot_images(images, targets, paths=None, fname="images.jpg", names=None, max_size=1920, max_subplots=16):
+def plot_images(images, targets, paths=None, fname="images.jpg", names=None):
     # Plot image grid with labels
-    if isinstance(images, flow.Tensor):
+    if isinstance(images, torch.Tensor):
         images = images.cpu().float().numpy()
-    if isinstance(targets, flow.Tensor):
+    if isinstance(targets, torch.Tensor):
         targets = targets.cpu().numpy()
-    if np.max(images[0]) <= 1:
-        images = images * 255  # de-normalise (optional)
+
+    max_size = 1920  # max image size
+    max_subplots = 16  # max image subplots, i.e. 4x4
     bs, _, h, w = images.shape  # batch size, _, height, width
     bs = min(bs, max_subplots)  # limit plot images
     ns = np.ceil(bs ** 0.5)  # number of subplots (square)
+    if np.max(images[0]) <= 1:
+        images *= 255  # de-normalise (optional)
 
     # Build Image
     mosaic = np.full((int(ns * h), int(ns * w), 3), 255, dtype=np.uint8)  # init
@@ -253,7 +276,7 @@ def plot_images(images, targets, paths=None, fname="images.jpg", names=None, max
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
         if paths:
-            annotator.text((x + 5, y + 5 + h), text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
+            annotator.text((x + 5, y + 5), text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
         if len(targets) > 0:
             ti = targets[targets[:, 0] == i]  # image targets
             boxes = xywh2xyxy(ti[:, 2:6]).T
@@ -263,12 +286,12 @@ def plot_images(images, targets, paths=None, fname="images.jpg", names=None, max
 
             if boxes.shape[1]:
                 if boxes.max() <= 1.01:  # if normalized with tolerance 0.01
-                    boxes[[0, 2]] = boxes[[0, 2]] * w  # scale to pixels
-                    boxes[[1, 3]] = boxes[[1, 3]] * h
+                    boxes[[0, 2]] *= w  # scale to pixels
+                    boxes[[1, 3]] *= h
                 elif scale < 1:  # absolute coords need scale if image scales
-                    boxes = boxes * scale
-            boxes[[0, 2]] = boxes[[0, 2]] + x
-            boxes[[1, 3]] = boxes[[1, 3]] + y
+                    boxes *= scale
+            boxes[[0, 2]] += x
+            boxes[[1, 3]] += y
             for j, box in enumerate(boxes.T.tolist()):
                 cls = classes[j]
                 color = colors(cls)
@@ -339,38 +362,15 @@ def plot_val_study(file="", dir="", x=None):  # from utils.plots import *; plot_
         y = np.loadtxt(f, dtype=np.float32, usecols=[0, 1, 2, 3, 7, 8, 9], ndmin=2).T
         x = np.arange(y.shape[1]) if x is None else np.array(x)
         if plot2:
-            s = [
-                "P",
-                "R",
-                "mAP@.5",
-                "mAP@.5:.95",
-                "t_preprocess (ms/img)",
-                "t_inference (ms/img)",
-                "t_NMS (ms/img)",
-            ]
+            s = ["P", "R", "mAP@.5", "mAP@.5:.95", "t_preprocess (ms/img)", "t_inference (ms/img)", "t_NMS (ms/img)"]
             for i in range(7):
                 ax[i].plot(x, y[i], ".-", linewidth=2, markersize=8)
                 ax[i].set_title(s[i])
 
         j = y[3].argmax() + 1
-        ax2.plot(
-            y[5, 1:j],
-            y[3, 1:j] * 1e2,
-            ".-",
-            linewidth=2,
-            markersize=8,
-            label=f.stem.replace("study_coco_", "").replace("yolo", "YOLO"),
-        )
+        ax2.plot(y[5, 1:j], y[3, 1:j] * 1e2, ".-", linewidth=2, markersize=8, label=f.stem.replace("study_coco_", "").replace("yolo", "YOLO"))
 
-    ax2.plot(
-        1e3 / np.array([209, 140, 97, 58, 35, 18]),
-        [34.6, 40.5, 43.0, 47.5, 49.7, 51.5],
-        "k.-",
-        linewidth=2,
-        markersize=8,
-        alpha=0.25,
-        label="EfficientDet",
-    )
+    ax2.plot(1e3 / np.array([209, 140, 97, 58, 35, 18]), [34.6, 40.5, 43.0, 47.5, 49.7, 51.5], "k.-", linewidth=2, markersize=8, alpha=0.25, label="EfficientDet")
 
     ax2.grid(alpha=0.2)
     ax2.set_yticks(np.arange(20, 60, 5))
@@ -384,8 +384,7 @@ def plot_val_study(file="", dir="", x=None):  # from utils.plots import *; plot_
     plt.savefig(f, dpi=300)
 
 
-@try_except  # known issue https://github.com/ultralytics/yolov5/issues/5395
-@Timeout(30)  # known issue https://github.com/ultralytics/yolov5/issues/5611
+@TryExcept()  # known issue https://github.com/ultralytics/yolov5/issues/5395
 def plot_labels(labels, names=(), save_dir=Path("")):
     # plot dataset labels
     LOGGER.info(f"Plotting labels to {save_dir / 'labels.jpg'}... ")
@@ -394,14 +393,7 @@ def plot_labels(labels, names=(), save_dir=Path("")):
     x = pd.DataFrame(b.transpose(), columns=["x", "y", "width", "height"])
 
     # seaborn correlogram
-    sn.pairplot(
-        x,
-        corner=True,
-        diag_kind="auto",
-        kind="hist",
-        diag_kws=dict(bins=50),
-        plot_kws=dict(pmax=0.9),
-    )
+    sn.pairplot(x, corner=True, diag_kind="auto", kind="hist", diag_kws=dict(bins=50), plot_kws=dict(pmax=0.9))
     plt.savefig(save_dir / "labels_correlogram.jpg", dpi=200)
     plt.close()
 
@@ -409,14 +401,12 @@ def plot_labels(labels, names=(), save_dir=Path("")):
     matplotlib.use("svg")  # faster
     ax = plt.subplots(2, 2, figsize=(8, 8), tight_layout=True)[1].ravel()
     y = ax[0].hist(c, bins=np.linspace(0, nc, nc + 1) - 0.5, rwidth=0.8)
-    try:  # color histogram bars by class
+    with contextlib.suppress(Exception):  # color histogram bars by class
         [y[2].patches[i].set_color([x / 255 for x in colors(i)]) for i in range(nc)]  # known issue #3195
-    except Exception:
-        pass
     ax[0].set_ylabel("instances")
     if 0 < len(names) < 30:
         ax[0].set_xticks(range(len(names)))
-        ax[0].set_xticklabels(names, rotation=90, fontsize=10)
+        ax[0].set_xticklabels(list(names.values()), rotation=90, fontsize=10)
     else:
         ax[0].set_xlabel("classes")
     sn.histplot(x, x="x", y="y", ax=ax[2], bins=50, pmax=0.9)
@@ -438,6 +428,34 @@ def plot_labels(labels, names=(), save_dir=Path("")):
     plt.savefig(save_dir / "labels.jpg", dpi=200)
     matplotlib.use("Agg")
     plt.close()
+
+
+def imshow_cls(im, labels=None, pred=None, names=None, nmax=25, verbose=False, f=Path("images.jpg")):
+    # Show classification image grid with labels (optional) and predictions (optional)
+    from utils.augmentations import denormalize
+
+    names = names or [f"class{i}" for i in range(1000)]
+    blocks = torch.chunk(denormalize(torch.Tensor(im.numpy())).cpu().float(), len(im), dim=0)  # select batch index 0, block by channels
+    n = min(len(blocks), nmax)  # number of plots
+    m = min(8, round(n ** 0.5))  # 8 x 8 default
+    fig, ax = plt.subplots(math.ceil(n / m), m)  # 8 rows x n/8 cols
+    ax = ax.ravel() if m > 1 else [ax]
+    # plt.subplots_adjust(wspace=0.05, hspace=0.05)
+    for i in range(n):
+        ax[i].imshow(blocks[i].squeeze().permute((1, 2, 0)).numpy().clip(0.0, 1.0))
+        ax[i].axis("off")
+        if labels is not None:
+            s = names[labels[i]] + (f"—{names[pred[i]]}" if pred is not None else "")
+            ax[i].set_title(s, fontsize=8, verticalalignment="top")
+    plt.savefig(f, dpi=300, bbox_inches="tight")
+    plt.close()
+    if verbose:
+        LOGGER.info(f"Saving {f}")
+        if labels is not None:
+            LOGGER.info("True:     " + " ".join(f"{names[i]:3s}" for i in labels[:nmax]))
+        if pred is not None:
+            LOGGER.info("Predicted:" + " ".join(f"{names[i]:3s}" for i in pred[:nmax]))
+    return f
 
 
 def plot_evolve(evolve_csv="path/to/evolve.csv"):  # from utils.plots import *; plot_evolve()
@@ -496,15 +514,7 @@ def plot_results(file="path/to/results.csv", dir=""):
 def profile_idetection(start=0, stop=0, labels=(), save_dir=""):
     # Plot iDetection '*.txt' per-image logs. from utils.plots import *; profile_idetection()
     ax = plt.subplots(2, 4, figsize=(12, 6), tight_layout=True)[1].ravel()
-    s = [
-        "Images",
-        "Free Storage (GB)",
-        "RAM Usage (GB)",
-        "Battery",
-        "dt_raw (ms)",
-        "dt_smooth (ms)",
-        "real-world FPS",
-    ]
+    s = ["Images", "Free Storage (GB)", "RAM Usage (GB)", "Battery", "dt_raw (ms)", "dt_smooth (ms)", "real-world FPS"]
     files = list(Path(save_dir).glob("frames*.txt"))
     for fi, f in enumerate(files):
         try:
@@ -534,13 +544,13 @@ def profile_idetection(start=0, stop=0, labels=(), save_dir=""):
 
 def save_one_box(xyxy, im, file=Path("im.jpg"), gain=1.02, pad=10, square=False, BGR=False, save=True):
     # Save image crop as {file} with crop size multiple {gain} and {pad} pixels. Save and/or return crop
-    xyxy = flow.tensor(xyxy).view(-1, 4)
+    xyxy = torch.tensor(xyxy).view(-1, 4)
     b = xyxy2xywh(xyxy)  # boxes
     if square:
         b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # attempt rectangle to square
     b[:, 2:] = b[:, 2:] * gain + pad  # box wh * gain + pad
     xyxy = xywh2xyxy(b).long()
-    clip_coords(xyxy, im.shape)
+    clip_boxes(xyxy, im.shape)
     crop = im[int(xyxy[0, 1]) : int(xyxy[0, 3]), int(xyxy[0, 0]) : int(xyxy[0, 2]), :: (1 if BGR else -1)]
     if save:
         file.parent.mkdir(parents=True, exist_ok=True)  # make directory

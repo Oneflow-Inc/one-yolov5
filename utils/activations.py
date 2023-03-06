@@ -3,7 +3,7 @@
 Activation functions
 """
 
-import oneflow as flow
+import oneflow as torch
 import oneflow.nn as nn
 import oneflow.nn.functional as F
 
@@ -12,7 +12,7 @@ class SiLU(nn.Module):
     # SiLU activation https://arxiv.org/pdf/1606.08415.pdf
     @staticmethod
     def forward(x):
-        return x * flow.sigmoid(x)
+        return x * torch.sigmoid(x)
 
 
 class Hardswish(nn.Module):
@@ -32,16 +32,16 @@ class Mish(nn.Module):
 
 class MemoryEfficientMish(nn.Module):
     # Mish activation memory-efficient
-    class F(flow.autograd.Function):
+    class F(torch.autograd.Function):
         @staticmethod
         def forward(ctx, x):
             ctx.save_for_backward(x)
-            return x.mul(flow.tanh(F.softplus(x)))  # x * tanh(ln(1 + exp(x)))
+            return x.mul(torch.tanh(F.softplus(x)))  # x * tanh(ln(1 + exp(x)))
 
         @staticmethod
         def backward(ctx, grad_output):
             x = ctx.saved_tensors[0]
-            sx = flow.sigmoid(x)
+            sx = torch.sigmoid(x)
             fx = F.softplus(x).tanh()
             return grad_output * (fx + x * sx * (1 - fx * fx))
 
@@ -57,7 +57,7 @@ class FReLU(nn.Module):
         self.bn = nn.BatchNorm2d(c1)
 
     def forward(self, x):
-        return flow.max(x, self.bn(self.conv(x)))
+        return torch.max(x, self.bn(self.conv(x)))
 
 
 class AconC(nn.Module):
@@ -68,13 +68,13 @@ class AconC(nn.Module):
 
     def __init__(self, c1):
         super().__init__()
-        self.p1 = nn.Parameter(flow.randn(1, c1, 1, 1))
-        self.p2 = nn.Parameter(flow.randn(1, c1, 1, 1))
-        self.beta = nn.Parameter(flow.ones(1, c1, 1, 1))
+        self.p1 = nn.Parameter(torch.randn(1, c1, 1, 1))
+        self.p2 = nn.Parameter(torch.randn(1, c1, 1, 1))
+        self.beta = nn.Parameter(torch.ones(1, c1, 1, 1))
 
     def forward(self, x):
         dpx = (self.p1 - self.p2) * x
-        return dpx * flow.sigmoid(self.beta * dpx) + self.p2 * x
+        return dpx * torch.sigmoid(self.beta * dpx) + self.p2 * x
 
 
 class MetaAconC(nn.Module):
@@ -86,8 +86,8 @@ class MetaAconC(nn.Module):
     def __init__(self, c1, k=1, s=1, r=16):  # ch_in, kernel, stride, r
         super().__init__()
         c2 = max(r, c1 // r)
-        self.p1 = nn.Parameter(flow.randn(1, c1, 1, 1))
-        self.p2 = nn.Parameter(flow.randn(1, c1, 1, 1))
+        self.p1 = nn.Parameter(torch.randn(1, c1, 1, 1))
+        self.p2 = nn.Parameter(torch.randn(1, c1, 1, 1))
         self.fc1 = nn.Conv2d(c1, c2, k, s, bias=True)
         self.fc2 = nn.Conv2d(c2, c1, k, s, bias=True)
         # self.bn1 = nn.BatchNorm2d(c2)
@@ -96,7 +96,7 @@ class MetaAconC(nn.Module):
     def forward(self, x):
         y = x.mean(dim=2, keepdims=True).mean(dim=3, keepdims=True)
         # batch-size 1 bug/instabilities https://github.com/ultralytics/yolov5/issues/2891
-        # beta = oneflow.sigmoid(self.bn2(self.fc2(self.bn1(self.fc1(y)))))  # bug/unstable
-        beta = flow.sigmoid(self.fc2(self.fc1(y)))  # bug patch BN layers removed
+        # beta = torch.sigmoid(self.bn2(self.fc2(self.bn1(self.fc1(y)))))  # bug/unstable
+        beta = torch.sigmoid(self.fc2(self.fc1(y)))  # bug patch BN layers removed
         dpx = (self.p1 - self.p2) * x
-        return dpx * flow.sigmoid(beta * dpx) + self.p2 * x
+        return dpx * torch.sigmoid(beta * dpx) + self.p2 * x

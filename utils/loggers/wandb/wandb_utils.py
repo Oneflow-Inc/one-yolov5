@@ -1,21 +1,22 @@
 """Utilities and tools for tracking runs with Weights & Biases."""
 
 import logging
+import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict
 
 import yaml
-from tqdm import tqdm
-
-from utils.dataloaders import LoadImagesAndLabels, img2label_paths
-from utils.general import LOGGER, check_dataset, check_file
+from tqdm import tqdm  # noqa :E402
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[3]  # YOLOv5 root directory
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
+
+from utils.dataloaders import LoadImagesAndLabels, img2label_paths  # noqa :E402
+from utils.general import LOGGER, check_dataset, check_file  # noqa :E402
 
 try:
     import wandb
@@ -24,7 +25,7 @@ try:
 except (ImportError, AssertionError):
     wandb = None
 
-RANK = -1  # int(os.getenv('RANK', -1))
+RANK = int(os.getenv("RANK", -1))
 WANDB_ARTIFACT_PREFIX = "wandb-artifact://"
 
 
@@ -129,6 +130,11 @@ class WandbLogger:
         job_type (str) -- To set the job_type for this run
 
         """
+        # Temporary-fix
+        if opt.upload_dataset:
+            opt.upload_dataset = False
+            # LOGGER.info("Uploading Dataset functionality is not being supported temporarily due to a bug.")
+
         # Pre-training routine --
         self.job_type = job_type
         self.wandb, self.wandb_run = wandb, None if not wandb else wandb.run
@@ -205,11 +211,7 @@ class WandbLogger:
         Updated dataset info dictionary where local dataset paths are replaced by WAND_ARFACT_PREFIX links.
         """
         assert wandb, "Install wandb to upload dataset"
-        config_path = self.log_dataset_artifact(
-            opt.data,
-            opt.single_cls,
-            "YOLOv5" if opt.project == "runs/train" else Path(opt.project).stem,
-        )
+        config_path = self.log_dataset_artifact(opt.data, opt.single_cls, "YOLOv5" if opt.project == "runs/train" else Path(opt.project).stem)
         with open(config_path, errors="ignore") as f:
             wandb_data_dict = yaml.safe_load(f)
         return wandb_data_dict
@@ -232,7 +234,7 @@ class WandbLogger:
             if modeldir:
                 self.weights = Path(modeldir) / "last.pt"
                 config = self.wandb_run.config
-                (opt.weights, opt.save_period, opt.batch_size, opt.bbox_interval, opt.epochs, opt.hyp, opt.imgsz,) = (
+                opt.weights, opt.save_period, opt.batch_size, opt.bbox_interval, opt.epochs, opt.hyp, opt.imgsz = (
                     str(self.weights),
                     config.save_period,
                     config.batch_size,
@@ -322,25 +324,10 @@ class WandbLogger:
         model_artifact = wandb.Artifact(
             "run_" + wandb.run.id + "_model",
             type="model",
-            metadata={
-                "original_url": str(path),
-                "epochs_trained": epoch + 1,
-                "save period": opt.save_period,
-                "project": opt.project,
-                "total_epochs": opt.epochs,
-                "fitness_score": fitness_score,
-            },
+            metadata={"original_url": str(path), "epochs_trained": epoch + 1, "save period": opt.save_period, "project": opt.project, "total_epochs": opt.epochs, "fitness_score": fitness_score},
         )
         model_artifact.add_file(str(path / "last.pt"), name="last.pt")
-        wandb.log_artifact(
-            model_artifact,
-            aliases=[
-                "latest",
-                "last",
-                "epoch " + str(self.current_epoch),
-                "best" if best_model else "",
-            ],
-        )
+        wandb.log_artifact(model_artifact, aliases=["latest", "last", "epoch " + str(self.current_epoch), "best" if best_model else ""])
         LOGGER.info(f"Saving model artifact on epoch {epoch + 1}")
 
     def log_dataset_artifact(self, data_file, single_cls, project, overwrite_config=False):
@@ -438,25 +425,10 @@ class WandbLogger:
             box_data, img_classes = [], {}
             for cls, *xywh in labels[:, 1:].tolist():
                 cls = int(cls)
-                box_data.append(
-                    {
-                        "position": {
-                            "middle": [xywh[0], xywh[1]],
-                            "width": xywh[2],
-                            "height": xywh[3],
-                        },
-                        "class_id": cls,
-                        "box_caption": "%s" % (class_to_id[cls]),
-                    }
-                )
+                box_data.append({"position": {"middle": [xywh[0], xywh[1]], "width": xywh[2], "height": xywh[3]}, "class_id": cls, "box_caption": "%s" % (class_to_id[cls])})
                 img_classes[cls] = class_to_id[cls]
             boxes = {"ground_truth": {"box_data": box_data, "class_labels": class_to_id}}  # inference-space
-            table.add_data(
-                si,
-                wandb.Image(paths, classes=class_set, boxes=boxes),
-                list(img_classes.values()),
-                Path(paths).name,
-            )
+            table.add_data(si, wandb.Image(paths, classes=class_set, boxes=boxes), list(img_classes.values()), Path(paths).name)
         artifact.add(table, name)
         return artifact
 
@@ -478,12 +450,7 @@ class WandbLogger:
                 cls = int(cls)
                 box_data.append(
                     {
-                        "position": {
-                            "minX": xyxy[0],
-                            "minY": xyxy[1],
-                            "maxX": xyxy[2],
-                            "maxY": xyxy[3],
-                        },
+                        "position": {"minX": xyxy[0], "minY": xyxy[1], "maxX": xyxy[2], "maxY": xyxy[3]},
                         "class_id": cls,
                         "box_caption": f"{names[cls]} {conf:.3f}",
                         "scores": {"class_score": conf},
@@ -502,13 +469,7 @@ class WandbLogger:
 
         boxes = {"predictions": {"box_data": box_data, "class_labels": names}}  # inference-space
         id = self.val_table_path_map[Path(path).name]
-        self.result_table.add_data(
-            self.current_epoch,
-            id,
-            self.val_table.data[id][1],
-            wandb.Image(self.val_table.data[id][1], boxes=boxes, classes=class_set),
-            *avg_conf_per_class,
-        )
+        self.result_table.add_data(self.current_epoch, id, self.val_table.data[id][1], wandb.Image(self.val_table.data[id][1], boxes=boxes, classes=class_set), *avg_conf_per_class)
 
     def val_one_image(self, pred, predn, path, names, im):
         """
@@ -526,12 +487,7 @@ class WandbLogger:
             if self.current_epoch % self.bbox_interval == 0:
                 box_data = [
                     {
-                        "position": {
-                            "minX": xyxy[0],
-                            "minY": xyxy[1],
-                            "maxX": xyxy[2],
-                            "maxY": xyxy[3],
-                        },
+                        "position": {"minX": xyxy[0], "minY": xyxy[1], "maxX": xyxy[2], "maxY": xyxy[3]},
                         "class_id": int(cls),
                         "box_caption": f"{names[int(cls)]} {conf:.3f}",
                         "scores": {"class_score": conf},
@@ -575,15 +531,7 @@ class WandbLogger:
                 self.bbox_media_panel_images = []
             if self.result_artifact:
                 self.result_artifact.add(self.result_table, "result")
-                wandb.log_artifact(
-                    self.result_artifact,
-                    aliases=[
-                        "latest",
-                        "last",
-                        "epoch " + str(self.current_epoch),
-                        ("best" if best_result else ""),
-                    ],
-                )
+                wandb.log_artifact(self.result_artifact, aliases=["latest", "last", "epoch " + str(self.current_epoch), ("best" if best_result else "")])
 
                 wandb.log({"evaluation": self.result_table})
                 columns = ["epoch", "id", "ground truth", "prediction"]
