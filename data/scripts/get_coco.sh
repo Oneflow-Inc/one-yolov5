@@ -3,7 +3,7 @@
 # Download COCO 2017 dataset http://cocodataset.org
 # Example usage: bash data/scripts/get_coco.sh
 # parent
-# ├── yolov5
+# ├── one-yolov5
 # └── datasets
 #     └── coco  ← downloads here
 
