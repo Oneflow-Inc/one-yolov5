@@ -136,6 +136,7 @@ def export_torchscript(model, im, file, optimize, prefix=colorstr("TorchScript:"
     ts = torch.jit.trace(model, im, strict=False)
     d = {"shape": im.shape, "stride": int(max(model.stride)), "names": model.names}
     extra_files = {"config.txt": json.dumps(d)}  # torch._C.ExtraFilesMap()
+
     if optimize:  # https://pytorch.org/tutorials/recipes/mobile_interpreter.html
         LOGGER.info(f"\n error optimize_for_mobile(ts)._save_for_lite_interpreter(str(f), _extra_files=extra_files)")
     else:
