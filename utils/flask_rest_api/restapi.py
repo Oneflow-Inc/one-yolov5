@@ -5,10 +5,13 @@ Run a Flask REST API exposing one or more YOLOv5s models
 
 import argparse
 import io
-
+import ssl
 import oneflow as torch
 from flask import Flask, request
 from PIL import Image
+
+# https://stackoverflow.com/questions/50236117/scraping-ssl-certificate-verify-failed-error-for-http-en-wikipedia-org
+ssl._create_default_https_context = ssl._create_unverified_context
 
 app = Flask(__name__)
 models = {}
@@ -41,8 +44,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", default=5000, type=int, help="port number")
     parser.add_argument("--model", nargs="+", default=["yolov5s"], help="model(s) to run, i.e. --model yolov5n yolov5s")
     opt = parser.parse_args()
-
     for m in opt.model:
-        models[m] = torch.hub.load("ultralytics/yolov5", m, force_reload=True, skip_validation=True)
+        models[m] = torch.hub.load('Oneflow-Inc/one-yolov5','custom', m ,force_reload=True, skip_validation=True)
 
     app.run(host="0.0.0.0", port=opt.port)  # debug=True causes Restarting with stat
