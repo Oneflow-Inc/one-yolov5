@@ -242,7 +242,7 @@ def train(opt, device):
 
             if RANK in {-1, 0}:
                 # Print
-                tloss = (tloss * i + loss.item()) / (i + 1)  # update mean losses
+                tloss = (tloss * i + loss) / (i + 1)  # update mean losses
                 # mem = '%.3gG' % (torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0)  # (GB)
                 mem = python_cuda_memory_reserved("GB")
                 pbar.desc = f"{f'{epoch + 1}/{epochs}':>10}{mem:>10}{tloss:>12.3g}" + " " * 36
@@ -262,7 +262,7 @@ def train(opt, device):
                 best_fitness = fitness
             stop = stopper(epoch=epoch, fitness=fitness)  # early stop check
             # Log
-            metrics = {"train/loss": tloss, f"{val}/loss": vloss.item(), "metrics/accuracy_top1": top1, "metrics/accuracy_top5": top5, "lr/0": optimizer.param_groups[0]["lr"]}  # learning rate
+            metrics = {"train/loss": tloss.item(), f"{val}/loss": vloss.item(), "metrics/accuracy_top1": top1, "metrics/accuracy_top5": top5, "lr/0": optimizer.param_groups[0]["lr"]}  # learning rate
             logger.log_metrics(metrics, epoch)
 
             # Save model
