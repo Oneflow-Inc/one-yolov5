@@ -1,5 +1,4 @@
 #!/bin/bash
-
 source $1
 
 set -e # Error interrupt encountered
@@ -13,10 +12,11 @@ rm $ProjectPath -rf
 
 echo "Test classify"
 b=$ProjectPath/exp/weights/best  # best.of checkpoint
-python train.py --imgsz 64 --batch 32 --weights ${Weights}-cls.of --epochs 1  --project $ProjectPath               # train
 
-python val.py  --batch 32 --weights ${b}.of --device ${Device}                                                      # val
+python classify/train.py  --imgsz 64 --batch 32 --model ${Weights}-cls.of --epochs 1  --project $ProjectPath      # train
 
-python detect.py --weights ${b}.of --device ${Device}                                                               # detect
+python classify/val.py  --batch 32 --weights ${b}.of --device ${Device} --data  /home/fengwen/datasets/imagenette160                                             # val
+
+python classify/predict.py --weights ${b}.of --device ${Device}   --source data/images/                                      # detect
 
 python export.py --weights $b.of --img 64 --include onnx --device ${Device}                                         # export

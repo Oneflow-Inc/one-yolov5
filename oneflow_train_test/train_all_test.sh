@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e 
 
 bash train_default_test.sh config.sh 
 
