@@ -67,13 +67,12 @@
 
 - GPU 0 将比其他GPU占用略多的内存，因为它维护EMA并负责检查点等。
 
-
 ## <div align="center">快速开始案例</div>
 
 <details open>
 <summary>安装</summary>
 
-在[**Python>=3.7.0**](https://www.python.org/) 的环境中克隆版本仓并安装 [requirements.txt](https://github.com/Oneflow-Inc/one-yolov5/blob/main/requirements.txt)，包括 [OneFlow nightly 或者 oneflow>=0.9.0](https://docs.oneflow.org/master/index.html) 。
+在[**Python>=3.7.0**](https://www.python.org/) 的环境中克隆版本仓并安装 [requirements.txt](https://github.com/Oneflow-Inc/one-yolov5/blob/main/requirements.txt)，包括 [OneFlow nightly](https://docs.oneflow.org/master/index.html) 。
 
 
 ```bash
@@ -136,6 +135,7 @@ python export.py --weights yolov5s-seg.of --include onnx  --img 640 --device 0
 
 
 ### CheckPoints
+> 注意: 这里的模型权重为v1.1.0版本的权重，最新权重下载 [releases/tag/v1.2.0](https://github.com/Oneflow-Inc/one-yolov5/releases/tag/v1.2.0)
 
 | 模型                                                                                                        | ONNX版本模型                                                                                      | 规模<br><sup>(像素) | mAP<sup>验证<br>0.5:0.95 | mAP<sup>验证<br>0.5 | 速度<br><sup>CPU b1<br>(ms) | 速度<br><sup>V100 b1<br>(ms) | 速度<br><sup>V100 b32<br>(ms) | 参数<br><sup>(M) | 浮点运算<br><sup>@640 (B) |
 | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------- | ------------------------ | ------------------- | --------------------------- | ---------------------------- | ----------------------------- | ---------------- | ------------------------- |
