@@ -89,16 +89,16 @@ YOLOv5实例分割模型支持使用 `--data coco128-seg.yaml`  参数自动下�
 
 ```shell
 # Single-GPU
-python segment/train.py --model yolov5s-seg.of --data coco128-seg.yaml --epochs 5 --img 640
+python segment/train.py --weights yolov5s-seg.of --data coco128-seg.yaml --epochs 5 --img 640
 
 # Multi-GPU DDP
-python -m oneflow.distributed.launch --nproc_per_node  4  segment/train.py --model yolov5s-seg.of --data coco128-seg.yaml --epochs 5 --img 640 --device 0,1,2,3
+python -m oneflow.distributed.launch --nproc_per_node  4  segment/train.py --weights yolov5s-seg.of --data coco128-seg.yaml --epochs 5 --img 640 --device 0,1,2,3
 ```
 
 注意 :
 - {`.of`: 代表OneFlow预训练权重 , `.pt`: 代表 PyTorch 预训练权重 }
-- `--model yolov5s-seg.of`  表示使用OneFlow预训练权重 , 也是支持使用 PyTorch 预训练权重 如 `--model yolov5s-seg.pt`
-- 模型权重将自动从 github 下载(*建议如果没有设置代理，可以提前将模型下载到电脑本地 使用 `--model 本地路径/yolov5s-seg.of`*)
+- `--weights yolov5s-seg.of`  表示使用OneFlow预训练权重 , 也是支持使用 PyTorch 预训练权重 如 `--weights yolov5s-seg.pt`
+- 模型权重将自动从 github 下载(*建议如果没有设置代理，可以提前将模型下载到电脑本地 使用 `--weights 本地路径/yolov5s-seg.of`*)
 
 ### val 
 
