@@ -350,6 +350,7 @@ def check_git_status(repo="Oneflow-Inc/one-yolov5", branch="master"):
 @WorkingDirectory(ROOT)
 def check_git_info(path="."):
     # YOLOv5 git info check, return {remote, branch, commit}
+    return {"remote": None, "branch": None, "commit": None}
     check_requirements("gitpython")
     import git
 
