@@ -1,4 +1,4 @@
-FROM docker pull pytorch/pytorch:2.0.1-cuda11.7-cudnn8-devel
+FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-devel
 
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
