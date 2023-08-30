@@ -356,7 +356,10 @@ def check_git_info(path="."):
     try:
         repo = git.Repo(path)
         remote = repo.remotes.origin.url.replace(".git", "")  # i.e. 'https://github.com/ultralytics/yolov5'
-        commit = repo.head.commit.hexsha  # i.e. '3134699c73af83aac2a481435550b968d5792c0d'
+        try:
+            commit = repo.head.commit.hexsha  # i.e. '3134699c73af83aac2a481435550b968d5792c0d'
+        except ValueError:
+            commit = None
         try:
             branch = repo.active_branch.name  # i.e. 'main'
         except TypeError:  # not on any branch
