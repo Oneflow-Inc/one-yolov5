@@ -22,5 +22,6 @@ RUN mkdir /workspace/data && cd /workspace/data && \
     unzip coco128-seg.zip && rm coco128-seg.zip
 
 RUN cd /workspace/one-yolov5 && git checkout proj_demo && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install smmap gitdb gitpython
 
