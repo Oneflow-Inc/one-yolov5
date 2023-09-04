@@ -40,3 +40,7 @@ psutil  # system utilization
 # roboflow
 oneflow_onnx>=0.6.2
 flowflops
+Pillow==9.5.0
+smmap
+gitdb
+gitpython
