@@ -2,8 +2,6 @@ FROM nvcr.io/nvidia/pytorch:23.03-py3
 
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
-ARG DEBIAN_FRONTEND=noninteractive
-ENV TZ=Asia/Shanghai
 RUN apt update && apt install -y libopenblas-dev nasm python3-pip autoconf libtool autotools-dev libgl1-mesa-dev libglib2.0-0 libsm6 libxrender1 libjpeg-dev libfreetype6-dev zlib1g-dev libpng-dev libfontconfig1 && apt clean
 
 # install oneflow

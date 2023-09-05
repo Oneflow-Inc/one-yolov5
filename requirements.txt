@@ -5,7 +5,7 @@
 matplotlib>=3.2.2
 numpy>=1.18.5
 opencv-python==4.1.2.30
-Pillow>=9.5.0
+Pillow==9.5.0
 PyYAML>=5.3.1
 requests>=2.23.0
 scipy>=1.4.1
