@@ -11,7 +11,7 @@ RUN git clone https://github.com/Oneflow-Inc/oneflow.git && git clone https://gi
 RUN cd /code/oneflow && \
     git checkout 5ab28bbca && \
     mkdir build && cd build && \
-    cmake .. -C ../cmake/caches/cn/cuda.cmake && \
+    cmake .. -C ../cmake/caches/cn/cuda.cmake -DCMAKE_CUDA_ARCHITECTURES="70-real;80-real;86-real;89-real;90-real" && \
     make -j$(nproc)
 ENV PYTHONPATH=/code/oneflow/python:$PYTHONPATH
 
