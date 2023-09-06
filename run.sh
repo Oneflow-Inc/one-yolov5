@@ -4,4 +4,5 @@ python segment/train.py \
         --project checkpoint \
         --name exp \
         --epochs 5 \
+	--batch-size 8 \
         --img 640
