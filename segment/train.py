@@ -29,6 +29,8 @@ import numpy as np
 import oneflow as torch
 import oneflow.nn as nn
 import yaml
+from torch.utils.tensorboard import SummaryWriter
+
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[1]  # YOLOv5 root directory
@@ -301,6 +303,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         f"Logging results to {colorstr('bold', save_dir)}\n"
         f"Starting training for {epochs} epochs..."
     )
+    writer = SummaryWriter(log_dir="/workspace/logs")
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         # callbacks.run('on_train_epoch_start')
         model.train()
@@ -375,6 +378,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             if RANK in {-1, 0}:
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
                 mem = python_cuda_memory_reserved("GB")  # (GB)
+                writer.add_scalar("box_loss", mloss[0].numpy(), ni)
+                writer.add_scalar("seg_loss", mloss[1].numpy(), ni)
+                writer.add_scalar("obj_loss", mloss[2].numpy(), ni)
+                writer.add_scalar("cls_loss", mloss[3].numpy(), ni)
                 pbar.set_description(("%11s" * 2 + "%11.4g" * 6) % (f"{epoch}/{epochs - 1}", mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 # callbacks.run('on_train_batch_end', model, ni, imgs, targets, paths)
                 # if callbacks.stop_training:
@@ -461,6 +468,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training -----------------------------------------------------------------------------------------------------
+    writer.close()
+
     if RANK in {-1, 0}:
         LOGGER.info(f"\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.")
         for f in last, best:
