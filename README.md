@@ -119,6 +119,15 @@ python segment/predict.py --weights yolov5m-seg.of --data data/images/
 
 ![image](https://user-images.githubusercontent.com/118866310/223043320-ba3599d9-a3a4-4590-af98-65da1e3f228c.png)
 
+### Web App 
+
+使用预训练模型(YOLOv5m-seg) 通过浏览器上传并预测图片
+
+```shell
+python segment/app.py --weights yolov5m-seg.of 
+```
+默认端口是 5000
+
 ### Export
 
 将 `yolov5s-seg` 模型导出为 ONNX 格式 示例
