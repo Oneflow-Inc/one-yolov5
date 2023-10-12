@@ -303,7 +303,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         f"Logging results to {colorstr('bold', save_dir)}\n"
         f"Starting training for {epochs} epochs..."
     )
-    writer = SummaryWriter(log_dir="/workspace/logs")
+    writer = SummaryWriter(log_dir="logs")
     for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
         # callbacks.run('on_train_epoch_start')
         model.train()

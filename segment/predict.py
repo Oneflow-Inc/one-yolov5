@@ -77,7 +77,7 @@ def run(
     device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
     view_img=False,  # show results
     save_txt=False,  # save results to *.txt
-    save_conf=False,  # save confidences in --save-txt labels
+    save_conf=False,  # save confidences in --save-txt 
     save_crop=False,  # save cropped prediction boxes
     nosave=False,  # do not save images/videos
     classes=None,  # filter by class: --class 0, or --class 0 2 3
@@ -111,6 +111,7 @@ def run(
 
     # Load model
     device = select_device(device)
+
     model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
     stride, names, of = model.stride, model.names, model.of
     imgsz = check_img_size(imgsz, s=stride)  # check image size

@@ -27,6 +27,7 @@ from utils.general import (  # noqa :E402
     print_args,
     scale_boxes,
 )
+from utils.torch_utils import select_device,smart_inference_mode  # noqa :E402
 from models.common import DetectMultiBackend  # noqa :E402
 from utils.plots import Annotator, colors # noqa :E402
 from utils.segment.general import process_mask # noqa :E402
@@ -38,7 +39,7 @@ def parse_opt():
     parser.add_argument("--port", default=5000, type=int, help="port number")
     parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s-seg.of", help="model path(s)")
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
-    parser.add_argument("--project", type=str, default="/workspace/yolov5_app", help="save results to ./project")
+    parser.add_argument("--project", type=str, default="yolov5_app", help="save results to ./project")
     parser.add_argument("--imgsz", "--img", "--img-size", nargs="+", type=int, default=[640], help="inference size h,w")
     parser.add_argument("--conf-thres", type=float, default=0.25, help="confidence threshold")
     parser.add_argument("--iou-thres", type=float, default=0.45, help="NMS IoU threshold")
@@ -53,10 +54,15 @@ def parse_opt():
 opt = parse_opt()
 
 # Load model
-device = f"cuda:{opt.device}"
-model = DetectMultiBackend(opt.weights).to(device)
-model.eval()
+@smart_inference_mode()
+def _load(weights, device):
+    device = select_device(device)
+    model = DetectMultiBackend(weights, device=device, dnn=False, fp16=False)
+    return model,device
+
+model,device = _load(opt.weights, opt.device)
 names, of = model.names, model.of
+project_path = Path(opt.project)
 
 def draw_pred(pred, proto, img, im_gpu, save_path):
     for i, det in enumerate(pred):  # per image
@@ -108,14 +114,10 @@ def predict():
 
             pred, proto = model(im)[:2]
             pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, opt.classes, opt.agnostic_nms, max_det=1000, nm=32)
-            #import pdb; pdb.set_trace()
-            #print(pred)
 
         now_time = datetime.datetime.now().strftime(DATETIME_FORMAT)
         filename = now_time + ".png"
-        file_path = os.path.join(opt.project, filename)
-        if not os.path.exists(opt.project):
-            os.makedirs(opt.project) 
+        file_path = project_path / filename
         draw_pred(pred, proto, img_pil, im, file_path)
 
         return redirect(url_for("show_image", filename=filename))
@@ -124,7 +126,7 @@ def predict():
 
 @app.route("/image/<filename>")
 def show_image(filename):
-    file_path = os.path.join(opt.project, filename)
+    file_path = project_path / filename
     return send_file(file_path, mimetype="image/png")
 
 if __name__ == "__main__":

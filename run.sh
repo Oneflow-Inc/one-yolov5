@@ -1,5 +1,5 @@
 python segment/train.py \
-        --weights /code/data/yolov5x-seg.pt \
+        --weights ../datasets/weights/yolov5s-seg.pt \
         --data data/coco128-seg.yaml \
         --project checkpoint \
         --name exp \
