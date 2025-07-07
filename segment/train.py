@@ -79,6 +79,8 @@ from utils.segment.plots import plot_images_and_masks, plot_results_with_masks  
 from utils.torch_utils import EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer, smart_resume, torch_distributed_zero_first  # noqa :E402
 from utils.temp_repair_tool import FlowCudaMemoryReserved  # noqa :E402
 
+import oneflow_npu
+
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv("RANK", -1))
 WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
@@ -141,7 +143,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     is_coco = isinstance(val_path, str) and val_path.endswith("coco/val2017.txt")  # COCO dataset
 
     # Model
-    check_suffix(weights, (".of", ".pt"))  # check weights
+    # check_suffix(weights, (".of", ".pt"))  # check weights
     pretrained = weights.endswith(".of") or weights.endswith(".pt")
     if pretrained:
         with torch_distributed_zero_first(LOCAL_RANK):
@@ -556,7 +558,8 @@ def main(opt, callbacks=Callbacks()):
     if RANK in {-1, 0}:
         print_args(vars(opt))
         check_git_status()
-        check_requirements()
+        # check_requirements()
+        check_requirements(exclude=("tensorboard", "thop", "oneflow_onnx"))
 
     # Resume
     if opt.resume and not opt.evolve:  # resume from specified or most recent last.of
@@ -584,7 +587,8 @@ def main(opt, callbacks=Callbacks()):
         opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
 
     # DDP mode
-    device = select_device(opt.device, batch_size=opt.batch_size)
+    # device = select_device(opt.device, batch_size=opt.batch_size)
+    device = torch.device("npu")
     if LOCAL_RANK != -1:
         msg = "is not compatible with YOLOv5 Multi-GPU DDP training"
         assert not opt.image_weights, f"--image-weights {msg}"
