@@ -87,7 +87,9 @@ class ComputeLoss:
                     masks = F.interpolate(masks[None], (mask_h, mask_w), mode="nearest")[0]
                 marea = xywhn[i][:, 2:].prod(1)  # mask width, height normalized
                 mxyxy = xywh2xyxy(xywhn[i] * torch.tensor([mask_w, mask_h, mask_w, mask_h], device=self.device))
-                for bi in b.unique():
+                b_cpu = b.to("cpu")
+                for bi in b_cpu.unique():
+                    bi = bi.npu()
                     j = b == bi  # matching index
                     if self.overlap:
                         mask_gti = torch.where(masks[bi][None] == tidxs[i][j].view(-1, 1, 1), 1.0, 0.0)
@@ -160,7 +162,10 @@ class ComputeLoss:
                 r = t[..., 4:6] / anchors[:, None]  # wh ratio
                 j = torch.max(r, 1 / r).max(2)[0] < self.hyp["anchor_t"]  # compare
                 # j = wh_iou(anchors, t[:, 4:6]) > model.hyp['iou_t']  # iou(3,n)=wh_iou(anchors(3,2), gwh(n,2))
-                t = t[j]  # filter
+                j_cpu = j.to("cpu")
+                t_cpu = t.to("cpu")
+                t = t_cpu[j_cpu].npu()
+                # t = t[j]  # filter
 
                 # Offsets
                 gxy = t[:, 2:4]  # grid xy

@@ -180,7 +180,7 @@ def run(
         device, _, jit, engine = next(model.parameters()).device, True, False, False  # get model device, PyTorch model
         half &= device.type != "cpu"  # half precision only supported on CUDA
         half = False  # TODO(fengwen) 待fp16研发好
-        model.half() if half else model.float()
+        # model.half() if half else model.float()
         nm = de_parallel(model).model[-1].nm  # number of masks
     else:  # called directly
         device = select_device(device, batch_size=batch_size)
@@ -386,7 +386,7 @@ def run(
             LOGGER.info(f"pycocotools unable to run: {e}")
 
     # Return results
-    model.float()  # for training
+    # model.float()  # for training
     if not training:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ""
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
